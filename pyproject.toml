@@ -1,0 +1,43 @@
+[project]
+name = "ride-classifier"
+version = "0.1.0"
+description = "Classify the IMU recording of a ride into 5 riding categories, served with a full MLOps stack (course project)."
+readme = "README.md"
+authors = [
+    { name = "Xenodion", email = "alexandre.waerniers@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.5.5",
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "pyyaml>=6.0.3",
+]
+
+# Each image installs only its group: `uv sync --no-default-groups --group api`.
+# Owners add groups as they start their task, e.g. `uv add --group api fastapi`.
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# importlib mode: test files in different folders may share a name (tests/unit/data/test_x.py, tests/unit/api/test_x.py)
+addopts = ["--import-mode=importlib"]

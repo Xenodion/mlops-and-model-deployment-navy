@@ -1,0 +1,8 @@
+# Same line endings for everyone (Windows, macOS, Linux): LF in the repo and in the working copy.
+# Shell scripts and Dockerfiles break inside Linux containers with Windows line endings.
+* text=auto eol=lf
+
+*.parquet binary
+*.pdf binary
+*.png binary
+*.jpg binary

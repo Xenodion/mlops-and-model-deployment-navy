@@ -1,0 +1,25 @@
+# Checks run before each commit. Set up once with `make install` (or `uv run pre-commit install`).
+repos:
+  # ruff from the project environment, so pre-commit and CI use the same version (uv.lock)
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]  # Kubernetes manifests often hold several documents
+      - id: check-added-large-files
+        args: [--maxkb=1000]  # data goes through DVC, never git

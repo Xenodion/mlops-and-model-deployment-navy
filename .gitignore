@@ -1,3 +1,14 @@
+# Project related
+# Leading "/" = only the folder at the repo root (an unanchored "data/" would also hide src/ride_classifier/data/)
+/data/
+/artifacts/
+/model/
+/logs/
+
+# Course material: kept locally for reference, not part of the repo
+/labs/
+/lectures/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -1,0 +1,20 @@
+# Images are built from the repo root (docker build -f docker/<image>/Dockerfile .).
+# Keep the build context small and free of secrets. model/ is NOT listed: the API image copies it.
+.git
+.github
+.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+.env
+data/
+artifacts/
+logs/
+notebooks/
+labs/
+lectures/
+docs/
+tests/
+k8s/
+monitoring/
+loadtest/

@@ -1,0 +1,9 @@
+# Pipeline parameters: read by ride_classifier.config.load_params(), tracked by DVC, logged to MLflow.
+# Sections still to add, with their task: train (MOD-1), gate (MOD-2), drift (OPS-2). See docs/PLAN.md §6.1.
+data:
+  raw_rides: data/raw/GBG500.parquet
+  raw_labels: data/raw/GBG500_labels.csv
+  train_path: data/processed/train.parquet
+  golden_path: data/processed/golden.parquet   # frozen held-out rides, used only by the evaluation gate
+  golden_share: 0.2
+  seed: 42
