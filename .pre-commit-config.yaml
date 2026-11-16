@@ -18,7 +18,9 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.ipynb$  # notebooks are rewritten by the editor on every save
       - id: end-of-file-fixer
+        exclude: \.ipynb$
       - id: check-yaml
         args: [--allow-multiple-documents]  # Kubernetes manifests often hold several documents
       - id: check-added-large-files

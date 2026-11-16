@@ -38,4 +38,19 @@ Details and who owns what: [docs/PLAN.md §7](docs/PLAN.md#7-repository-layout-a
 
 ## Data
 
-`data/` is git-ignored. Raw files go in `data/raw/` and are versioned with DVC (set-up in progress).
+The raw data (`data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`) is versioned with DVC. Git only stores the
+small pointer files `data/raw/*.dvc`, which record the exact version (md5) the code uses. The files themselves live
+in the `dvc` bucket of the S3 storage started by `make dev-up`.
+
+Each laptop runs its own S3, so the first time on a new machine the bucket is empty:
+
+```bash
+make dev-up          # start the S3 storage (and MLflow)
+make data-setup      # once: DVC credentials for the local S3
+# download GBG500.parquet and GBG500_labels.csv from Inside into data/raw/, then:
+uv run dvc add data/raw/GBG500.parquet data/raw/GBG500_labels.csv
+git status           # the .dvc files must NOT show as modified: you have the team's exact version
+uv run dvc push      # fill your local S3
+```
+
+After that, `make data` (`dvc pull`) restores the data whenever it is missing, and `uv run dvc status` checks it.

@@ -26,4 +26,11 @@ dev-up: ## Start the dev stack (S3, Postgres, MLflow on http://localhost:5000)
 dev-down: ## Stop the dev stack (data is kept in Docker volumes)
 	docker compose down
 
-.PHONY: help install lint format test dev-up dev-down
+data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the git-ignored .dvc/config.local)
+	uv run dvc remote modify --local storage access_key_id mlops
+	uv run dvc remote modify --local storage secret_access_key mlops-secret
+
+data: ## Download the versioned data from S3 into data/raw/ (start the storage first: make dev-up)
+	uv run dvc pull
+
+.PHONY: help install lint format test dev-up dev-down data-setup data

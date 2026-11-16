@@ -561,7 +561,7 @@ and the baseline and CNN plug into the same contract.
 | ID | Task | WS | Depends on |
 |---|---|---|---|
 | FND-1 | ✅ Done 16/11: repo skeleton (§7), `pyproject.toml`, `uv.lock`, Python 3.14 (PyTorch 2.15 has 3.14 wheels for Linux, macOS, Windows), ruff, pytest, pre-commit, Makefile | WS4 | n/a |
-| FND-2 | Move raw files to `data/raw/`, `dvc init`, DVC remote = S3 bucket `dvc`, `dvc add` + `dvc push` (`data/` already git-ignored) | WS1 | FND-1 |
+| FND-2 | ✅ Done 16/11: raw files in `data/raw/`, `dvc init`, remote `storage` = S3 bucket `dvc` (credentials in `.dvc/config.local`), `dvc add` + `dvc push`, restore tested with `dvc pull`. `make data-setup` / `make data`; teammate set-up in the README. Each laptop has its own S3 until the prod host's S3 becomes the shared remote (K8S-2). | WS1 | n/a |
 | FND-3 | ✅ Done 16/11: `infra/s3/` → `s3/`, `code/` → `notebooks/`, `docker-compose.yml` paths, bucket script name and project name fixed. Still to check: `docker compose up` actually starts. | WS4 | n/a |
 | FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Check it goes green on the first PR. | WS4 | n/a |
 | FND-5 | Write the three interfaces (§14.1) in code | WS2 + WS3 | FND-1 |

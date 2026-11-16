@@ -1,6 +1,11 @@
 # Project related
 # Leading "/" = only the folder at the repo root (an unanchored "data/" would also hide src/ride_classifier/data/)
-/data/
+# Data is versioned by DVC, not git. `dvc add` writes a .gitignore next to each file it tracks
+# (e.g. data/raw/.gitignore), so git only sees the small *.dvc pointer files.
+# Never use a "/data/*" rule: DVC's git library then treats data/ as ignored and stops seeing the pointers.
+/data/*.parquet
+/data/*.csv
+/data/*.txt
 /artifacts/
 /model/
 /logs/

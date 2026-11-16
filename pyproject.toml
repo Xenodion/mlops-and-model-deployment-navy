@@ -23,6 +23,13 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.5",
 ]
+train = [
+    "dvc[s3]>=3.67.1",
+]
+
+[tool.uv]
+# `uv sync` on a laptop or in CI installs dev tools + the training stack (DVC, later MLflow, PyTorch...).
+default-groups = ["dev", "train"]
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
