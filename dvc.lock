@@ -1,0 +1,50 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m ride_classifier.pipeline.prepare
+    deps:
+    - path: data/raw/GBG500.parquet
+      hash: md5
+      md5: f7eb702062e890c9f3c533e5eaa683b7
+      size: 30206760
+    - path: data/raw/GBG500_labels.csv
+      hash: md5
+      md5: 843abe6d85802a850c945519678d2232
+      size: 35532
+    - path: src/ride_classifier/config.py
+      hash: md5
+      md5: 400c39de05e1f97043166f782093c74f
+      size: 1226
+    - path: src/ride_classifier/data
+      hash: md5
+      md5: a62fb2123a04a80d6f9ef3063519204c.dir
+      size: 5880
+      nfiles: 4
+    - path: src/ride_classifier/pipeline/prepare.py
+      hash: md5
+      md5: b98b5756b8c8d8a28172bc29dd8b2bd4
+      size: 2107
+    params:
+      params.yaml:
+        data:
+          raw_rides: data/raw/GBG500.parquet
+          raw_labels: data/raw/GBG500_labels.csv
+          train_path: data/processed/train.parquet
+          golden_path: data/processed/golden.parquet
+          splits_path: data/processed/splits.csv
+          golden_share: 0.2
+          cv_folds: 5
+          seed: 42
+    outs:
+    - path: data/processed/golden.parquet
+      hash: md5
+      md5: 01bb64834623a077c3fca14004bc05e1
+      size: 6592372
+    - path: data/processed/splits.csv
+      hash: md5
+      md5: 350c3a8fd3498e3898bd66fbe3375da5
+      size: 42755
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: ef28af42f898abfac7fdb460346edf78
+      size: 24908635

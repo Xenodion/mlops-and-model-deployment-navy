@@ -54,3 +54,12 @@ uv run dvc push      # fill your local S3
 ```
 
 After that, `make data` (`dvc pull`) restores the data whenever it is missing, and `uv run dvc status` checks it.
+
+## Pipeline
+
+`make pipeline` (`uv run dvc repro`) runs the stages declared in [dvc.yaml](dvc.yaml), skipping those whose inputs
+did not change. `uv run dvc dag` draws it.
+
+| Stage | Does | Writes |
+|---|---|---|
+| `prepare` | Checks the raw files, cleans the readings (time order, duplicates, gaps), splits the rides into ~400 train and 100 frozen golden rides (stratified), assigns 5 CV folds | `data/processed/train.parquet`, `golden.parquet`, `splits.csv` (committed: which ride is where) |

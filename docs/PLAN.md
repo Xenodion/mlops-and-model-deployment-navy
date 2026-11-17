@@ -172,9 +172,9 @@ kind reaches Services through NodePorts mapped to host ports in `k8s/kind-config
 
 | Stage | Inputs | Outputs |
 |---|---|---|
-| `prepare` | `data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`, `params.yaml` | `data/processed/train.parquet`, `data/processed/golden.parquet` (frozen ride list), `data/processed/folds.csv` (train ride → CV fold) |
-| `train` | `train.parquet`, `folds.csv`, `params.yaml` | `models/` (MLflow pyfunc), `reports/oof_predictions.csv`, an MLflow run |
-| `evaluate` | `models/`, `golden.parquet`, `params.yaml` (`gate:`) | `reports/metrics.json`, `reports/confusion_matrix.png`. **Exits non-zero if the gate fails**, which stops the workflow. |
+| `prepare` | `data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`, `params.yaml` | `data/processed/train.parquet`, `data/processed/golden.parquet` (clean readings + label), `data/processed/splits.csv` (one row per ride: label, split, CV fold; **committed to git**, so the frozen golden list is visible and any change shows in a PR) |
+| `train` | `train.parquet`, `splits.csv`, `params.yaml` | `artifacts/model/` (MLflow pyfunc), `artifacts/oof_predictions.csv`, an MLflow run |
+| `evaluate` | `artifacts/model/`, `golden.parquet`, `params.yaml` (`gate:`) | `artifacts/metrics.json`, `artifacts/confusion_matrix.png`. **Exits non-zero if the gate fails**, which stops the workflow. |
 
 Registering the model is **not** a DVC stage, because it changes the registry. CI runs `register.py` only after
 `evaluate` passes (§10).
@@ -183,8 +183,8 @@ Registering the model is **not** a DVC stage, because it changes the registry. C
 
 | Section | Contents |
 |---|---|
-| `data` | paths, `golden_share: 0.2`, window 30 s, stride 15 s |
-| `train` | model type (`baseline` or `cnn`), CV folds 5, seed 42, hyperparameters, class weights, augmentation on/off |
+| `data` | paths, `golden_share: 0.2`, `cv_folds: 5`, `seed: 42` (the split and the folds are made once, in `prepare`) |
+| `train` | model type (`baseline` or `cnn`), window 30 s, stride 15 s, hyperparameters, class weights, augmentation on/off |
 | `gate` | `min_macro_f1` (calibrated after the first run, like lab 5's comment says), `must_beat_baseline: true` |
 | `drift` | `psi_alert: 0.1`, `psi_retrain: 0.25`, `pvalue: 0.01` |
 
@@ -571,8 +571,8 @@ and the baseline and CNN plug into the same contract.
 
 | ID | Task | WS | Depends on |
 |---|---|---|---|
-| DATA-1 | Load, raw-data schema checks, cleaning (sort, dedupe, interpolate) + tests | WS1 | FND-2 |
-| DATA-2 | `prepare` stage: frozen golden split, CV folds on train, `dvc.yaml` | WS1 | DATA-1 |
+| DATA-1 | ✅ Done 17/11: `data/load.py` (schema checks), `data/clean.py` (sort, dedupe, interpolate within a ride) + tests | WS1 | n/a |
+| DATA-2 | ✅ Done 17/11: `data/split.py` + `pipeline/prepare.py`, `dvc.yaml` stage, `make pipeline`. Real run: 1 duplicate dropped, 10,201 gaps filled, golden = 100 rides (83/8/4/4/1), 1 Reckless per fold; deterministic (rerun gives identical outputs) | WS1 | n/a |
 | DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
 | MOD-1 | Statistics baseline in the pyfunc wrapper, `train` stage with MLflow logging (lab 1 tags) | WS2 | DATA-2 |
 | MOD-2 | `evaluate` stage with the gate (`params.yaml` `gate:`) | WS2 | MOD-1 |

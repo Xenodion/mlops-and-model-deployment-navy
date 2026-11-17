@@ -1,0 +1,18 @@
+# The ML pipeline (docs/PLAN.md §6.1). Run it with `make pipeline` (= uv run dvc repro):
+# a stage reruns only if one of its deps, params or outs changed. `uv run dvc dag` draws it.
+stages:
+  prepare:
+    cmd: python -m ride_classifier.pipeline.prepare
+    deps:
+      - data/raw/GBG500.parquet
+      - data/raw/GBG500_labels.csv
+      - src/ride_classifier/config.py
+      - src/ride_classifier/data
+      - src/ride_classifier/pipeline/prepare.py
+    params:
+      - data
+    outs:
+      - data/processed/train.parquet
+      - data/processed/golden.parquet
+      - data/processed/splits.csv:
+          cache: false  # small and committed to git: the frozen golden list is readable on GitHub

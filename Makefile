@@ -33,4 +33,7 @@ data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the
 data: ## Download the versioned data from S3 into data/raw/ (start the storage first: make dev-up)
 	uv run dvc pull
 
-.PHONY: help install lint format test dev-up dev-down data-setup data
+pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
+	uv run dvc repro
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline

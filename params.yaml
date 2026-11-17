@@ -5,5 +5,7 @@ data:
   raw_labels: data/raw/GBG500_labels.csv
   train_path: data/processed/train.parquet
   golden_path: data/processed/golden.parquet   # frozen held-out rides, used only by the evaluation gate
+  splits_path: data/processed/splits.csv       # one row per ride: label, split, CV fold (committed to git)
   golden_share: 0.2
+  cv_folds: 5
   seed: 42
