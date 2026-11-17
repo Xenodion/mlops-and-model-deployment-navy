@@ -107,7 +107,7 @@ stages:
       size: 462
     - path: artifacts/model
       hash: md5
-      md5: 2a7e376838f5155f8c7c5852185dae0e.dir
+      md5: eea3dd6322a7ba6fc745de7f08a4245d.dir
       size: 889973
       nfiles: 29
     - path: artifacts/oof_predictions.csv
@@ -116,5 +116,5 @@ stages:
       size: 73121
     - path: artifacts/train_run.json
       hash: md5
-      md5: 16f262d8d9c7d4e42f212ba382b234d8
+      md5: 77d84690d991eae2117ac33bd830b3de
       size: 114
