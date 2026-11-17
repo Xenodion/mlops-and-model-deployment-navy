@@ -26,6 +26,11 @@ RAW_LABEL_COLUMNS = {"RIDE_ID": ID_COLUMN, "LABEL": LABEL_COLUMN}
 # Fixed label order: position i of every probability vector is LABELS[i]
 LABELS = ["Safe", "Safe overall", "Bad weather", "Tandem", "Reckless"]
 
+SAMPLING_HZ = 1000 / SAMPLING_PERIOD_MS
+
+# MLflow (docs/PLAN.md §8): dev server started by `make dev-up`
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "ride-classifier")
 MODEL_NAME = os.getenv("MODEL_NAME", "ride-classifier")
 
 

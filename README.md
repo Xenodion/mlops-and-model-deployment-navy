@@ -63,3 +63,9 @@ did not change. `uv run dvc dag` draws it.
 | Stage | Does | Writes |
 |---|---|---|
 | `prepare` | Checks the raw files, cleans the readings (time order, duplicates, gaps), splits the rides into ~400 train and 100 frozen golden rides (stratified), assigns 5 CV folds | `data/processed/train.parquet`, `golden.parquet`, `splits.csv` (committed: which ride is where) |
+| `train` | Turns each ride into ~170 statistics, cross-validates the model on the 5 folds, compares it with "always Safe" and random guessing, fits it on all train rides, logs everything to MLflow | `artifacts/model/` (MLflow model), `oof_predictions.csv`, `cv_metrics.json`, `train_run.json` + an MLflow run |
+
+`train` needs MLflow running (`make dev-up`, UI on http://localhost:5000). `uv run dvc metrics show` prints the scores.
+
+Commit **before** training: every MLflow run records the git commit and whether the code had uncommitted changes
+(`git_dirty`). Only runs from committed code can be rebuilt, so only those get registered.
