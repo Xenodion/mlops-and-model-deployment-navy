@@ -26,7 +26,7 @@ stages:
       - src/ride_classifier/data
       - src/ride_classifier/features
       - src/ride_classifier/models
-      - src/ride_classifier/registry
+      - src/ride_classifier/registry/tracking.py  # the only registry module training uses
       - src/ride_classifier/pipeline/train.py
     params:
       - data.seed

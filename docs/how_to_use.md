@@ -1,11 +1,12 @@
 # How to use the project
 
 A practical guide to everything built so far: set-up, the dev stack, data versioning (DVC), the ML pipeline,
-MLflow, the quality gate, tests and the git workflow. For *why* things are built this way, see
+MLflow, the quality gate, the model registry, tests and the git workflow. For *why* things are built this way, see
 [PLAN.md](PLAN.md).
 
 **Status (18/11):** the pipeline goes from raw data to an evaluated model:
-`prepare` → `train` → `evaluate` (quality gate). Registry, API, Docker images and Kubernetes come next.
+`prepare` → `train` → `evaluate` (quality gate). The model is then registered in MLflow and exported for the API.
+API, Docker images and Kubernetes come next.
 
 ---
 
@@ -48,6 +49,9 @@ shows false "package not installed" hints.
 | `make data-setup` | Once per laptop: give DVC the credentials of your local S3 |
 | `make data` | Download the versioned data into `data/raw/` (`dvc pull`) |
 | `make pipeline` | Run the ML pipeline: only the stages whose inputs changed (`dvc repro`) |
+| `make register` / `make promote` | Register the latest model as `@staging` / move `@production` to it (§8) |
+| `make export` | Download the `@staging` model into `model/` (`make export ALIAS=production` for the other one) |
+| `make repro-check` | Rebuild the latest training from scratch and compare every score |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -185,7 +189,7 @@ import pandas as pd
 model = mlflow.pyfunc.load_model("artifacts/model")
 golden = pd.read_parquet("data/processed/golden.parquet")
 one_ride = golden[golden["ride_id"] == golden["ride_id"].iloc[0]].drop(columns="label")
-print(model.predict(one_ride))   # ride_id + one probability per category
+print(model.predict(one_ride))  # ride_id + one probability per category
 ```
 
 - **Input:** raw readings. Columns `time_index, ax, ay, az, rx, ry, rz` (gyroscope in deg/s), plus `ride_id` when
@@ -249,7 +253,66 @@ put it back. Changing the real thresholds is a team decision.
 
 ---
 
-## 8. Tests and code quality
+## 8. Model registry: register, export, reproduce
+
+The **registry** is MLflow's list of official models: `ride-classifier` v1, v2… Two **aliases** point at versions.
+Everything downstream loads a model by alias, e.g. `models:/ride-classifier@staging`, never by file path:
+
+| Alias | Means | Set by |
+|---|---|---|
+| `@staging` | Newest model allowed to ship | `make register` (later: the `train.yml` workflow) |
+| `@production` | Model deployed as stable | `make promote` (later: `cd.yml`, after a teammate's approval) |
+
+**Register** the latest training (`artifacts/train_run.json`):
+
+```bash
+make register      # -> "ride-classifier v1 is now @staging"
+```
+
+It **refuses**, and says why, unless the run:
+1. was trained on committed code (`git_dirty=False`), so it can be rebuilt;
+2. passed the quality gate (`gate=passed`);
+3. scores at least as well on the golden rides as the model currently `@production`.
+
+Registering the same run twice reuses its version. Each version carries tags: run id, git commit, data md5,
+CV and golden scores. See it in the MLflow UI → **Models** → `ride-classifier`.
+
+**Promote** (in the real flow, only after the manual approval in CD):
+
+```bash
+make promote       # @production -> the version currently @staging
+```
+
+**Export** the model for the API image (labs 2 and 5):
+
+```bash
+make export                    # @staging -> model/
+make export ALIAS=production   # @production -> model/
+```
+
+`model/` (git-ignored) then holds the MLflow model plus `model_meta.json`: name, version, alias, run, commit, data
+fingerprints and scores. The API will report it, so every prediction can be traced back to its training.
+
+**Reproduce** a training from scratch (lab 1's deliverable: "from a commit and a run id, rebuild the same model"):
+
+```bash
+make repro-check                                        # the latest training
+uv run python -m ride_classifier.registry.repro_check RUN_ID
+```
+
+1. It checks that your training code (`src/` except `registry/`, `params.yaml`, `uv.lock`) is the run's commit,
+   and that your raw data has the run's fingerprints. Otherwise it says what to do (`git checkout <commit>`,
+   `make data`).
+2. It reruns prepare → train → evaluate in a temporary folder, with a throwaway MLflow store, so your real
+   MLflow stays untouched.
+3. It compares every score: `PASS … delta=0.0e+00` for each, then **REPRODUCED**.
+
+Current state: `ride-classifier` **v1 = `@staging`**, the E0 baseline (run `ac97c123`, commit `3704237`),
+reproduced exactly.
+
+---
+
+## 9. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -268,7 +331,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 9. Where to put new code
+## 10. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -285,7 +348,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 10. Git workflow
+## 11. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -294,7 +357,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -307,3 +370,5 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | Downloads from MLflow hang ("Retrying failed chunk") | Import `ride_classifier` first, or set `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` |
 | `pyarrow` stuck below 26 | On purpose: MLflow 3.17, the same version as the MLflow server, requires it |
 | VS Code says packages aren't installed | Select the `.venv` interpreter (§1) |
+| `Registration refused for run …` | Read the reasons: commit + `uv run dvc repro --force --downstream train`, or the gate failed, or the model is worse than production (§8) |
+| CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |

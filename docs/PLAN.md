@@ -372,10 +372,21 @@ Start each folder with one file and split it only when it gets long.
 - **Aliases** (stages are deprecated, lab 1):
   - `@staging`: newest model that passed the gate (set by `register.py` in `train.yml`)
   - `@production`: the version deployed as stable, set only after the manual approval in `cd.yml`
+    (`register.py --promote` moves it to the version currently `@staging`)
+- **Registration rule** (`register.py`, refuses with the reasons otherwise):
+  - trained on committed code (`git_dirty=False`), so it can be rebuilt
+  - passed the quality gate (`gate=passed`)
+  - golden macro-F1 at least as high as the version currently `@production` (e.g. a CNN must not do worse than the baseline)
+
+  Registering the same run twice reuses its version. Each version carries tags: run id, git commit, data md5,
+  CV and golden macro-F1.
 - **Export:** `export_model.py` downloads `models:/ride-classifier@<alias>` into `model/` with a `model_meta.json`
-  (version, Reckless threshold), which the API reads at startup (lab 5).
-- **Reproducibility:** `repro_check.py <run_id>` checks out the run's commit, pulls its data and retrains. It must
-  match code, data and metrics (lab 1 deliverable).
+  (name, version, alias, run, commit, data, scores), which the API reads at startup (lab 5). The Reckless
+  threshold is added to it with the API (API-3).
+- **Reproducibility:** `repro_check.py [run_id]` checks that the training code (`src/` minus `registry/`,
+  `params.yaml`, `uv.lock`) and the raw data are those of the run, then reruns prepare → train → evaluate in a
+  temporary folder (with a throwaway MLflow store) and compares every CV and golden score within 1e-6.
+  Code from another commit or other data → it says which `git checkout` / `make data` to do (lab 1 deliverable).
 
 ---
 
@@ -568,7 +579,7 @@ and the baseline and CNN plug into the same contract.
 | FND-1 | ✅ Done 16/11: repo skeleton (§7), `pyproject.toml`, `uv.lock`, Python 3.14 (PyTorch 2.15 has 3.14 wheels for Linux, macOS, Windows), ruff, pytest, pre-commit, Makefile | WS4 | n/a |
 | FND-2 | ✅ Done 16/11: raw files in `data/raw/`, `dvc init`, remote `storage` = S3 bucket `dvc` (credentials in `.dvc/config.local`), `dvc add` + `dvc push`, restore tested with `dvc pull`. `make data-setup` / `make data`; teammate set-up in the README. Each laptop has its own S3 until the prod host's S3 becomes the shared remote (K8S-2). | WS1 | n/a |
 | FND-3 | ✅ Done 16/11: `infra/s3/` → `s3/`, `code/` → `notebooks/`, `docker-compose.yml` paths, bucket script name and project name fixed. Still to check: `docker compose up` actually starts. | WS4 | n/a |
-| FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Check it goes green on the first PR. | WS4 | n/a |
+| FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Fixed 18/11: every run had failed at "Set up job" (`setup-uv@v10` doesn't exist, now pinned to `v10.3.3`); CI steps replayed in a Linux container: all green | WS4 | n/a |
 | FND-5 | Write the three interfaces (§14.1) in code | WS2 + WS3 | FND-1 |
 | FND-6 | GitHub: branch protection, environment `production` with required reviewers (check plan limits), labels, milestones, one issue per task | WS5 | n/a |
 
@@ -581,7 +592,7 @@ and the baseline and CNN plug into the same contract.
 | DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
 | MOD-1 | ✅ Done 17/11: `features/stats.py` (~170 statistics per ride), `models/baseline.py`, `models/pyfunc.py`, `train` stage with MLflow logging (lab 1 tags). First run (E0): CV macro-F1 0.373 ± 0.062 vs 0.18 always-Safe and 0.19 random; Reckless recall 0.20 | WS2 | n/a |
 | MOD-2 | ✅ Done 18/11: `pipeline/evaluate.py`, `evaluate` stage. Golden macro-F1 0.477 (always Safe 0.181, random 0.202) → gate passed; floor calibrated to 0.30. Results + tag `gate` added to the training's MLflow run | WS2 | n/a |
-| MOD-3 | `register.py`, `export_model.py` (+ `model_meta.json`), `repro_check.py` + tests | WS2 | MOD-1 |
+| MOD-3 | ✅ Done 18/11: `registry/register.py` (+ `--promote`), `export_model.py` (+ `model_meta.json`), `repro_check.py`, Makefile targets + tests. `ride-classifier` v1 @staging = E0 baseline (run `ac97c123`), repro check: all 21 scores identical | WS2 | n/a |
 | API-1 | FastAPI app on the stub model (lab 3/5 patterns, §9.1) + tests | WS3 | FND-5 |
 | API-2 | Streamlit app calling the API | WS3 | API-1 |
 | INF-1 | Dockerfiles (lab 5 pattern); compose profiles for api and webapp | WS4 | FND-1 |
