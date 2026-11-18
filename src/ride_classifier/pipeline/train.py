@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-import sys
 from collections.abc import Callable
 from importlib.metadata import version
 from pathlib import Path
@@ -17,12 +16,11 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pandas as pd
-from matplotlib.figure import Figure
 from mlflow.models import ModelSignature
 from mlflow.types import ColSpec, Schema
 from sklearn.base import clone
 from sklearn.dummy import DummyClassifier
-from sklearn.metrics import ConfusionMatrixDisplay, classification_report, f1_score
+from sklearn.metrics import classification_report, f1_score
 
 from ride_classifier.config import (
     EXPERIMENT_NAME,
@@ -39,7 +37,9 @@ from ride_classifier.data.split import FOLD_COLUMN, SPLIT_COLUMN, TRAIN
 from ride_classifier.features.stats import ride_features
 from ride_classifier.models.baseline import make_baseline
 from ride_classifier.models.metrics import classification_metrics
+from ride_classifier.models.plots import confusion_figure
 from ride_classifier.models.pyfunc import RideClassifierModel
+from ride_classifier.pipeline.cli import setup
 from ride_classifier.registry.tracking import check_server, flatten, run_tags
 
 logger = logging.getLogger(__name__)
@@ -75,14 +75,6 @@ def cross_validate(features: pd.DataFrame, labels: pd.Series, folds: pd.Series, 
         fold_proba = pd.DataFrame(model.predict_proba(features[held_out]), columns=model.classes_)
         proba.loc[held_out] = fold_proba.reindex(columns=LABELS, fill_value=0.0).to_numpy()
     return proba
-
-
-def confusion_figure(y_true: pd.Series, y_pred: pd.Series) -> Figure:
-    figure = Figure(figsize=(7, 6), layout="constrained")
-    axes = figure.subplots()
-    ConfusionMatrixDisplay.from_predictions(y_true, y_pred, labels=LABELS, ax=axes, colorbar=False, xticks_rotation=30)
-    axes.set_title("Cross-validated predictions on the train rides")
-    return figure
 
 
 def run(
@@ -146,7 +138,10 @@ def run(
         mlflow.log_metrics(metrics)
         for fold, score in enumerate(fold_f1):
             mlflow.log_metric("fold_macro_f1", score, step=fold)
-        mlflow.log_figure(confusion_figure(labels, predicted), "confusion_matrix.png")
+        mlflow.log_figure(
+            confusion_figure(labels, predicted, "Cross-validated predictions on the train rides"),
+            "confusion_matrix.png",
+        )
         mlflow.log_text(classification_report(labels, predicted, labels=LABELS, zero_division=0), "report.txt")
         mlflow.log_artifact(str(oof_path))
         model_info = mlflow.pyfunc.log_model(name="model", **model_kwargs)
@@ -167,10 +162,7 @@ def run(
 
 
 def main() -> None:
-    # MLflow prints emojis; Windows writes to a pipe (e.g. under `dvc repro`) in cp1252, which cannot encode them
-    for stream in (sys.stdout, sys.stderr):
-        stream.reconfigure(encoding="utf-8", errors="replace")
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    setup()
     run(load_params())
 
 

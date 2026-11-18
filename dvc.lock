@@ -22,8 +22,8 @@ stages:
       nfiles: 4
     - path: src/ride_classifier/pipeline/prepare.py
       hash: md5
-      md5: b98b5756b8c8d8a28172bc29dd8b2bd4
-      size: 2107
+      md5: ff309e99b3bc3eddcd782f6da44b7149
+      size: 2076
     params:
       params.yaml:
         data:
@@ -75,13 +75,13 @@ stages:
       nfiles: 2
     - path: src/ride_classifier/models
       hash: md5
-      md5: ffb8461747e14cb03e98f65cd51243f2.dir
-      size: 3781
-      nfiles: 4
+      md5: 2f3a5fd02bc35d1ef18544002ded05d6.dir
+      size: 5573
+      nfiles: 5
     - path: src/ride_classifier/pipeline/train.py
       hash: md5
-      md5: d433a7a437bad2d9ecd761d27eb8664e
-      size: 7928
+      md5: ada8335f7dc3afa1d00535f024dff48d
+      size: 7381
     - path: src/ride_classifier/registry
       hash: md5
       md5: 397f3cf0429e6de039f7d52e8a9f16ec.dir
@@ -107,14 +107,70 @@ stages:
       size: 462
     - path: artifacts/model
       hash: md5
-      md5: eea3dd6322a7ba6fc745de7f08a4245d.dir
-      size: 889973
-      nfiles: 29
+      md5: d13a85344c1e2157afdd0d5ed5e32539.dir
+      size: 896706
+      nfiles: 32
     - path: artifacts/oof_predictions.csv
       hash: md5
       md5: 9f3c2e73608e1f81b0acd76e4c1e884e
       size: 73121
     - path: artifacts/train_run.json
       hash: md5
-      md5: 77d84690d991eae2117ac33bd830b3de
+      md5: 3029791799090df6bd9e5f7e5e9debc3
       size: 114
+  evaluate:
+    cmd: python -m ride_classifier.pipeline.evaluate
+    deps:
+    - path: artifacts/model
+      hash: md5
+      md5: d13a85344c1e2157afdd0d5ed5e32539.dir
+      size: 896706
+      nfiles: 32
+    - path: artifacts/train_run.json
+      hash: md5
+      md5: 3029791799090df6bd9e5f7e5e9debc3
+      size: 114
+    - path: data/processed/golden.parquet
+      hash: md5
+      md5: c243f7ff5d8ac4d9aa67053132293e18
+      size: 6592372
+    - path: data/processed/splits.csv
+      hash: md5
+      md5: 350c3a8fd3498e3898bd66fbe3375da5
+      size: 42755
+    - path: src/ride_classifier/config.py
+      hash: md5
+      md5: 4c2bc796ae529d9ad75bb74fc2aad08f
+      size: 1485
+    - path: src/ride_classifier/models
+      hash: md5
+      md5: 2f3a5fd02bc35d1ef18544002ded05d6.dir
+      size: 5573
+      nfiles: 5
+    - path: src/ride_classifier/pipeline/evaluate.py
+      hash: md5
+      md5: 57c67ee2ae8d75ede58683621a58d943
+      size: 4903
+    params:
+      params.yaml:
+        data.seed: 42
+        evaluate:
+          metrics_path: artifacts/golden_metrics.json
+          predictions_path: artifacts/golden_predictions.csv
+          confusion_matrix_path: artifacts/golden_confusion_matrix.png
+          gate:
+            min_macro_f1: 0.3
+            must_beat_references: true
+    outs:
+    - path: artifacts/golden_confusion_matrix.png
+      hash: md5
+      md5: 1a63ab0b0da4dae376127778a31d14df
+      size: 35396
+    - path: artifacts/golden_metrics.json
+      hash: md5
+      md5: f655d2a71bb560f2464fdde523b69465
+      size: 420
+    - path: artifacts/golden_predictions.csv
+      hash: md5
+      md5: 135f7ceb58d360b062c7149eaea14cfa
+      size: 18169

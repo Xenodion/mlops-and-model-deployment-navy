@@ -37,3 +37,22 @@ stages:
       - artifacts/train_run.json  # MLflow run id + model URI of this training, used to register the model
     metrics:
       - artifacts/cv_metrics.json  # `uv run dvc metrics show`
+
+  evaluate:
+    cmd: python -m ride_classifier.pipeline.evaluate  # exit 1 = quality gate failed: the pipeline stops here
+    deps:
+      - artifacts/model
+      - artifacts/train_run.json
+      - data/processed/golden.parquet
+      - data/processed/splits.csv
+      - src/ride_classifier/config.py
+      - src/ride_classifier/models
+      - src/ride_classifier/pipeline/evaluate.py
+    params:
+      - data.seed
+      - evaluate
+    outs:
+      - artifacts/golden_predictions.csv
+      - artifacts/golden_confusion_matrix.png
+    metrics:
+      - artifacts/golden_metrics.json

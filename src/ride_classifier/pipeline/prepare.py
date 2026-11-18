@@ -15,6 +15,7 @@ from ride_classifier.config import ID_COLUMN, LABEL_COLUMN, LABELS, ROOT, load_p
 from ride_classifier.data.clean import clean_rides
 from ride_classifier.data.load import check_rides_match_labels, load_labels, load_rides
 from ride_classifier.data.split import GOLDEN, SPLIT_COLUMN, TRAIN, make_splits
+from ride_classifier.pipeline.cli import setup
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def run(params: dict, root: Path = ROOT) -> pd.DataFrame:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    setup()
     run(load_params()["data"])
 
 

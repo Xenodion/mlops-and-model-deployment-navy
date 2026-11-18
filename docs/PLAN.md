@@ -174,7 +174,7 @@ kind reaches Services through NodePorts mapped to host ports in `k8s/kind-config
 |---|---|---|
 | `prepare` | `data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`, `params.yaml` | `data/processed/train.parquet`, `data/processed/golden.parquet` (clean readings + label), `data/processed/splits.csv` (one row per ride: label, split, CV fold; **committed to git**, so the frozen golden list is visible and any change shows in a PR) |
 | `train` | `train.parquet`, `splits.csv`, `params.yaml` | `artifacts/model/` (MLflow pyfunc), `artifacts/oof_predictions.csv`, `artifacts/cv_metrics.json` (DVC metrics: `dvc metrics show`), an MLflow run. Needs MLflow running (`make dev-up`). |
-| `evaluate` | `artifacts/model/`, `golden.parquet`, `params.yaml` (`gate:`) | `artifacts/metrics.json`, `artifacts/confusion_matrix.png`. **Exits non-zero if the gate fails**, which stops the workflow. |
+| `evaluate` | `artifacts/model/`, `artifacts/train_run.json`, `golden.parquet`, `params.yaml` (`evaluate:`) | `artifacts/golden_metrics.json` (DVC metrics), `artifacts/golden_predictions.csv`, `artifacts/golden_confusion_matrix.png`; golden scores + tag `gate=passed/failed` added to the **training's MLflow run**. **Exits non-zero if the gate fails**, which stops the workflow. |
 
 Registering the model is **not** a DVC stage, because it changes the registry. CI runs `register.py` only after
 `evaluate` passes (§10).
@@ -185,7 +185,7 @@ Registering the model is **not** a DVC stage, because it changes the registry. C
 |---|---|
 | `data` | paths, `golden_share: 0.2`, `cv_folds: 5`, `seed: 42` (the split and the folds are made once, in `prepare`) |
 | `train` | model type (`baseline` or `cnn`), window 30 s, stride 15 s, hyperparameters, class weights, augmentation on/off |
-| `gate` | `min_macro_f1` (calibrated after the first run, like lab 5's comment says), `must_beat_baseline: true` |
+| `evaluate` | output paths; `gate.min_macro_f1` (a floor that catches broken models, calibrated after the first run like lab 5's comment says), `gate.must_beat_references: true` |
 | `drift` | `psi_alert: 0.1`, `psi_retrain: 0.25`, `pvalue: 0.01` |
 
 ### 6.2 Preprocessing (shared by training and serving)
@@ -221,8 +221,10 @@ predictions, saved in `model_meta.json`, and can be overridden by the `RECKLESS_
 
 - **Model selection:** stratified 5-fold cross-validation on the ≈ 400 train rides, at ride level (all windows of a
   ride stay in one fold). Out-of-fold predictions give one confusion matrix.
-- **Gate:** the final model is evaluated once on the frozen golden set. It must reach `gate.min_macro_f1` and beat the
-  baseline's golden macro-F1.
+- **Gate:** the final model is evaluated once on the frozen golden set. Its golden macro-F1 must reach
+  `gate.min_macro_f1` **and** beat both references on the same rides: always answering "Safe" and random guessing
+  (the course's "better than random", checked automatically). Beating the model currently in production (e.g. CNN vs
+  baseline) is checked at registration (MOD-3), not by the gate.
 - **Primary metric: macro-F1.** Also: balanced accuracy, recall per class (Reckless highlighted), and accuracy for
   reference only, because always answering "Safe" already scores 83 %.
 - With 6 Reckless rides (5 in train, 1 in golden), Reckless recall is very noisy. Report the CV spread and the
@@ -578,7 +580,7 @@ and the baseline and CNN plug into the same contract.
 | DATA-2 | ✅ Done 17/11: `data/split.py` + `pipeline/prepare.py`, `dvc.yaml` stage, `make pipeline`. Real run: 1 duplicate dropped, 10,201 gaps filled, golden = 100 rides (83/8/4/4/1), 1 Reckless per fold; deterministic (rerun gives identical outputs) | WS1 | n/a |
 | DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
 | MOD-1 | ✅ Done 17/11: `features/stats.py` (~170 statistics per ride), `models/baseline.py`, `models/pyfunc.py`, `train` stage with MLflow logging (lab 1 tags). First run (E0): CV macro-F1 0.373 ± 0.062 vs 0.18 always-Safe and 0.19 random; Reckless recall 0.20 | WS2 | n/a |
-| MOD-2 | `evaluate` stage with the gate (`params.yaml` `gate:`) | WS2 | MOD-1 |
+| MOD-2 | ✅ Done 18/11: `pipeline/evaluate.py`, `evaluate` stage. Golden macro-F1 0.477 (always Safe 0.181, random 0.202) → gate passed; floor calibrated to 0.30. Results + tag `gate` added to the training's MLflow run | WS2 | n/a |
 | MOD-3 | `register.py`, `export_model.py` (+ `model_meta.json`), `repro_check.py` + tests | WS2 | MOD-1 |
 | API-1 | FastAPI app on the stub model (lab 3/5 patterns, §9.1) + tests | WS3 | FND-5 |
 | API-2 | Streamlit app calling the API | WS3 | API-1 |
