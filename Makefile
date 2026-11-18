@@ -49,4 +49,7 @@ export: ## Download the model behind an alias into model/ (default staging): mak
 repro-check: ## Rebuild the latest training from scratch and compare every score (lab 1)
 	uv run python -m ride_classifier.registry.repro_check
 
-.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check
+api: ## Run the API on http://localhost:8000 (Swagger: /docs) with the model in model/ (make export first)
+	PREDICTION_LOG_PATH=logs/predictions.jsonl uv run uvicorn ride_classifier.api.main:app --host 0.0.0.0 --port 8000
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api

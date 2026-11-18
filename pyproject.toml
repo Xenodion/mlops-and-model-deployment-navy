@@ -19,7 +19,15 @@ dependencies = [
 # Each image installs only its group: `uv sync --no-default-groups --group api`.
 # Owners add groups as they start their task, e.g. `uv add --group api fastapi`.
 [dependency-groups]
+api = [
+    "fastapi>=0.163.1",
+    "mlflow-skinny~=3.17.2",
+    "prometheus-client>=0.26.0",
+    "python-multipart>=0.0.34",
+    "uvicorn[standard]>=0.54.0",
+]
 dev = [
+    "httpx2>=2.16.2",
     "ipykernel>=7.4.0",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
@@ -32,8 +40,8 @@ train = [
 ]
 
 [tool.uv]
-# `uv sync` on a laptop or in CI installs dev tools + the training stack (DVC, later MLflow, PyTorch...).
-default-groups = ["dev", "train"]
+# `uv sync` on a laptop or in CI installs everything: dev tools, training stack, API. Images pick one group.
+default-groups = ["dev", "train", "api"]
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
@@ -43,6 +51,7 @@ build-backend = "uv_build"
 line-length = 120
 target-version = "py314"
 extend-exclude = ["notebooks"]
+force-exclude = true  # also skip notebooks/ when files are passed explicitly (git hooks), like CI does
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
