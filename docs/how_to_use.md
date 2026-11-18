@@ -140,12 +140,16 @@ data/raw/*.dvc → prepare → train → evaluate
 **Running it:**
 
 ```bash
-make pipeline                            # every stage whose inputs changed; the others are skipped
-uv run dvc repro --force train           # force a retrain (evaluate reruns after it)
-uv run dvc repro --single-item evaluate  # one stage only, if its inputs changed
-uv run dvc status                        # what would rerun, without running anything
-uv run dvc dag                           # draw the pipeline
+make pipeline                                # every stage whose inputs changed; the others are skipped
+uv run dvc repro --force --downstream train  # force a retrain AND everything after it (evaluate)
+uv run dvc repro --single-item evaluate      # one stage only, if its inputs changed
+uv run dvc status                            # what would rerun, without running anything
+uv run dvc dag                               # draw the pipeline
 ```
+
+**Careful:** `dvc repro <stage>` runs that stage and the stages **before** it, never the ones after. So
+`dvc repro --force train` alone retrains but does **not** evaluate the new model. Add `--downstream`, or run
+`make pipeline` afterwards.
 
 DVC reruns a stage when its **inputs** change: data, code (`src/ride_classifier/...`) or its section of
 `params.yaml`. The fingerprints of the last run are in `dvc.lock`, which you commit.
@@ -210,10 +214,15 @@ To compare runs, tick several runs in the experiment list → **Compare**.
 and it will **never be registered**. The right order:
 
 ```bash
-git add -A && git commit -m "..."      # 1. code first
-uv run dvc repro --force train         # 2. train (evaluate follows)
-git add dvc.lock && git commit -m "chore: retrain from a clean commit"   # 3. record the result
+git add -A && git commit -m "..."              # 1. code first
+uv run dvc repro --force --downstream train    # 2. train + evaluate (quality gate)
+uv run dvc status                              #    must say "Data and pipelines are up to date"
+uv run dvc push                                # 3. send the new model and outputs to S3
+git add dvc.lock && git commit -m "chore: retrain from a clean commit"   # 4. record the result
+git push
 ```
+
+Check in MLflow that the run has `git_dirty=False` **and** `gate=passed`: only such a run can be registered.
 
 Our package sets `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` automatically. Without it, downloads from MLflow
 hang: the server hands out S3 links with a Docker-internal address. If you use MLflow outside our code, set it
