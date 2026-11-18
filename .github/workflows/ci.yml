@@ -16,7 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv only publishes full versions (no short "v10" tag): pin the exact release
+      - uses: astral-sh/setup-uv@v10.3.3
 
       - name: Install (exact versions from uv.lock)
         run: uv sync --locked

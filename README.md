@@ -16,6 +16,9 @@ make install     # uv sync + git hooks (Python 3.14 is downloaded by uv if neede
 make test        # uv run pytest
 make lint        # same checks as CI
 make dev-up      # S3 + Postgres + MLflow, MLflow on http://localhost:5000
+make pipeline    # prepare -> train -> evaluate (quality gate)
+make register && make export   # register the model as @staging, export it into model/
+make api         # the API on http://127.0.0.1:8000/docs
 ```
 
 Copy `.env.example` to `.env` to override the defaults.

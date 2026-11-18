@@ -1,11 +1,12 @@
 # How to use the project
 
 A practical guide to everything built so far: set-up, the dev stack, data versioning (DVC), the ML pipeline,
-MLflow, the quality gate, tests and the git workflow. For *why* things are built this way, see
+MLflow, the quality gate, the model registry, tests and the git workflow. For *why* things are built this way, see
 [PLAN.md](PLAN.md).
 
 **Status (18/11):** the pipeline goes from raw data to an evaluated model:
-`prepare` → `train` → `evaluate` (quality gate). Registry, API, Docker images and Kubernetes come next.
+`prepare` → `train` → `evaluate` (quality gate). The model is then registered in MLflow, exported, and served by
+the API. The web app, Docker images and Kubernetes come next.
 
 ---
 
@@ -48,6 +49,10 @@ shows false "package not installed" hints.
 | `make data-setup` | Once per laptop: give DVC the credentials of your local S3 |
 | `make data` | Download the versioned data into `data/raw/` (`dvc pull`) |
 | `make pipeline` | Run the ML pipeline: only the stages whose inputs changed (`dvc repro`) |
+| `make register` / `make promote` | Register the latest model as `@staging` / move `@production` to it (§8) |
+| `make export` | Download the `@staging` model into `model/` (`make export ALIAS=production` for the other one) |
+| `make repro-check` | Rebuild the latest training from scratch and compare every score |
+| `make api` | Run the API on http://127.0.0.1:8000 (Swagger at `/docs`) with the model in `model/` (§9) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -185,7 +190,7 @@ import pandas as pd
 model = mlflow.pyfunc.load_model("artifacts/model")
 golden = pd.read_parquet("data/processed/golden.parquet")
 one_ride = golden[golden["ride_id"] == golden["ride_id"].iloc[0]].drop(columns="label")
-print(model.predict(one_ride))   # ride_id + one probability per category
+print(model.predict(one_ride))  # ride_id + one probability per category
 ```
 
 - **Input:** raw readings. Columns `time_index, ax, ay, az, rx, ry, rz` (gyroscope in deg/s), plus `ride_id` when
@@ -249,7 +254,141 @@ put it back. Changing the real thresholds is a team decision.
 
 ---
 
-## 8. Tests and code quality
+## 8. Model registry: register, export, reproduce
+
+The **registry** is MLflow's list of official models: `ride-classifier` v1, v2… Two **aliases** point at versions.
+Everything downstream loads a model by alias, e.g. `models:/ride-classifier@staging`, never by file path:
+
+| Alias | Means | Set by |
+|---|---|---|
+| `@staging` | Newest model allowed to ship | `make register` (later: the `train.yml` workflow) |
+| `@production` | Model deployed as stable | `make promote` (later: `cd.yml`, after a teammate's approval) |
+
+**Register** the latest training (`artifacts/train_run.json`):
+
+```bash
+make register      # -> "ride-classifier v1 is now @staging"
+```
+
+It **refuses**, and says why, unless the run:
+1. was trained on committed code (`git_dirty=False`), so it can be rebuilt;
+2. passed the quality gate (`gate=passed`);
+3. scores at least as well on the golden rides as the model currently `@production`.
+
+Registering the same run twice reuses its version. Each version carries tags: run id, git commit, data md5,
+CV and golden scores. See it in the MLflow UI → **Models** → `ride-classifier`.
+
+**Promote** (in the real flow, only after the manual approval in CD):
+
+```bash
+make promote       # @production -> the version currently @staging
+```
+
+**Export** the model for the API image (labs 2 and 5):
+
+```bash
+make export                    # @staging -> model/
+make export ALIAS=production   # @production -> model/
+```
+
+`model/` (git-ignored) then holds the MLflow model plus `model_meta.json`: name, version, alias, run, commit, data
+fingerprints and scores. The API will report it, so every prediction can be traced back to its training.
+
+**Reproduce** a training from scratch (lab 1's deliverable: "from a commit and a run id, rebuild the same model"):
+
+```bash
+make repro-check                                        # the latest training
+uv run python -m ride_classifier.registry.repro_check RUN_ID
+```
+
+1. It checks that your training code (`src/` except `registry/`, `params.yaml`, `uv.lock`) is the run's commit,
+   and that your raw data has the run's fingerprints. Otherwise it says what to do (`git checkout <commit>`,
+   `make data`).
+2. It reruns prepare → train → evaluate in a temporary folder, with a throwaway MLflow store, so your real
+   MLflow stays untouched.
+3. It compares every score: `PASS … delta=0.0e+00` for each, then **REPRODUCED**.
+
+Current state: `ride-classifier` **v1 = `@staging`**, the E0 baseline (run `ac97c123`, commit `3704237`),
+reproduced exactly.
+
+---
+
+## 9. The API
+
+A FastAPI service: send the sensor readings of one ride, get the category back. It follows labs 3 and 5.
+
+**Start it** with the exported model:
+
+```bash
+make export      # once: puts the @staging model in model/
+make api         # http://127.0.0.1:8000, stop with Ctrl+C
+```
+
+Open **http://127.0.0.1:8000/docs** (Swagger). Every endpoint is documented there, and **Try it out** on
+`/v1/predict` sends a ready-made 30-second example.
+
+On Windows, use `127.0.0.1`, not `localhost`. Windows tries IPv6 first for `localhost`, and each request then takes
+~2 s instead of ~0.1 s.
+
+| Endpoint | What it does |
+|---|---|
+| `POST /v1/predict` | One ride as JSON → category, 5 probabilities, `reckless_score`, `is_reckless`, model version |
+| `POST /v1/predict/file` | Same, with the ride uploaded as a CSV or parquet file |
+| `GET /health` | `200 ok` with the model version and threshold, or `503 degraded` when no model is loaded |
+| `GET /metrics` | Prometheus counters: requests, latency, predictions per category, model version |
+| `GET /docs` | Swagger UI |
+
+**The request:** one array per channel, all the same length, at least 300 readings (30 s), at most 20,000:
+
+```json
+{"ride_id": "my-ride", "time_index": [0, 100, 200, ...],
+ "ax": [...], "ay": [...], "az": [...], "rx": [...], "ry": [...], "rz": [...]}
+```
+
+`ride_id` is optional and sent back. Accelerations are in m/s² (gravity included) and rotations in deg/s, as in
+GBG500. `null` marks a missing reading, filled in like in training.
+
+**Try it with a real golden ride** (Python):
+
+```python
+import httpx2 as httpx, pandas as pd
+
+golden = pd.read_parquet("data/processed/golden.parquet")
+ride = golden[golden["ride_id"] == golden["ride_id"].iloc[0]]
+body = {
+    "ride_id": "test",
+    "time_index": ride["time_index"].tolist(),
+    **{c: ride[c].tolist() for c in ["ax", "ay", "az", "rx", "ry", "rz"]},
+}
+print(httpx.post("http://127.0.0.1:8000/v1/predict", json=body).json(), "| true label:", ride["label"].iloc[0])
+```
+
+**Or upload a file:** `curl -F "file=@my_ride.csv" http://127.0.0.1:8000/v1/predict/file`. The CSV needs the
+columns `time_index, ax, ay, az, rx, ry, rz`.
+
+| Answer | Means |
+|---|---|
+| `200` | Prediction |
+| `422` | Your request is wrong. The body names each faulty field (too short, arrays of different lengths, unknown field, impossible value, time going backwards…) |
+| `503` | No model loaded: check `/health`, run `make export` |
+| `500` | Our bug: the body has a `request_id` to find the error in the API's log |
+
+Every response carries `X-Request-ID` (send your own to trace a call) and `X-Process-Time-Ms`. A request slower than
+200 ms (the S5 latency budget) is logged as `SLOW`. A golden ride takes ~60–150 ms on a laptop.
+
+**Settings** (environment variables):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MODEL_URI` | `model` | Exported folder, or straight from the registry: `MODEL_URI=models:/ride-classifier@staging make api` |
+| `RECKLESS_THRESHOLD` | `0.5` | `is_reckless = reckless_score ≥ threshold` (PLAN.md §6.3) |
+| `PREDICTION_LOG_PATH` | `logs/predictions.jsonl` with `make api` | One JSON line per prediction (input summary, probabilities, version, timing), for the drift checks |
+
+The API tests (`tests/unit/api/`) use a small model trained on fake rides: no MLflow server or real data needed.
+
+---
+
+## 10. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -268,7 +407,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 9. Where to put new code
+## 11. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -285,7 +424,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 10. Git workflow
+## 12. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -294,7 +433,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 11. Troubleshooting
+## 13. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -307,3 +446,8 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | Downloads from MLflow hang ("Retrying failed chunk") | Import `ride_classifier` first, or set `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false` |
 | `pyarrow` stuck below 26 | On purpose: MLflow 3.17, the same version as the MLflow server, requires it |
 | VS Code says packages aren't installed | Select the `.venv` interpreter (§1) |
+| `Registration refused for run …` | Read the reasons: commit + `uv run dvc repro --force --downstream train`, or the gate failed, or the model is worse than production (§8) |
+| Each API call takes ~2 s on Windows | Call `http://127.0.0.1:8000`, not `localhost` (Windows tries IPv6 first) |
+| `make api`: address already in use | Another API is still running on port 8000: stop it (Ctrl+C in its terminal) |
+| `/health` says `degraded` | No model in `model/`: run `make export` (needs MLflow running and a registered model) |
+| CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |

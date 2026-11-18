@@ -213,9 +213,11 @@ Following S1's "baseline first" principle:
 The guidelines ask for a deep learning model, so the CNN is the target. The baseline means the system works from
 day 4 whatever happens to the CNN.
 
-**Reckless threshold:** `is_reckless = reckless_score ≥ threshold`. The threshold is picked on out-of-fold
-predictions, saved in `model_meta.json`, and can be overridden by the `RECKLESS_THRESHOLD` env var. This is lab 5's
-`DECISION_THRESHOLD` pattern, and lets a canary differ from stable by threshold only.
+**Reckless threshold:** `is_reckless = reckless_score ≥ threshold`, default **0.5**, overridden by the
+`RECKLESS_THRESHOLD` env var (a ConfigMap value in Kubernetes). This is lab 5's `DECISION_THRESHOLD` pattern, and it
+lets a canary differ from stable by threshold only. We don't tune it on data: out of fold, 4 of the 5 Reckless train
+rides score ≈ 0 whatever the threshold, and every value from 0.3 to 0.7 flags the same 1 of 5 (0.5 gives 1 false
+alarm out of 395 rides).
 
 ### 6.4 Evaluation
 
@@ -372,10 +374,21 @@ Start each folder with one file and split it only when it gets long.
 - **Aliases** (stages are deprecated, lab 1):
   - `@staging`: newest model that passed the gate (set by `register.py` in `train.yml`)
   - `@production`: the version deployed as stable, set only after the manual approval in `cd.yml`
+    (`register.py --promote` moves it to the version currently `@staging`)
+- **Registration rule** (`register.py`, refuses with the reasons otherwise):
+  - trained on committed code (`git_dirty=False`), so it can be rebuilt
+  - passed the quality gate (`gate=passed`)
+  - golden macro-F1 at least as high as the version currently `@production` (e.g. a CNN must not do worse than the baseline)
+
+  Registering the same run twice reuses its version. Each version carries tags: run id, git commit, data md5,
+  CV and golden macro-F1.
 - **Export:** `export_model.py` downloads `models:/ride-classifier@<alias>` into `model/` with a `model_meta.json`
-  (version, Reckless threshold), which the API reads at startup (lab 5).
-- **Reproducibility:** `repro_check.py <run_id>` checks out the run's commit, pulls its data and retrains. It must
-  match code, data and metrics (lab 1 deliverable).
+  (name, version, alias, run, commit, data, scores), which the API reads at startup (lab 5). The Reckless
+  threshold is added to it with the API (API-3).
+- **Reproducibility:** `repro_check.py [run_id]` checks that the training code (`src/` minus `registry/`,
+  `params.yaml`, `uv.lock`) and the raw data are those of the run, then reruns prepare → train → evaluate in a
+  temporary folder (with a throwaway MLflow store) and compares every CV and golden score within 1e-6.
+  Code from another commit or other data → it says which `git checkout` / `make data` to do (lab 1 deliverable).
 
 ---
 
@@ -388,16 +401,17 @@ Patterns from labs 3 and 5:
 - **Strict contract:** Pydantic with `extra="forbid"`, `Field` constraints and descriptions, so `/docs` documents every field.
 - **Error codes:** 422 = the caller's mistake, 500 = ours (generic body, no stack trace, request id), 503 = no model loaded.
 - **Headers:** every response carries `X-Request-ID` and `X-Process-Time-Ms`; a request slower than 200 ms logs a `SLOW` warning.
-- **Prediction log:** one JSON line per prediction (summary features, probabilities, label, `model_version`, `inference_ms`)
-  to stdout and to `PREDICTION_LOG_PATH`. The drift job reads it.
+- **Prediction log:** one JSON line per prediction (input summary: readings, missing share, a few channel spreads;
+  probabilities, label, `model_version`, `inference_ms`) to stdout and to `PREDICTION_LOG_PATH`. The drift job reads it.
+- **Model version:** read from `model_meta.json` (written by `export_model`) and returned with every prediction.
 
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/v1/predict` | One ride as JSON → prediction |
 | POST | `/v1/predict/file` | One ride as a CSV or parquet upload → prediction |
-| POST | `/v1/feedback` | True label received later → monitoring layer 4 (lab 5) |
+| POST | `/v1/feedback` | True label received later → monitoring layer 4 (lab 5). **Added with OPS-1** |
 | GET | `/health` | `200 ok` with model version and threshold, or **`503 degraded`** without a model (lab 3). Used by both Kubernetes probes. |
-| GET | `/metrics` | Prometheus metrics (`prometheus_client`, as in lab 5) |
+| GET | `/metrics` | Prometheus metrics (`prometheus_client`, as in lab 5): requests, latency and predictions per category from API-1; input-distribution metrics with OPS-1 |
 | GET | `/docs` | Swagger UI (built into FastAPI) |
 
 Lab 5's `/health` answers 200 even when degraded, so a readiness probe on it can't catch a missing model. We follow lab 3.
@@ -428,7 +442,7 @@ would eat into the 200 ms latency budget (§11).
   "reckless_score": 0.01,
   "is_reckless": false,
   "model_version": "3",
-  "warnings": []
+  "n_readings": 2349
 }
 ```
 
@@ -436,7 +450,8 @@ would eat into the 200 ms latency budget (§11).
 - unknown fields
 - arrays of different lengths
 - fewer than 300 samples (30 s) or more than 20,000
-- `time_index` not increasing
+- `time_index` going backwards (a repeated timestamp is accepted and dropped, as in training)
+- values outside physical bounds (acceleration beyond ±100 m/s², rotation beyond ±2000 deg/s), NaN or infinity
 
 Null sensor values are accepted and interpolated, as in training. The gyroscope is expected in deg/s, as in GBG500.
 
@@ -568,7 +583,7 @@ and the baseline and CNN plug into the same contract.
 | FND-1 | ✅ Done 16/11: repo skeleton (§7), `pyproject.toml`, `uv.lock`, Python 3.14 (PyTorch 2.15 has 3.14 wheels for Linux, macOS, Windows), ruff, pytest, pre-commit, Makefile | WS4 | n/a |
 | FND-2 | ✅ Done 16/11: raw files in `data/raw/`, `dvc init`, remote `storage` = S3 bucket `dvc` (credentials in `.dvc/config.local`), `dvc add` + `dvc push`, restore tested with `dvc pull`. `make data-setup` / `make data`; teammate set-up in the README. Each laptop has its own S3 until the prod host's S3 becomes the shared remote (K8S-2). | WS1 | n/a |
 | FND-3 | ✅ Done 16/11: `infra/s3/` → `s3/`, `code/` → `notebooks/`, `docker-compose.yml` paths, bucket script name and project name fixed. Still to check: `docker compose up` actually starts. | WS4 | n/a |
-| FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Check it goes green on the first PR. | WS4 | n/a |
+| FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Fixed 18/11: every run had failed at "Set up job" (`setup-uv@v10` doesn't exist, now pinned to `v10.3.3`); CI steps replayed in a Linux container: all green | WS4 | n/a |
 | FND-5 | Write the three interfaces (§14.1) in code | WS2 + WS3 | FND-1 |
 | FND-6 | GitHub: branch protection, environment `production` with required reviewers (check plan limits), labels, milestones, one issue per task | WS5 | n/a |
 
@@ -581,8 +596,8 @@ and the baseline and CNN plug into the same contract.
 | DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
 | MOD-1 | ✅ Done 17/11: `features/stats.py` (~170 statistics per ride), `models/baseline.py`, `models/pyfunc.py`, `train` stage with MLflow logging (lab 1 tags). First run (E0): CV macro-F1 0.373 ± 0.062 vs 0.18 always-Safe and 0.19 random; Reckless recall 0.20 | WS2 | n/a |
 | MOD-2 | ✅ Done 18/11: `pipeline/evaluate.py`, `evaluate` stage. Golden macro-F1 0.477 (always Safe 0.181, random 0.202) → gate passed; floor calibrated to 0.30. Results + tag `gate` added to the training's MLflow run | WS2 | n/a |
-| MOD-3 | `register.py`, `export_model.py` (+ `model_meta.json`), `repro_check.py` + tests | WS2 | MOD-1 |
-| API-1 | FastAPI app on the stub model (lab 3/5 patterns, §9.1) + tests | WS3 | FND-5 |
+| MOD-3 | ✅ Done 18/11: `registry/register.py` (+ `--promote`), `export_model.py` (+ `model_meta.json`), `repro_check.py`, Makefile targets + tests. `ride-classifier` v1 @staging = E0 baseline (run `ac97c123`), repro check: all 21 scores identical | WS2 | n/a |
+| API-1 | ✅ Done 18/11 (with API-3): `api/main.py`, `schemas.py`, `metrics.py`, `make api`, 15 tests on a model trained on fake rides. Golden rides: ~60–150 ms server time | WS3 | n/a |
 | API-2 | Streamlit app calling the API | WS3 | API-1 |
 | INF-1 | Dockerfiles (lab 5 pattern); compose profiles for api and webapp | WS4 | FND-1 |
 | INF-2 | Docker Hub repositories + GitHub secrets | WS4 | n/a |
@@ -591,7 +606,7 @@ and the baseline and CNN plug into the same contract.
 
 | ID | Task | WS | Depends on |
 |---|---|---|---|
-| API-3 | API serves the exported baseline model | WS3 | MOD-3 |
+| API-3 | ✅ Done 18/11: the API serves the exported `model/` (v1, version read from `model_meta.json`); `/v1/feedback` moves to OPS-1 | WS3 | n/a |
 | INF-3 | CI: container smoke test + integration job | WS4 | API-3 |
 | MOD-4 | CNN + cross-validated training, experiments E1–E6 (continues in parallel until 22/11) | WS2 | DATA-3 |
 | DOC-1 | Email the group list to the teachers (**by Fri 20/11**) | WS5 | n/a |

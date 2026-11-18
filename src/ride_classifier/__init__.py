@@ -9,3 +9,7 @@ os.environ.setdefault("MLFLOW_ENABLE_ARTIFACTS_PROGRESS_BAR", "false")
 # Download artifacts THROUGH the MLflow server. Otherwise MLflow 3.17 hands out direct S3 links built with the
 # storage's Docker-internal name (http://s3:8333), unreachable from a laptop or CI: downloads hang and retry.
 os.environ.setdefault("MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD", "false")
+
+# MLflow downloads with up to 20 threads (2 per CPU) but keeps only 10 HTTP connections by default:
+# match them, otherwise every download prints "Connection pool is full, discarding connection"
+os.environ.setdefault("MLFLOW_HTTP_POOL_MAXSIZE", "20")

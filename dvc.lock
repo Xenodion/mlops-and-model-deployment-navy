@@ -82,11 +82,10 @@ stages:
       hash: md5
       md5: ada8335f7dc3afa1d00535f024dff48d
       size: 7381
-    - path: src/ride_classifier/registry
+    - path: src/ride_classifier/registry/tracking.py
       hash: md5
-      md5: 397f3cf0429e6de039f7d52e8a9f16ec.dir
-      size: 2407
-      nfiles: 2
+      md5: 527dab417f9a84245497d460b51428d6
+      size: 2315
     params:
       params.yaml:
         data.seed: 42
