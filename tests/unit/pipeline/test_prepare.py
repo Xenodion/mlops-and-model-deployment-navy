@@ -30,3 +30,4 @@ def test_prepare_writes_train_golden_and_the_split_table(tmp_path, ride_factory)
     assert len(train) + len(golden) == len(rides)
     assert {"label", "time_index", "ax"} <= set(train.columns)
     pd.testing.assert_frame_equal(pd.read_csv(tmp_path / params["splits_path"]), splits, check_dtype=False)
+    assert b"\r\n" not in (tmp_path / params["splits_path"]).read_bytes()  # same bytes on Windows and Linux

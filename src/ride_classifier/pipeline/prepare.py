@@ -37,7 +37,8 @@ def run(params: dict, root: Path = ROOT) -> pd.DataFrame:
         path = root / params[path_key]
         path.parent.mkdir(parents=True, exist_ok=True)
         labelled[labelled[SPLIT_COLUMN] == split].drop(columns=SPLIT_COLUMN).to_parquet(path, index=False)
-    splits.to_csv(root / params["splits_path"], index=False)
+    # Unix line endings on every OS: the file is in git and hashed by DVC, so every laptop must write the same bytes
+    splits.to_csv(root / params["splits_path"], index=False, lineterminator="\n")
 
     counts = pd.crosstab(splits[LABEL_COLUMN], splits[SPLIT_COLUMN]).reindex(LABELS)
     logger.info("rides per label and split:\n%s", counts.to_string())
