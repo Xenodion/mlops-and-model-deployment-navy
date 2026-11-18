@@ -107,7 +107,7 @@ stages:
       size: 462
     - path: artifacts/model
       hash: md5
-      md5: d13a85344c1e2157afdd0d5ed5e32539.dir
+      md5: fa335b014259d798a64d6799477113d6.dir
       size: 896706
       nfiles: 32
     - path: artifacts/oof_predictions.csv
@@ -116,7 +116,7 @@ stages:
       size: 73121
     - path: artifacts/train_run.json
       hash: md5
-      md5: 3029791799090df6bd9e5f7e5e9debc3
+      md5: cb82f6734d3acfe97ee77bbbc784febe
       size: 114
   evaluate:
     cmd: python -m ride_classifier.pipeline.evaluate
