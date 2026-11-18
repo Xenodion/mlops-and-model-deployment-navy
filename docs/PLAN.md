@@ -172,9 +172,9 @@ kind reaches Services through NodePorts mapped to host ports in `k8s/kind-config
 
 | Stage | Inputs | Outputs |
 |---|---|---|
-| `prepare` | `data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`, `params.yaml` | `data/processed/train.parquet`, `data/processed/golden.parquet` (frozen ride list), `data/processed/folds.csv` (train ride → CV fold) |
-| `train` | `train.parquet`, `folds.csv`, `params.yaml` | `models/` (MLflow pyfunc), `reports/oof_predictions.csv`, an MLflow run |
-| `evaluate` | `models/`, `golden.parquet`, `params.yaml` (`gate:`) | `reports/metrics.json`, `reports/confusion_matrix.png`. **Exits non-zero if the gate fails**, which stops the workflow. |
+| `prepare` | `data/raw/GBG500.parquet`, `data/raw/GBG500_labels.csv`, `params.yaml` | `data/processed/train.parquet`, `data/processed/golden.parquet` (clean readings + label), `data/processed/splits.csv` (one row per ride: label, split, CV fold; **committed to git**, so the frozen golden list is visible and any change shows in a PR) |
+| `train` | `train.parquet`, `splits.csv`, `params.yaml` | `artifacts/model/` (MLflow pyfunc), `artifacts/oof_predictions.csv`, `artifacts/cv_metrics.json` (DVC metrics: `dvc metrics show`), an MLflow run. Needs MLflow running (`make dev-up`). |
+| `evaluate` | `artifacts/model/`, `artifacts/train_run.json`, `golden.parquet`, `params.yaml` (`evaluate:`) | `artifacts/golden_metrics.json` (DVC metrics), `artifacts/golden_predictions.csv`, `artifacts/golden_confusion_matrix.png`; golden scores + tag `gate=passed/failed` added to the **training's MLflow run**. **Exits non-zero if the gate fails**, which stops the workflow. |
 
 Registering the model is **not** a DVC stage, because it changes the registry. CI runs `register.py` only after
 `evaluate` passes (§10).
@@ -183,9 +183,9 @@ Registering the model is **not** a DVC stage, because it changes the registry. C
 
 | Section | Contents |
 |---|---|
-| `data` | paths, `golden_share: 0.2`, window 30 s, stride 15 s |
-| `train` | model type (`baseline` or `cnn`), CV folds 5, seed 42, hyperparameters, class weights, augmentation on/off |
-| `gate` | `min_macro_f1` (calibrated after the first run, like lab 5's comment says), `must_beat_baseline: true` |
+| `data` | paths, `golden_share: 0.2`, `cv_folds: 5`, `seed: 42` (the split and the folds are made once, in `prepare`) |
+| `train` | model type (`baseline` or `cnn`), window 30 s, stride 15 s, hyperparameters, class weights, augmentation on/off |
+| `evaluate` | output paths; `gate.min_macro_f1` (a floor that catches broken models, calibrated after the first run like lab 5's comment says), `gate.must_beat_references: true` |
 | `drift` | `psi_alert: 0.1`, `psi_retrain: 0.25`, `pvalue: 0.01` |
 
 ### 6.2 Preprocessing (shared by training and serving)
@@ -221,8 +221,10 @@ predictions, saved in `model_meta.json`, and can be overridden by the `RECKLESS_
 
 - **Model selection:** stratified 5-fold cross-validation on the ≈ 400 train rides, at ride level (all windows of a
   ride stay in one fold). Out-of-fold predictions give one confusion matrix.
-- **Gate:** the final model is evaluated once on the frozen golden set. It must reach `gate.min_macro_f1` and beat the
-  baseline's golden macro-F1.
+- **Gate:** the final model is evaluated once on the frozen golden set. Its golden macro-F1 must reach
+  `gate.min_macro_f1` **and** beat both references on the same rides: always answering "Safe" and random guessing
+  (the course's "better than random", checked automatically). Beating the model currently in production (e.g. CNN vs
+  baseline) is checked at registration (MOD-3), not by the gate.
 - **Primary metric: macro-F1.** Also: balanced accuracy, recall per class (Reckless highlighted), and accuracy for
   reference only, because always answering "Safe" already scores 83 %.
 - With 6 Reckless rides (5 in train, 1 in golden), Reckless recall is very noisy. Report the CV spread and the
@@ -354,6 +356,9 @@ Start each folder with one file and split it only when it gets long.
 
 - **Environment variables:** `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME` (S2 lecture), `MODEL_NAME` (labs). Local
   MLflow for experiments, prod MLflow for anything that ships.
+- **Downloads go through the server:** `MLFLOW_ENABLE_PROXY_MULTIPART_DOWNLOAD=false`, set by default by our package.
+  Otherwise MLflow 3.17 hands out direct S3 links with the storage's Docker-internal name (`http://s3:8333`), and
+  downloads from a laptop or CI hang.
 - **Experiment:** `ride-classifier`. **Registered model:** `ride-classifier`.
 - **Every run logs:**
   - params: all of `params.yaml`
@@ -561,7 +566,7 @@ and the baseline and CNN plug into the same contract.
 | ID | Task | WS | Depends on |
 |---|---|---|---|
 | FND-1 | ✅ Done 16/11: repo skeleton (§7), `pyproject.toml`, `uv.lock`, Python 3.14 (PyTorch 2.15 has 3.14 wheels for Linux, macOS, Windows), ruff, pytest, pre-commit, Makefile | WS4 | n/a |
-| FND-2 | Move raw files to `data/raw/`, `dvc init`, DVC remote = S3 bucket `dvc`, `dvc add` + `dvc push` (`data/` already git-ignored) | WS1 | FND-1 |
+| FND-2 | ✅ Done 16/11: raw files in `data/raw/`, `dvc init`, remote `storage` = S3 bucket `dvc` (credentials in `.dvc/config.local`), `dvc add` + `dvc push`, restore tested with `dvc pull`. `make data-setup` / `make data`; teammate set-up in the README. Each laptop has its own S3 until the prod host's S3 becomes the shared remote (K8S-2). | WS1 | n/a |
 | FND-3 | ✅ Done 16/11: `infra/s3/` → `s3/`, `code/` → `notebooks/`, `docker-compose.yml` paths, bucket script name and project name fixed. Still to check: `docker compose up` actually starts. | WS4 | n/a |
 | FND-4 | ✅ Done 16/11: `ci.yml` with lint + tests. Check it goes green on the first PR. | WS4 | n/a |
 | FND-5 | Write the three interfaces (§14.1) in code | WS2 + WS3 | FND-1 |
@@ -571,11 +576,11 @@ and the baseline and CNN plug into the same contract.
 
 | ID | Task | WS | Depends on |
 |---|---|---|---|
-| DATA-1 | Load, raw-data schema checks, cleaning (sort, dedupe, interpolate) + tests | WS1 | FND-2 |
-| DATA-2 | `prepare` stage: frozen golden split, CV folds on train, `dvc.yaml` | WS1 | DATA-1 |
+| DATA-1 | ✅ Done 17/11: `data/load.py` (schema checks), `data/clean.py` (sort, dedupe, interpolate within a ride) + tests | WS1 | n/a |
+| DATA-2 | ✅ Done 17/11: `data/split.py` + `pipeline/prepare.py`, `dvc.yaml` stage, `make pipeline`. Real run: 1 duplicate dropped, 10,201 gaps filled, golden = 100 rides (83/8/4/4/1), 1 Reckless per fold; deterministic (rerun gives identical outputs) | WS1 | n/a |
 | DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
-| MOD-1 | Statistics baseline in the pyfunc wrapper, `train` stage with MLflow logging (lab 1 tags) | WS2 | DATA-2 |
-| MOD-2 | `evaluate` stage with the gate (`params.yaml` `gate:`) | WS2 | MOD-1 |
+| MOD-1 | ✅ Done 17/11: `features/stats.py` (~170 statistics per ride), `models/baseline.py`, `models/pyfunc.py`, `train` stage with MLflow logging (lab 1 tags). First run (E0): CV macro-F1 0.373 ± 0.062 vs 0.18 always-Safe and 0.19 random; Reckless recall 0.20 | WS2 | n/a |
+| MOD-2 | ✅ Done 18/11: `pipeline/evaluate.py`, `evaluate` stage. Golden macro-F1 0.477 (always Safe 0.181, random 0.202) → gate passed; floor calibrated to 0.30. Results + tag `gate` added to the training's MLflow run | WS2 | n/a |
 | MOD-3 | `register.py`, `export_model.py` (+ `model_meta.json`), `repro_check.py` + tests | WS2 | MOD-1 |
 | API-1 | FastAPI app on the stub model (lab 3/5 patterns, §9.1) + tests | WS3 | FND-5 |
 | API-2 | Streamlit app calling the API | WS3 | API-1 |

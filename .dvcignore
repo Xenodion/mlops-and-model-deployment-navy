@@ -1,0 +1,4 @@
+# Files DVC never looks at. https://dvc.org/doc/user-guide/dvcignore
+# Python bytecode differs between machines: it must never make a stage look changed.
+__pycache__/
+*.pyc

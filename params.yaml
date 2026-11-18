@@ -1,9 +1,30 @@
 # Pipeline parameters: read by ride_classifier.config.load_params(), tracked by DVC, logged to MLflow.
-# Sections still to add, with their task: train (MOD-1), gate (MOD-2), drift (OPS-2). See docs/PLAN.md §6.1.
+# Section still to add, with its task: drift (OPS-2). See docs/PLAN.md §6.1.
 data:
   raw_rides: data/raw/GBG500.parquet
   raw_labels: data/raw/GBG500_labels.csv
   train_path: data/processed/train.parquet
   golden_path: data/processed/golden.parquet   # frozen held-out rides, used only by the evaluation gate
+  splits_path: data/processed/splits.csv       # one row per ride: label, split, CV fold (committed to git)
   golden_share: 0.2
+  cv_folds: 5
   seed: 42
+
+train:
+  experiment_id: E0          # experiment plan, docs/PLAN.md §6.5 (logged as an MLflow tag)
+  model: baseline            # baseline = per-ride statistics + logistic regression (the CNN comes with MOD-4)
+  baseline:
+    C: 0.05                  # inverse regularisation strength: small = simpler model (400 rides, ~170 statistics)
+    max_iter: 5000
+  model_path: artifacts/model                  # MLflow model, read by the evaluate stage and the API
+  oof_path: artifacts/oof_predictions.csv      # cross-validated prediction for every train ride
+  metrics_path: artifacts/cv_metrics.json      # DVC metrics: `uv run dvc metrics show`
+  run_path: artifacts/train_run.json           # MLflow run id and model URI, used to register the model
+
+evaluate:
+  metrics_path: artifacts/golden_metrics.json             # DVC metrics: `uv run dvc metrics show`
+  predictions_path: artifacts/golden_predictions.csv      # probabilities + prediction for every golden ride
+  confusion_matrix_path: artifacts/golden_confusion_matrix.png
+  gate:                       # the model passes only if every check passes; otherwise the stage fails (exit 1)
+    min_macro_f1: 0.30        # floor = 1.5x random (≈ 0.20). First baseline: CV 0.37 ± 0.06, golden 0.48
+    must_beat_references: true  # golden macro-F1 above "always Safe" and random guessing on the same rides

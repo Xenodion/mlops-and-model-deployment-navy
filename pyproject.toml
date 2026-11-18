@@ -10,8 +10,10 @@ requires-python = ">=3.14"
 dependencies = [
     "numpy>=2.5.5",
     "pandas>=3.1.1",
-    "pyarrow>=26.0.1",
+    "pyarrow>=25",  # mlflow 3.17 (same version as the MLflow server image) needs pyarrow < 26
     "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
 ]
 
 # Each image installs only its group: `uv sync --no-default-groups --group api`.
@@ -23,6 +25,15 @@ dev = [
     "pytest>=9.2.0",
     "ruff>=0.17.5",
 ]
+train = [
+    "dvc[s3]>=3.67.1",
+    "matplotlib>=3.11.2",
+    "mlflow~=3.17.2",
+]
+
+[tool.uv]
+# `uv sync` on a laptop or in CI installs dev tools + the training stack (DVC, later MLflow, PyTorch...).
+default-groups = ["dev", "train"]
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
@@ -41,3 +52,9 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 # importlib mode: test files in different folders may share a name (tests/unit/data/test_x.py, tests/unit/api/test_x.py)
 addopts = ["--import-mode=importlib"]
+# Deprecation notices raised inside MLflow and its dependencies, not in our code (same choice as the lab 5 project)
+filterwarnings = [
+    "ignore::DeprecationWarning:mlflow.*",
+    "ignore::DeprecationWarning:sqlalchemy.*",
+    "ignore:Operation with range is deprecated:Warning:mlflow.*",
+]

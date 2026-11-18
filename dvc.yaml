@@ -1,0 +1,58 @@
+# The ML pipeline (docs/PLAN.md §6.1). Run it with `make pipeline` (= uv run dvc repro):
+# a stage reruns only if one of its deps, params or outs changed. `uv run dvc dag` draws it.
+stages:
+  prepare:
+    cmd: python -m ride_classifier.pipeline.prepare
+    deps:
+      - data/raw/GBG500.parquet
+      - data/raw/GBG500_labels.csv
+      - src/ride_classifier/config.py
+      - src/ride_classifier/data
+      - src/ride_classifier/pipeline/prepare.py
+    params:
+      - data
+    outs:
+      - data/processed/train.parquet
+      - data/processed/golden.parquet
+      - data/processed/splits.csv:
+          cache: false  # small and committed to git: the frozen golden list is readable on GitHub
+
+  train:
+    cmd: python -m ride_classifier.pipeline.train  # needs MLflow running: make dev-up
+    deps:
+      - data/processed/train.parquet
+      - data/processed/splits.csv
+      - src/ride_classifier/config.py
+      - src/ride_classifier/data
+      - src/ride_classifier/features
+      - src/ride_classifier/models
+      - src/ride_classifier/registry
+      - src/ride_classifier/pipeline/train.py
+    params:
+      - data.seed
+      - train
+    outs:
+      - artifacts/model
+      - artifacts/oof_predictions.csv
+      - artifacts/train_run.json  # MLflow run id + model URI of this training, used to register the model
+    metrics:
+      - artifacts/cv_metrics.json  # `uv run dvc metrics show`
+
+  evaluate:
+    cmd: python -m ride_classifier.pipeline.evaluate  # exit 1 = quality gate failed: the pipeline stops here
+    deps:
+      - artifacts/model
+      - artifacts/train_run.json
+      - data/processed/golden.parquet
+      - data/processed/splits.csv
+      - src/ride_classifier/config.py
+      - src/ride_classifier/models
+      - src/ride_classifier/pipeline/evaluate.py
+    params:
+      - data.seed
+      - evaluate
+    outs:
+      - artifacts/golden_predictions.csv
+      - artifacts/golden_confusion_matrix.png
+    metrics:
+      - artifacts/golden_metrics.json
