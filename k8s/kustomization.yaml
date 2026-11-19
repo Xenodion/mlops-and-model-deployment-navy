@@ -21,13 +21,13 @@ resources:
 images:
   - name: ride-api
     newName: alexwaer110302/ride-api
-    newTag: b3fef60-m2  # <commit>-m<model version>: the CNN, ride-classifier v2
+    newTag: 27d20c1-m2  # <commit>-m<model version>: the CNN, ride-classifier v2
   - name: ride-api-canary
     newName: alexwaer110302/ride-api
-    newTag: b3fef60-m2  # same as stable until a canary is rolled out
+    newTag: 27d20c1-m2  # same as stable until a canary is rolled out
   - name: ride-webapp
     newName: alexwaer110302/ride-webapp
-    newTag: b3fef60
+    newTag: 27d20c1
   - name: ride-mlflow
-    newName: mlops-mlflow  # built locally from docker/mlflow (make app-up / docker compose build), loaded into kind
+    newName: mlops-mlflow  # built locally from docker/mlflow and loaded into kind (make kind-load)
     newTag: 3.17.2
