@@ -61,7 +61,7 @@ lab 5's `params.yaml`), and S6–S8. Re-check §10–12 after each of those sess
 | DEC-1 | Task framing | 5-class classifier, as the guidelines require. Reckless recall reported as the headline safety metric; the API also returns a `reckless_score` and an `is_reckless` flag. | Proposed |
 | DEC-2 | SRV3490 (multi-city crash data) | **Not used at all.** It answers a different question (crash detection) and has no labels for our 5 categories. The project uses GBG500 only. | **Decided** (16/11) |
 | DEC-3 | Pipeline / DAG tool | DVC pipeline (`dvc.yaml`, `dvc repro`, `dvc dag`), as in the lab 5 reference project. No Airflow. | Proposed |
-| DEC-4 | Model | Baseline first (per-ride statistics + scikit-learn), shipped end to end. Then a PyTorch 1D CNN (CPU) replaces it through the same model contract once it passes the gate. | Proposed |
+| DEC-4 | Model | Baseline first (per-ride statistics + scikit-learn), shipped end to end. Then the PyTorch 1D CNN (CPU, E3) goes to production **to meet the guidelines' "deep learning model" objective**, not because it's better: the two are tied within the noise (CV favours the baseline 0.373 vs 0.357, golden the CNN 0.511 vs 0.477), and the data (5 Reckless rides) limits both. The baseline stays registered (v1) as the reference; the presentation shows the comparison. | **Decided** (19/11) |
 | DEC-5 | Serving | Model exported from the registry into `model/` and baked into the API image (labs 2 and 5). Image tag = commit sha + model version. | Proposed |
 | DEC-6 | Object storage | SeaweedFS (course setup, S3-compatible). Covers the "store the model on S3 / MinIO" requirement. | Proposed |
 | DEC-7 | Image registry | Docker Hub (the guidelines ask for Docker Hub URLs; lab 2 used GHCR) | Proposed |
