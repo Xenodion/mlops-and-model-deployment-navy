@@ -53,8 +53,10 @@ shows false "package not installed" hints.
 | `make export` | Download the `@staging` model into `model/` (`make export ALIAS=production` for the other one) |
 | `make repro-check` | Rebuild the latest training from scratch and compare every score |
 | `make api` | Run the API on http://127.0.0.1:8000 (Swagger at `/docs`) with the model in `model/` (§9) |
-| `make image` | Build the API Docker image `ride-api:dev` (`make image VERSION=v1` for another tag) |
-| `make app-up` | Build and start the API container next to the dev stack (stop everything with `make dev-down`) |
+| `make webapp` | Run the web app on http://127.0.0.1:8501 (needs the API: `make api`) (§10) |
+| `make webapp-examples` | Regenerate the web app's example rides from the golden rides |
+| `make image` | Build both Docker images, `ride-api:dev` and `ride-webapp:dev` (`make image VERSION=v1` for another tag) |
+| `make app-up` | Build and start the API (:8000) and web app (:8501) containers next to the dev stack (stop everything with `make dev-down`) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -406,11 +408,45 @@ make app-up                                # the "app" profile of docker-compose
 - **Logs:** the prediction log goes to `docker logs` and to `/app/logs/predictions.jsonl` in the container.
 - **Speed:** a bit slower than `make api` on Windows (~110–360 ms per ride), because Docker Desktop runs containers
   in a small virtual machine.
-- **Port:** stop `make api` before running the container: they both use port 8000.
+- **Port:** stop `make api` (or any other API container) before running the container: they all use port 8000.
 
 ---
 
-## 10. Tests and code quality
+## 10. The web app
+
+A Streamlit page to try the model without writing code (the guidelines' "interactive web app"). It holds no model:
+it calls the API.
+
+```bash
+make api         # terminal 1: the API
+make webapp      # terminal 2: open http://127.0.0.1:8501
+```
+
+1. **Pick a ride:** one of the 5 example rides (one golden ride per category, never seen by the model in training),
+   or upload your own CSV / parquet (columns `time_index, ax, ay, az, rx, ry, rz`).
+2. **Look at it:** number of readings, duration, missing readings, and the acceleration and rotation signals over time.
+3. **Click "Classify this ride":** the predicted category, ✅ / ❌ against the true category for the examples, the
+   Reckless flag, a bar chart of the 5 probabilities, plus the model version, server time and request id.
+
+The sidebar shows whether the API is reachable and which model it serves. If the API is down, the page still works
+and says so.
+
+| File | Role |
+|---|---|
+| `webapp/app.py` | The page |
+| `webapp/api_client.py` | Reads ride files, builds the request, calls the API (tested without a browser) |
+| `webapp/examples/*.parquet` | Example rides, committed; regenerate with `make webapp-examples` after `make pipeline` |
+
+The page calls the API at `API_URL` (default `http://127.0.0.1:8000`). Tests: `tests/unit/webapp/`, with a fake API
+for the client and Streamlit's test runner for the whole page.
+
+**In Docker:** `make app-up` builds and starts both containers. The API is on :8000, the web app on
+**http://127.0.0.1:8501**, and the web app reaches the API by its compose service name (`http://api:8000`). The web
+app image (~850 MB) installs only Streamlit and the HTTP client, not our package or the ML libraries.
+
+---
+
+## 11. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -429,7 +465,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 11. Where to put new code
+## 12. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -446,7 +482,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 12. Git workflow
+## 13. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -455,7 +491,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Problem | Fix |
 |---|---|

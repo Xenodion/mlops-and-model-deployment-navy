@@ -93,6 +93,21 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
+  # The web app, also in the "app" profile. It reaches the API by its service name.
+  webapp:
+    build:
+      context: .
+      dockerfile: docker/webapp/Dockerfile
+    image: ride-webapp:dev
+    profiles: ["app"]
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 
 volumes:
   s3-data:
