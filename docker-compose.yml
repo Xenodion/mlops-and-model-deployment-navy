@@ -70,6 +70,7 @@ services:
     environment:
       <<: *s3-env
       MLFLOW_DISABLE_AGENT_HINT: "1"
+      MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"  # ~10 GenAI job processes we don't use, ~1.8 GB of memory
     ports:
       - "5000:5000"
     depends_on:

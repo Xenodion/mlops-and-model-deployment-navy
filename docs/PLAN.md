@@ -65,7 +65,7 @@ lab 5's `params.yaml`), and S6–S8. Re-check §10–12 after each of those sess
 | DEC-5 | Serving | Model exported from the registry into `model/` and baked into the API image (labs 2 and 5). Image tag = commit sha + model version. | Proposed |
 | DEC-6 | Object storage | SeaweedFS (course setup, S3-compatible). Covers the "store the model on S3 / MinIO" requirement. | Proposed |
 | DEC-7 | Image registry | Docker Hub (the guidelines ask for Docker Hub URLs; lab 2 used GHCR) | Proposed |
-| DEC-8 | Production environment | **kind** cluster on one designated **prod host** laptop, as in the S5 lab (the guidelines also accept Docker Desktop Kubernetes or Minikube) | Proposed, host TBD |
+| DEC-8 | Production environment | **kind** cluster on one designated **prod host** laptop, as in the S5 lab (the guidelines also accept Docker Desktop Kubernetes or Minikube) | **In place** (19/11) on the laptop building the project; the self-hosted runner goes on the same machine |
 | DEC-9 | Python version | 3.14, as in lab 5 and the MLflow image, set in `.python-version`. Fall back to 3.12 if PyTorch has no wheel for 3.14 (checked in FND-1). | Proposed |
 | DEC-10 | `lectures/` and `labs/` in the repo | Git-ignored and untracked; kept on disk for reference while building. | **Decided** (16/11) |
 
@@ -163,6 +163,7 @@ kind reaches Services through NodePorts mapped to host ports in `k8s/kind-config
 | Grafana | 3000 | 30083 → 8083 |
 | Prometheus | 9090 | 30084 → 8084 |
 | S3 filer | 8888 | 30085 → 8085 |
+| S3 API (DVC remote for the training workflow, K8S-4) | 8333 | 30086 → 8086 |
 
 ---
 
@@ -213,7 +214,7 @@ Following S1's "baseline first" principle:
 The guidelines ask for a deep learning model, so the CNN is the target. The baseline means the system works from
 day 4 whatever happens to the CNN.
 
-**Reckless threshold:** `is_reckless = reckless_score ≥ threshold`, default **0.5**, overridden by the
+**Reckless threshold:** `is_reckless = (predicted category is Reckless) or reckless_score ≥ threshold`, default **0.5**, overridden by the
 `RECKLESS_THRESHOLD` env var (a ConfigMap value in Kubernetes). This is lab 5's `DECISION_THRESHOLD` pattern, and it
 lets a canary differ from stable by threshold only. We don't tune it on data: out of fold, 4 of the 5 Reckless train
 rides score ≈ 0 whatever the threshold, and every value from 0.3 to 0.7 flags the same 1 of 5 (0.5 gives 1 false
@@ -347,7 +348,9 @@ Start each folder with one file and split it only when it gets long.
 | `make api` | Run the API locally on port 8000 |
 | `make image` | Build the API image |
 | `make kind-up` / `make kind-down` | Create / delete the cluster |
-| `make kind-deploy` | Load local images into kind and apply the manifests |
+| `make kind-load` | Build our MLflow image and load it into kind (the API and web app come from Docker Hub) |
+| `make k8s-secrets` | Create the cluster secrets from env vars (`k8s/secrets.sh`) |
+| `make k8s-deploy` / `make k8s-status` | `kubectl apply -k k8s/` and wait for the rollouts / list pods, services, jobs |
 | `make load` / `make load-kind` | Locust against the local API / the cluster |
 
 **Dockerfile pattern** (lab 5 API image):
@@ -498,15 +501,17 @@ Plain manifests applied with Kustomize (`kubectl apply -k`), mirroring `docker-c
 | SeaweedFS (S3) | StatefulSet + PVC | Buckets `mlflow` and `dvc` created by a Job |
 | Postgres | StatefulSet + PVC | MLflow backend store (S5: "a database, if run in the cluster") |
 | MLflow | Deployment | Our `docker/mlflow` image |
-| API stable | Deployment `ride-api-v1`, labels `app: ride-api, track: stable`, 3 replicas | Readiness and liveness on `/health` (liveness waits longer); requests/limits measured, starting from lab 5's 100m / 256Mi → 500m / 512Mi and raised for PyTorch |
+| API stable | Deployment `ride-api-v1`, labels `app: ride-api, track: stable`, 2 replicas (3 for the load test: the prod host's Docker has 8 GB) | Startup probe (PyTorch takes a while to load), then readiness and liveness on `/health`; requests 250m / 512Mi, limits 1 CPU / 1Gi (lab 5's 100m / 256Mi → 500m / 512Mi, raised for PyTorch) |
 | API canary | Deployment `ride-api-v2`, `track: canary`, 0 replicas by default | Same probes and resources as stable (lab 5 TODO 3) |
 | API Service | NodePort 30080, selector `app: ride-api` | Spreads traffic over stable + canary pods |
 | Web app | Deployment + NodePort 30081 | `API_URL` = in-cluster Service |
-| Config | ConfigMap: `RECKLESS_THRESHOLD`, `MODEL_ALIAS`, `LOG_LEVEL`. Secret: S3/DVC keys, registry token | S5: config changes need no image rebuild |
+| Config | ConfigMap `ride-api-config`: `RECKLESS_THRESHOLD`, `PREDICTION_LOG_PATH`. Secrets `storage-credentials` (S3 keys, Postgres password) and `seaweedfs-s3-config`, created by `k8s/secrets.sh` from env vars, never committed | S5: config changes need no image rebuild. The model is inside the API image, so no alias setting |
 | Drift check (bonus) | CronJob | S5 workloads table: "nightly drift check" |
 | Prometheus + Grafana (bonus) | Manifests or Helm chart, to settle after S6 | Scrape `/metrics` |
 
-- **Images:** CD pulls them from Docker Hub. `kind load docker-image` is only for local builds (`make kind-deploy`).
+- **Images:** the API and web app come from Docker Hub, their tags pinned in the `images:` block of
+  `k8s/kustomization.yaml` (CD changes only those lines). Only our MLflow image is built locally and loaded with
+  `kind load docker-image` (`make kind-load`).
 - **Canary (S5, S8):** scale stable to 9 and canary to 1 for ≈ 10 % of traffic. Rollback = scale canary to 0.
   A bad stable release: `kubectl rollout undo deployment/ride-api-v1`, then move `@production` back.
   **Target: rollback in under 5 minutes**, rehearsed and written up in `docs/runbook.md`.
@@ -620,13 +625,13 @@ and the baseline and CNN plug into the same contract.
 
 | ID | Task | WS | Depends on |
 |---|---|---|---|
-| K8S-1 | Prod host: kind cluster from `kind-config.yaml` (port mappings), self-hosted runner | WS4 | n/a |
-| K8S-2 | Manifests: S3, Postgres, MLflow, bucket Job, ConfigMap, Secrets | WS4 | K8S-1 |
-| K8S-3 | Manifests: API stable + canary + NodePort (probes, resources), web app | WS4 + WS3 | K8S-1 |
+| K8S-1 | ◐ 19/11: kind cluster `ride-mlops` (kind 0.33, Kubernetes 1.37) from `kind-config.yaml`, ports 8080–8086, `make kind-up`. Still to do: self-hosted runner (with K8S-5) | WS4 | n/a |
+| K8S-2 | ✅ Done 19/11: S3 (StatefulSet + 5Gi), Postgres (StatefulSet + 1Gi), MLflow (GenAI job processes off: they took ~1.8 GB and got it OOMKilled), bucket Job, ConfigMap, Secrets from `k8s/secrets.sh`. Tested: MLflow on :8082 stores an artifact in the prod S3 and reads it back | WS4 | K8S-1 |
+| K8S-3 | ✅ Done 19/11: API `ride-api-v1` (2 replicas, startup/readiness/liveness probes, requests/limits) + canary `ride-api-v2` (0 replicas) + NodePort 30080, web app + NodePort 30081, image tags pinned in `kustomization.yaml`. Tested: smoke test passes on :8080/:8081, the web app reaches the API by its Service name (3/5 example rides right, as in Docker) | WS4 + WS3 | K8S-1 |
 | K8S-4 | `train.yml` on the prod host: `dvc repro` → gate → `@staging` | WS2 + WS4 | K8S-2, MOD-2 |
 | K8S-5 | `cd.yml`: export → build → smoke test → push → approval → deploy → e2e test → automatic undo | WS4 | K8S-3, K8S-4 |
-| MOD-5 | ◐ `params.yaml` now trains E3 (`model: cnn`). To do: promote the baseline v1 to `@production`, retrain from a clean commit, register (must do ≥ 0.477 on golden) → v2 `@staging`, export, rebuild images | WS2 | MOD-4 |
-| TST-1 | End-to-end smoke test script | WS3 | K8S-3 |
+| MOD-5 | ✅ Done 19/11: CNN E3 retrained from a clean commit (scores reproduced exactly), registered as v2 (golden 0.511 ≥ v1's 0.477), `@staging` and `@production` → v2, exported, images pushed (`ride-api:b3fef60-m2`). Reckless flag fixed: a ride predicted Reckless is always flagged | WS2 | MOD-4 |
+| TST-1 | ◐ `tests/integration/smoke_test.py` passes against the cluster (19/11). To do: run it from CD after each deploy (K8S-5) | WS3 | K8S-3 |
 | TST-2 | Sizing report: load test 1 vs 3 replicas, latency budget, cost per 1,000 predictions | WS3 | K8S-5 |
 
 **Phase 4: bonus and docs (23–24/11) → M4**
@@ -705,6 +710,7 @@ Keep a recorded backup of the demo.
 | Manual approval unavailable on a private repo | No approval step | GitHub Pro via the Student Pack, or make the repo public at the end, or a manual `workflow_dispatch` step as fallback |
 | Self-hosted runner on a public repo | Fork PRs could run code on the prod host | Runner never used by `pull_request` triggers |
 | kind port mappings fixed at cluster creation | Recreate the cluster to add a port | Decide all ports (§5) before K8S-1 |
+| Prod host memory (Docker: 8 GB) | Pods OOMKilled, no room for 3 API replicas + monitoring | MLflow job processes off (−1.8 GB); stop the compose app containers; cluster measured at 2.8 GB with 2 API replicas |
 | Large PyTorch images | Slow CI and deploys | CPU-only wheels, slim base image, layer caching |
 | Windows / macOS differences in the team | "Works on my machine" | Everything through uv, Docker and the Makefile (Windows users: Git Bash or WSL); `.gitattributes` for line endings |
 | Scope creep, QCM on 24/11 | Core unfinished | Bonus only after M3; freeze 25/11 at noon |

@@ -109,6 +109,17 @@ def test_the_threshold_comes_from_the_environment(monkeypatch, model_dir, ride):
         assert strict.post("/v1/predict", json=ride).json()["is_reckless"] is True
 
 
+def test_a_ride_predicted_reckless_is_always_flagged(monkeypatch, model_dir, labelled_rides):
+    monkeypatch.setenv("RECKLESS_THRESHOLD", "1.01")  # no score can reach it: only the predicted category flags
+    readings = labelled_rides[0]
+    one = readings[readings["ride_id"] == "Reckless-1"]
+    body = {"time_index": one["time_index"].tolist(), **{c: one[c].tolist() for c in SENSOR_COLUMNS}}
+    with TestClient(create_app(model_uri=str(model_dir))) as strict:
+        answer = strict.post("/v1/predict", json=body).json()
+    assert answer["label"] == "Reckless"
+    assert answer["is_reckless"] is True
+
+
 def test_every_prediction_is_logged_for_the_drift_checks(monkeypatch, tmp_path, client, ride):
     log = tmp_path / "predictions.jsonl"
     monkeypatch.setenv("PREDICTION_LOG_PATH", str(log))

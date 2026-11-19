@@ -84,7 +84,9 @@ class Prediction(BaseModel):
     label: str = Field(description="Most likely category: Safe, Safe overall, Bad weather, Tandem or Reckless")
     probabilities: dict[str, float] = Field(description="One probability per category (they sum to 1)")
     reckless_score: float = Field(description="Probability of Reckless, compared with the threshold")
-    is_reckless: bool = Field(description="reckless_score >= the service's threshold (see /health)")
+    is_reckless: bool = Field(
+        description="Reckless is the predicted category, or reckless_score >= the service's threshold (see /health)"
+    )
     model_version: str = Field(description="Registry version of the model that answered")
     n_readings: int = Field(description="Readings received")
 

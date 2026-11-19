@@ -73,4 +73,25 @@ push: ## Build both images with traceable tags and push them to Docker Hub (dock
 smoke-test: ## Smoke test the running containers (after make app-up), as CI does
 	uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501
 
-.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up webapp webapp-examples push smoke-test
+kind-up: ## Create the production cluster (kind, ports 8080-8086 on the laptop), once
+	kind create cluster --config k8s/kind-config.yaml
+
+kind-down: ## Delete the production cluster (its data goes with it)
+	kind delete cluster --name ride-mlops
+
+kind-load: ## Load our locally built MLflow image into the cluster (the other images come from Docker Hub)
+	docker build -t mlops-mlflow:3.17.2 docker/mlflow
+	kind load docker-image mlops-mlflow:3.17.2 --name ride-mlops
+
+k8s-secrets: ## Create the production secrets in the cluster (S3, Postgres) from env vars
+	bash k8s/secrets.sh
+
+k8s-deploy: ## Deploy (or update) everything in the cluster and wait until it runs
+	kubectl apply -k k8s/
+	kubectl -n ride-prod rollout status statefulset/s3 statefulset/postgres --timeout=5m
+	kubectl -n ride-prod rollout status deploy/mlflow deploy/ride-api-v1 deploy/ride-webapp --timeout=10m
+
+k8s-status: ## What runs in the cluster: pods, services, jobs
+	kubectl -n ride-prod get pods,services,jobs -o wide
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up webapp webapp-examples push smoke-test kind-up kind-down kind-load k8s-secrets k8s-deploy k8s-status

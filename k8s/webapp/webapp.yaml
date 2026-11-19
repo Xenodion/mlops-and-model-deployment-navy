@@ -1,0 +1,42 @@
+# The web app: calls the API through its Service name. From the laptop: http://127.0.0.1:8081
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-webapp
+  labels: { app: ride-webapp }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ride-webapp }
+  template:
+    metadata:
+      labels: { app: ride-webapp }
+    spec:
+      containers:
+        - name: webapp
+          image: ride-webapp  # its tag is set in kustomization.yaml
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: API_URL, value: "http://ride-api" }
+          ports:
+            - { containerPort: 8501 }
+          readinessProbe:
+            httpGet: { path: /_stcore/health, port: 8501 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /_stcore/health, port: 8501 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ride-webapp
+spec:
+  type: NodePort
+  selector: { app: ride-webapp }
+  ports:
+    - { port: 80, targetPort: 8501, nodePort: 30081 }

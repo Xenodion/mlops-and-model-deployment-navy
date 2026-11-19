@@ -1,0 +1,63 @@
+# MLflow tracking server + model registry of production, as in docker-compose.yml: runs in Postgres, files in S3.
+# The guidelines want MLflow on the production cluster too. From the laptop: http://localhost:8082
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  labels: { app: mlflow }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mlflow }
+  template:
+    metadata:
+      labels: { app: mlflow }
+    spec:
+      containers:
+        - name: mlflow
+          image: ride-mlflow  # docker/mlflow image, loaded into kind by `make kind-load` (kustomization.yaml)
+          args:
+            - mlflow
+            - server
+            - --workers=1
+            - --host=0.0.0.0
+            - --port=5000
+            - --backend-store-uri=postgresql+psycopg://mlflow:$(POSTGRES_PASSWORD)@postgres:5432/mlflow
+            - --artifacts-destination=s3://mlflow
+            - --serve-artifacts  # files go through the server: clients need no S3 credentials
+            - --allowed-hosts=localhost,localhost:*,127.0.0.1:*,mlflow:*,mlflow.ride-prod.svc.cluster.local:*
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: storage-credentials, key: postgres-password } }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: storage-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: storage-credentials, key: s3-secret-key } }
+            - { name: AWS_DEFAULT_REGION, value: us-east-1 }
+            - { name: MLFLOW_S3_ENDPOINT_URL, value: "http://s3:8333" }
+            - { name: MLFLOW_DISABLE_AGENT_HINT, value: "1" }
+            # MLflow 3.17 starts ~10 background job processes (~230 MB each) for GenAI features we don't use:
+            # with them the server needs ~2 GB and got OOMKilled; without them < 1 GB (measured ~770 MiB)
+            - { name: MLFLOW_SERVER_ENABLE_JOB_EXECUTION, value: "false" }
+          ports:
+            - { containerPort: 5000 }
+          startupProbe:  # waits for Postgres and the database migrations at first start
+            httpGet: { path: /health, port: 5000 }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health, port: 5000 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1536Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+spec:
+  type: NodePort
+  selector: { app: mlflow }
+  ports:
+    - { port: 5000, targetPort: 5000, nodePort: 30082 }

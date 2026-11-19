@@ -1,0 +1,11 @@
+# One stable entry point in front of every ready API pod (stable and canary). In the cluster: http://ride-api
+# (the web app uses it). From the laptop: http://127.0.0.1:8080 (NodePort 30080, see kind-config.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ride-api
+spec:
+  type: NodePort
+  selector: { app: ride-api }
+  ports:
+    - { port: 80, targetPort: 8000, nodePort: 30080 }
