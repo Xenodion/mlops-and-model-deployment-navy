@@ -3,6 +3,7 @@
 .DEFAULT_GOAL := help
 ALIAS ?= staging
 VERSION ?= dev
+export DOCKERHUB_USER
 
 help: ## List the commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -66,4 +67,10 @@ webapp: ## Run the web app on http://127.0.0.1:8501 (it calls the API: run make 
 webapp-examples: ## Regenerate the web app example rides (one golden ride per category) from data/processed/
 	uv run python webapp/make_examples.py
 
-.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up webapp webapp-examples
+push: ## Build both images with traceable tags and push them to Docker Hub (docker login first): make push DOCKERHUB_USER=<name>
+	bash docker/push.sh
+
+smoke-test: ## Smoke test the running containers (after make app-up), as CI does
+	uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up webapp webapp-examples push smoke-test

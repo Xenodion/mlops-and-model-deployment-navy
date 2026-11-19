@@ -600,14 +600,14 @@ and the baseline and CNN plug into the same contract.
 | API-1 | ✅ Done 18/11 (with API-3): `api/main.py`, `schemas.py`, `metrics.py`, `make api`, 15 tests on a model trained on fake rides. Golden rides: ~60–150 ms server time | WS3 | n/a |
 | API-2 | ✅ Done 19/11: `webapp/app.py` + `api_client.py`, 5 example golden rides, `make webapp`; 8 tests (fake API + Streamlit test runner). Against the real API: 5/5 examples correct | WS3 | n/a |
 | INF-1 | ✅ Done 19/11: `docker/api/Dockerfile` (1.11 GB) and `docker/webapp/Dockerfile` (852 MB, Streamlit + HTTP client only); uv cache kept out with a cache mount, non-root, healthchecks; compose profile `app`, `make image` / `make app-up`. Both tested in containers | WS4 | n/a |
-| INF-2 | Docker Hub repositories + GitHub secrets | WS4 | n/a |
+| INF-2 | ◐ 19/11: `docker/push.sh` + `make push` (tags `<commit>-m<model version>` / `<commit>`, refuses uncommitted code), guide §11. **To do by a human:** Docker Hub account + token, first push, GitHub secrets `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` | WS4 | n/a |
 
 **Phase 2: baseline end to end (19–20/11) → M2**
 
 | ID | Task | WS | Depends on |
 |---|---|---|---|
 | API-3 | ✅ Done 18/11: the API serves the exported `model/` (v1, version read from `model_meta.json`); `/v1/feedback` moves to OPS-1 | WS3 | n/a |
-| INF-3 | CI: container smoke test + integration job | WS4 | API-3 |
+| INF-3 | ◐ 19/11: CI job `images` builds both images with a tiny test model and smoke-tests the containers (`tests/integration/`), replayed locally: passes. Still to do: integration job with the compose stack (MLflow) running the pipeline on fake data | WS4 | API-3 |
 | MOD-4 | CNN + cross-validated training, experiments E1–E6 (continues in parallel until 22/11) | WS2 | DATA-3 |
 | DOC-1 | Email the group list to the teachers (**by Fri 20/11**) | WS5 | n/a |
 

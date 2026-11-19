@@ -57,6 +57,8 @@ shows false "package not installed" hints.
 | `make webapp-examples` | Regenerate the web app's example rides from the golden rides |
 | `make image` | Build both Docker images, `ride-api:dev` and `ride-webapp:dev` (`make image VERSION=v1` for another tag) |
 | `make app-up` | Build and start the API (:8000) and web app (:8501) containers next to the dev stack (stop everything with `make dev-down`) |
+| `make smoke-test` | Check the running containers as CI does: health, a prediction, a 422, the web app |
+| `make push DOCKERHUB_USER=<name>` | Build both images with traceable tags and push them to Docker Hub (§11) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -446,7 +448,46 @@ app image (~850 MB) installs only Streamlit and the HTTP client, not our package
 
 ---
 
-## 11. Tests and code quality
+## 11. Docker Hub: publishing the images
+
+The guidelines ask for the Docker Hub URLs of our images, and Kubernetes will pull them from there.
+
+**One-time set-up:**
+1. Create a Docker Hub account (https://hub.docker.com).
+2. Create a token: **Account settings → Personal access tokens → Generate new token**, access **Read & Write**.
+   Copy it: it's shown only once.
+3. `docker login -u <your Docker Hub name>`, then paste the token as the password.
+4. For the CD workflow (coming next): GitHub repo → **Settings → Secrets and variables → Actions → New repository
+   secret**. Add `DOCKERHUB_USERNAME` (your name) and `DOCKERHUB_TOKEN` (the token). Never put the token in a file.
+
+**Push:**
+
+```bash
+git status                            # commit first: the push refuses uncommitted changes
+make export                           # the model the API image will contain (@staging by default)
+make push DOCKERHUB_USER=<your name>  # builds both images, tags them, pushes, prints the Docker Hub URLs
+```
+
+| Image | Tags | Says |
+|---|---|---|
+| `<name>/ride-api` | `<commit>-m<model version>` (e.g. `b192aac-m1`) + `latest` | Which code **and** which model are inside |
+| `<name>/ride-webapp` | `<commit>` + `latest` | Which code is inside |
+
+Each image also carries labels (`org.opencontainers.image.revision`, `ride.model.version`): `docker inspect` shows them.
+
+**Public or private?** New Docker Hub repositories are public. The API image contains the trained model, and the web
+app image contains the 5 example rides from the course dataset. Decide with the team whether that may be public; if
+not, switch the repositories to private in their Docker Hub settings (the free plan allows only a few private
+repositories).
+
+**What CI does with images:** on every pull request and push to `main`, the `images` job builds both images with a
+tiny test model (GitHub's machines can't reach our MLflow), starts them, and runs the smoke test: `/health`, a
+prediction, a 422, the web app's health, and the web app reaching the API by name. It doesn't push. Run the same
+smoke test on your own containers with `make app-up` then `make smoke-test`.
+
+---
+
+## 12. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -465,7 +506,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 12. Where to put new code
+## 13. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -482,7 +523,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 13. Git workflow
+## 14. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -491,7 +532,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -508,4 +549,6 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | Each API call takes ~2 s on Windows | Call `http://127.0.0.1:8000`, not `localhost` (Windows tries IPv6 first) |
 | `make api`: address already in use | Another API is still running on port 8000: stop it (Ctrl+C in its terminal) |
 | `/health` says `degraded` | No model in `model/`: run `make export` (needs MLflow running and a registered model) |
+| `make push`: "Uncommitted changes" | On purpose: commit first, so the image tag matches the code inside |
+| `make push`: "denied: requested access to the resource is denied" | Run `docker login`, and check that `DOCKERHUB_USER` is exactly your Docker Hub name |
 | CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |
