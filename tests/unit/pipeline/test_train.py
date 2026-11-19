@@ -2,12 +2,17 @@ import json
 
 import mlflow
 import pandas as pd
+import pytest
 
 from ride_classifier.config import LABELS
 from ride_classifier.pipeline.train import run
 
+TINY_CNN = dict(window_s=30, stride_s=15, filters=[8, 16], kernel=5, dropout=0.0, epochs=6, batch_size=32,
+                learning_rate=3e-3, weight_decay=0.0, augment=False)  # fmt: skip
 
-def test_train_logs_a_complete_run_and_saves_a_working_model(tmp_path, labelled_rides):
+
+@pytest.mark.parametrize("model_type", ["baseline", "cnn"])
+def test_train_logs_a_complete_run_and_saves_a_working_model(tmp_path, labelled_rides, model_type):
     readings, labels = labelled_rides
     processed = tmp_path / "data" / "processed"
     processed.mkdir(parents=True)
@@ -24,8 +29,9 @@ def test_train_logs_a_complete_run_and_saves_a_working_model(tmp_path, labelled_
         },
         "train": {
             "experiment_id": "test",
-            "model": "baseline",
+            "model": model_type,
             "baseline": {"C": 1.0, "max_iter": 1000},
+            "cnn": TINY_CNN,
             "model_path": "artifacts/model",
             "oof_path": "artifacts/oof_predictions.csv",
             "metrics_path": "artifacts/cv_metrics.json",
@@ -42,7 +48,10 @@ def test_train_logs_a_complete_run_and_saves_a_working_model(tmp_path, labelled_
     assert metrics["cv_macro_f1"] > metrics["ref_majority_macro_f1"]  # the fake categories are easy to separate
     logged = mlflow.get_run(json.loads((tmp_path / "artifacts" / "train_run.json").read_text())["run_id"])
     assert {"git_commit", "git_dirty", "data_md5", "labels_md5", "model_type"} <= set(logged.data.tags)
+    assert logged.data.tags["model_type"] == model_type
     assert {"cv_macro_f1", "ref_majority_macro_f1", "cv_recall_reckless"} <= set(logged.data.metrics)
+    if model_type == "cnn":
+        assert "train_loss" in logged.data.metrics  # the training curve, one value per epoch
     oof = pd.read_csv(tmp_path / "artifacts" / "oof_predictions.csv")
     assert len(oof) == len(labels)
 

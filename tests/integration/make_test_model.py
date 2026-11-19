@@ -15,8 +15,7 @@ import numpy as np
 import pandas as pd
 
 from ride_classifier.config import LABELS, SENSOR_COLUMNS
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
+from ride_classifier.models.baseline import StatsBaseline
 from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.train import PACKAGE_DIR, SIGNATURE
 
@@ -39,11 +38,10 @@ def main(destination: Path) -> None:
     if destination.exists() and any(destination.iterdir()):
         raise SystemExit(f"{destination} is not empty: refusing to overwrite a real exported model")
     readings, labels = fake_rides()
-    features = ride_features(readings)
-    estimator = make_baseline(C=1.0, max_iter=1000).fit(features, labels.loc[features.index])
+    baseline = StatsBaseline(C=1.0, max_iter=1000)
     mlflow.pyfunc.save_model(
         str(destination),
-        python_model=RideClassifierModel(estimator, "baseline"),
+        python_model=RideClassifierModel(baseline.fit(baseline.prepare(readings), labels)),
         signature=SIGNATURE,
         code_paths=[str(PACKAGE_DIR)],
     )

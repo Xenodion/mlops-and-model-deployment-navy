@@ -240,17 +240,22 @@ alarm out of 395 rides).
 
 ### 6.5 Experiments (CNN, ends Sun 22/11)
 
-| ID | Experiment |
-|---|---|
-| E0 | Baselines (trivial + statistics) |
-| E1 | CNN, 30 s windows, mean aggregation, class weights |
-| E2 | E1 + augmentation |
-| E3 | Weighted loss vs oversampling the rare-class rides |
-| E4 | Window length 10 / 30 / 60 s |
-| E5 | Aggregation: mean vs mean of top-k windows |
-| E6 | Extra magnitude channels |
+Run on 19/11, all logged in MLflow (experiment `ride-classifier`, tag `experiment_id`). CNN = 30 s windows every
+15 s, 3 conv blocks [32, 64, 64], kernel 7, dropout 0.3, augmentation, mean over windows.
 
-Selection: best out-of-fold macro-F1; tie-break on Reckless recall.
+| ID | Model | CV macro-F1 | Golden macro-F1 | Gate |
+|---|---|---|---|---|
+| E0 | Statistics baseline | **0.373** ± 0.062 | 0.477 | passed |
+| E1 | CNN, balanced class weights, 20 epochs | 0.282 ± 0.072 | 0.177 | failed: over-predicts the rare categories (a Reckless window weighs 66x a Safe one) |
+| E2 | CNN, **sqrt** class weights (8x), 20 epochs | 0.312 ± 0.068 | 0.286 | failed (< 0.30): overfits |
+| E3 | CNN, sqrt class weights, **10 epochs** | 0.357 ± 0.071 | **0.511** | **passed** |
+
+Selection: best out-of-fold macro-F1 among CNNs (E3), so the golden set wasn't used to choose. E3 and the baseline
+are tied within the noise (fold spread ±0.07, golden = 100 rides); E3 is kept because it passes the gate, does at
+least as well on golden (MOD-5 rule) and is the deep learning model the guidelines ask for.
+
+Not tried (time): oversampling the rare-category rides, window length 10 / 60 s, mean of the top-k windows,
+extra magnitude channels.
 
 ---
 
@@ -593,7 +598,7 @@ and the baseline and CNN plug into the same contract.
 |---|---|---|---|
 | DATA-1 | ✅ Done 17/11: `data/load.py` (schema checks), `data/clean.py` (sort, dedupe, interpolate within a ride) + tests | WS1 | n/a |
 | DATA-2 | ✅ Done 17/11: `data/split.py` + `pipeline/prepare.py`, `dvc.yaml` stage, `make pipeline`. Real run: 1 duplicate dropped, 10,201 gaps filled, golden = 100 rides (83/8/4/4/1), 1 Reckless per fold; deterministic (rerun gives identical outputs) | WS1 | n/a |
-| DATA-3 | Windowing + scaler + tests (for the CNN) | WS1 | DATA-1 |
+| DATA-3 | ✅ Done 19/11: `features/windows.py` (30 s windows every 15 s, channels first); the per-channel scaling is fitted inside the CNN on its training rides only | WS1 | n/a |
 | MOD-1 | ✅ Done 17/11: `features/stats.py` (~170 statistics per ride), `models/baseline.py`, `models/pyfunc.py`, `train` stage with MLflow logging (lab 1 tags). First run (E0): CV macro-F1 0.373 ± 0.062 vs 0.18 always-Safe and 0.19 random; Reckless recall 0.20 | WS2 | n/a |
 | MOD-2 | ✅ Done 18/11: `pipeline/evaluate.py`, `evaluate` stage. Golden macro-F1 0.477 (always Safe 0.181, random 0.202) → gate passed; floor calibrated to 0.30. Results + tag `gate` added to the training's MLflow run | WS2 | n/a |
 | MOD-3 | ✅ Done 18/11: `registry/register.py` (+ `--promote`), `export_model.py` (+ `model_meta.json`), `repro_check.py`, Makefile targets + tests. `ride-classifier` v1 @staging = E0 baseline (run `ac97c123`), repro check: all 21 scores identical | WS2 | n/a |
@@ -608,7 +613,7 @@ and the baseline and CNN plug into the same contract.
 |---|---|---|---|
 | API-3 | ✅ Done 18/11: the API serves the exported `model/` (v1, version read from `model_meta.json`); `/v1/feedback` moves to OPS-1 | WS3 | n/a |
 | INF-3 | ◐ 19/11: CI job `images` builds both images with a tiny test model and smoke-tests the containers (`tests/integration/`), replayed locally: passes. Still to do: integration job with the compose stack (MLflow) running the pipeline on fake data | WS4 | API-3 |
-| MOD-4 | CNN + cross-validated training, experiments E1–E6 (continues in parallel until 22/11) | WS2 | DATA-3 |
+| MOD-4 | ✅ Done 19/11: `features/windows.py` (DATA-3), `models/cnn.py`, shared model contract (`prepare` / `fit` / `predict_proba`; refactored baseline reproduces its scores exactly), PyTorch CPU build, experiments E1–E3 (§6.5): E3 passes the gate, golden 0.511 | WS2 | n/a |
 | DOC-1 | Email the group list to the teachers (**by Fri 20/11**) | WS5 | n/a |
 
 **Phase 3: production (21–22/11) → M3**
@@ -620,7 +625,7 @@ and the baseline and CNN plug into the same contract.
 | K8S-3 | Manifests: API stable + canary + NodePort (probes, resources), web app | WS4 + WS3 | K8S-1 |
 | K8S-4 | `train.yml` on the prod host: `dvc repro` → gate → `@staging` | WS2 + WS4 | K8S-2, MOD-2 |
 | K8S-5 | `cd.yml`: export → build → smoke test → push → approval → deploy → e2e test → automatic undo | WS4 | K8S-3, K8S-4 |
-| MOD-5 | CNN replaces the baseline if it passes the gate and beats it on golden (no API change) | WS2 | MOD-4, K8S-4 |
+| MOD-5 | ◐ `params.yaml` now trains E3 (`model: cnn`). To do: promote the baseline v1 to `@production`, retrain from a clean commit, register (must do ≥ 0.477 on golden) → v2 `@staging`, export, rebuild images | WS2 | MOD-4 |
 | TST-1 | End-to-end smoke test script | WS3 | K8S-3 |
 | TST-2 | Sizing report: load test 1 vs 3 replicas, latency budget, cost per 1,000 predictions | WS3 | K8S-5 |
 

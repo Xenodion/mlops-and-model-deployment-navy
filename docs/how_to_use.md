@@ -179,12 +179,20 @@ uv run dvc params diff      # settings now vs the last commit
 |---|---|
 | `data.golden_share`, `data.cv_folds`, `data.seed` | Split. Changing them changes the golden set: **don't**, unless the team decides to |
 | `train.experiment_id` | Label of the experiment (E0, E1… see PLAN.md §6.5), logged in MLflow |
-| `train.model` | `baseline` for now (the CNN comes with MOD-4) |
-| `train.baseline.C` | Regularisation: smaller = simpler model |
+| `train.model` | `cnn` (1D CNN on 30 s windows, the current choice, E3) or `baseline` (statistics + logistic regression) |
+| `train.baseline.C` | Baseline regularisation: smaller = simpler model |
+| `train.cnn.epochs` | CNN training length: 10 (20 overfitted) |
+| `train.cnn.class_weight` | How much rare categories count: `sqrt` (current), `balanced` (over-predicts them), `none` |
+| `train.cnn.window_s`, `stride_s`, `filters`, `kernel`, `dropout`, `learning_rate`… | The CNN's shape and training, commented in `params.yaml` |
 | `evaluate.gate.min_macro_f1` | The gate's minimum score (0.30) |
 
-**Trying a new setting:** edit `params.yaml` (e.g. `C: 0.1` and `experiment_id: E1`), commit, `make pipeline`, then
-compare the runs in MLflow.
+Both models follow the same contract (`prepare` → `fit` → `predict_proba`, see `models/baseline.py`), so switching
+`train.model` changes nothing else: same folds, same gate, same MLflow logging, same API. With the CNN, MLflow also
+shows its training curve (`train_loss`, one point per epoch), and a full `train` takes ~5–6 min on a laptop CPU
+(5 folds + the final model) against ~1 min for the baseline.
+
+**Trying a new setting:** edit `params.yaml` (e.g. `epochs: 15` and `experiment_id: E4`), commit, `make pipeline`,
+then compare the runs in MLflow. Results so far: PLAN.md §6.5.
 
 **Using the model in Python:**
 

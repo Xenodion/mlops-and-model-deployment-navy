@@ -14,7 +14,18 @@ dependencies = [
     "pyyaml>=6.0.3",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
+    "torch>=2.15",  # the CNN: needed to train it and to serve it (CPU build, see [tool.uv.sources])
 ]
+
+# PyTorch's CPU-only index: the default Linux build drags in ~3 GB of GPU (CUDA) libraries we never use.
+# macOS keeps PyPI's build (CPU-only there anyway, and not on the CPU index).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
 
 # Each image installs only its group: `uv sync --no-default-groups --group api`.
 # Owners add groups as they start their task, e.g. `uv add --group api fastapi`.

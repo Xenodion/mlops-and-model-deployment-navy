@@ -18,8 +18,6 @@ import numpy as np
 import pandas as pd
 from mlflow.models import ModelSignature
 from mlflow.types import ColSpec, Schema
-from sklearn.base import clone
-from sklearn.dummy import DummyClassifier
 from sklearn.metrics import classification_report, f1_score
 
 from ride_classifier.config import (
@@ -34,9 +32,9 @@ from ride_classifier.config import (
     load_params,
 )
 from ride_classifier.data.split import FOLD_COLUMN, SPLIT_COLUMN, TRAIN
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
-from ride_classifier.models.metrics import classification_metrics
+from ride_classifier.models.baseline import StatsBaseline
+from ride_classifier.models.cnn import CNNModel
+from ride_classifier.models.metrics import classification_metrics, reference_scores
 from ride_classifier.models.plots import confusion_figure
 from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.cli import setup
@@ -45,7 +43,7 @@ from ride_classifier.registry.tracking import check_server, flatten, run_tags
 logger = logging.getLogger(__name__)
 
 PACKAGE_DIR = Path(__file__).resolve().parents[1]  # src/ride_classifier: shipped inside the model
-SERVING_REQUIREMENTS = ("mlflow-skinny", "numpy", "pandas", "pyarrow", "pyyaml", "scikit-learn", "scipy")
+SERVING_REQUIREMENTS = ("mlflow-skinny", "numpy", "pandas", "pyarrow", "pyyaml", "scikit-learn", "scipy", "torch")
 
 # The model's input contract: raw readings; ride_id is optional (one ride without it)
 SIGNATURE = ModelSignature(
@@ -60,21 +58,26 @@ SIGNATURE = ModelSignature(
 )
 
 
-def build_model(train_params: dict):
+def build_model(train_params: dict, seed: int):
+    """An untrained model, chosen by `train.model` in params.yaml."""
     if train_params["model"] == "baseline":
-        return make_baseline(**train_params["baseline"])
-    raise ValueError(f"unknown model {train_params['model']!r}, expected 'baseline'")
+        return StatsBaseline(**train_params["baseline"])
+    if train_params["model"] == "cnn":
+        return CNNModel(**train_params["cnn"], seed=seed)
+    raise ValueError(f"unknown model {train_params['model']!r}, expected 'baseline' or 'cnn'")
 
 
-def cross_validate(features: pd.DataFrame, labels: pd.Series, folds: pd.Series, make: Callable) -> pd.DataFrame:
-    """Out-of-fold probabilities: each ride is predicted by a model trained without it."""
-    proba = pd.DataFrame(0.0, index=features.index, columns=LABELS)
+def cross_validate(inputs, labels: pd.Series, folds: pd.Series, make: Callable) -> pd.DataFrame:
+    """Out-of-fold probabilities: each ride is predicted by a model trained without it.
+
+    `inputs` = model.prepare(readings), one entry per ride: computed once, then split by fold.
+    """
+    parts = []
     for fold in sorted(folds.unique()):
         held_out = folds == fold
-        model = make().fit(features[~held_out], labels[~held_out])
-        fold_proba = pd.DataFrame(model.predict_proba(features[held_out]), columns=model.classes_)
-        proba.loc[held_out] = fold_proba.reindex(columns=LABELS, fill_value=0.0).to_numpy()
-    return proba
+        model = make().fit(inputs.loc[~held_out], labels.loc[~held_out])
+        parts.append(model.predict_proba(inputs.loc[held_out]))
+    return pd.concat(parts).loc[inputs.index]
 
 
 def run(
@@ -87,27 +90,24 @@ def run(
     readings = pd.read_parquet(root / data_params["train_path"])  # already clean (prepare stage)
     splits = pd.read_csv(root / data_params["splits_path"])
     rides = splits[splits[SPLIT_COLUMN] == TRAIN].set_index(ID_COLUMN)
-    features = ride_features(readings)
-    labels = rides.loc[features.index, LABEL_COLUMN]
-    folds = rides.loc[features.index, FOLD_COLUMN]
+    seed = data_params["seed"]
+    inputs = build_model(train_params, seed).prepare(readings)  # statistics or windows of every train ride, once
+    labels = rides.loc[inputs.index, LABEL_COLUMN]
+    folds = rides.loc[inputs.index, FOLD_COLUMN]
 
     # 1. Cross-validation: how well does this model generalise?
-    oof = cross_validate(features, labels, folds, lambda: build_model(train_params))
+    oof = cross_validate(inputs, labels, folds, lambda: build_model(train_params, seed))
     predicted = oof.idxmax(axis=1)
     fold_f1 = [f1_score(labels[folds == f], predicted[folds == f], average="macro") for f in sorted(folds.unique())]
     metrics = {f"cv_{name}": value for name, value in classification_metrics(labels, predicted).items()}
     metrics["cv_macro_f1_std"] = float(np.std(fold_f1))
-    references = {
-        "majority": DummyClassifier(strategy="most_frequent"),  # always answers "Safe"
-        "random": DummyClassifier(strategy="stratified", random_state=data_params["seed"]),
-    }
-    for name, dummy in references.items():
-        guess = cross_validate(features, labels, folds, lambda d=dummy: clone(d)).idxmax(axis=1)
-        metrics[f"ref_{name}_macro_f1"] = classification_metrics(labels, guess)["macro_f1"]
+    for name, value in reference_scores(labels, labels, seed=seed).items():  # "always Safe" and random guessing
+        metrics[f"ref_{name}_macro_f1"] = value
 
-    # 2. Final model, trained on all train rides, with cleaning + features packed inside
-    model = RideClassifierModel(build_model(train_params).fit(features, labels), model_type=train_params["model"])
-    example = readings[readings[ID_COLUMN] == features.index[0]].head(600)[[ID_COLUMN, TIME_COLUMN, *SENSOR_COLUMNS]]
+    # 2. Final model, trained on all train rides, with cleaning + its own preparation packed inside
+    final = build_model(train_params, seed).fit(inputs, labels)
+    model = RideClassifierModel(final)
+    example = readings[readings[ID_COLUMN] == inputs.index[0]].head(600)[[ID_COLUMN, TIME_COLUMN, *SENSOR_COLUMNS]]
     model_kwargs = {
         "python_model": model,
         "signature": SIGNATURE,
@@ -138,6 +138,8 @@ def run(
         mlflow.log_metrics(metrics)
         for fold, score in enumerate(fold_f1):
             mlflow.log_metric("fold_macro_f1", score, step=fold)
+        for epoch, loss in enumerate(getattr(final, "history_", [])):  # the CNN's training curve
+            mlflow.log_metric("train_loss", loss, step=epoch)
         mlflow.log_figure(
             confusion_figure(labels, predicted, "Cross-validated predictions on the train rides"),
             "confusion_matrix.png",

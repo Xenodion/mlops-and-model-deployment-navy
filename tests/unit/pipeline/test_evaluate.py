@@ -3,9 +3,6 @@ import json
 import mlflow
 import pytest
 
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
-from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.evaluate import gate_checks, run
 
 GATE = {"min_macro_f1": 0.25, "must_beat_references": True}
@@ -32,15 +29,11 @@ def test_reference_checks_can_be_switched_off():
 
 
 @pytest.fixture(scope="module")
-def project(tmp_path_factory, labelled_rides):
+def project(tmp_path_factory, labelled_rides, ride_model):
     """A trained model, its MLflow run and golden rides in a temporary project folder, with a local MLflow store."""
     root = tmp_path_factory.mktemp("project")
     readings, labels = labelled_rides
-    features = ride_features(readings)
-    estimator = make_baseline(C=1.0, max_iter=1000).fit(
-        features, labels.set_index("ride_id").loc[features.index, "label"]
-    )
-    mlflow.pyfunc.save_model(str(root / "artifacts" / "model"), python_model=RideClassifierModel(estimator, "baseline"))
+    mlflow.pyfunc.save_model(str(root / "artifacts" / "model"), python_model=ride_model)
 
     tracking_uri = f"sqlite:///{(root / 'mlflow.db').as_posix()}"
     mlflow.set_tracking_uri(tracking_uri)

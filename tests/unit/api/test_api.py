@@ -8,21 +8,14 @@ from fastapi.testclient import TestClient
 
 from ride_classifier.api.main import create_app
 from ride_classifier.config import LABELS, SENSOR_COLUMNS
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
-from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.train import PACKAGE_DIR
 
 
 @pytest.fixture(scope="module")
-def model_dir(tmp_path_factory, labelled_rides):
+def model_dir(tmp_path_factory, ride_model):
     """A model saved like `make export` does: MLflow model + its code + model_meta.json."""
-    readings, labels = labelled_rides
-    features = ride_features(readings)
-    y = labels.set_index("ride_id").loc[features.index, "label"]
     path = tmp_path_factory.mktemp("export") / "model"
-    model = RideClassifierModel(make_baseline(C=1.0, max_iter=1000).fit(features, y), "baseline")
-    mlflow.pyfunc.save_model(str(path), python_model=model, code_paths=[str(PACKAGE_DIR)])
+    mlflow.pyfunc.save_model(str(path), python_model=ride_model, code_paths=[str(PACKAGE_DIR)])
     (path / "model_meta.json").write_text(json.dumps({"version": "7"}))
     return path
 
