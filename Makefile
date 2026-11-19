@@ -2,6 +2,7 @@
 # Each owner adds the targets of their task (pipeline, api, image, kind-up, kind-deploy, load...). See docs/PLAN.md §7.
 .DEFAULT_GOAL := help
 ALIAS ?= staging
+VERSION ?= dev
 
 help: ## List the commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -25,7 +26,7 @@ dev-up: ## Start the dev stack (S3, Postgres, MLflow on http://localhost:5000)
 	docker compose up -d
 
 dev-down: ## Stop the dev stack (data is kept in Docker volumes)
-	docker compose down
+	docker compose --profile app down
 
 data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the git-ignored .dvc/config.local)
 	uv run dvc remote modify --local storage access_key_id mlops
@@ -52,4 +53,10 @@ repro-check: ## Rebuild the latest training from scratch and compare every score
 api: ## Run the API on http://localhost:8000 (Swagger: /docs) with the model in model/ (make export first)
 	PREDICTION_LOG_PATH=logs/predictions.jsonl uv run uvicorn ride_classifier.api.main:app --host 0.0.0.0 --port 8000
 
-.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api
+image: ## Build the API image ride-api:$(VERSION) from model/ (make export first). Example: make image VERSION=v1
+	docker build -f docker/api/Dockerfile -t ride-api:$(VERSION) .
+
+app-up: ## Build and start our app containers (API on http://127.0.0.1:8000) next to the dev stack
+	docker compose --profile app up -d --build
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up

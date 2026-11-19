@@ -53,6 +53,8 @@ shows false "package not installed" hints.
 | `make export` | Download the `@staging` model into `model/` (`make export ALIAS=production` for the other one) |
 | `make repro-check` | Rebuild the latest training from scratch and compare every score |
 | `make api` | Run the API on http://127.0.0.1:8000 (Swagger at `/docs`) with the model in `model/` (§9) |
+| `make image` | Build the API Docker image `ride-api:dev` (`make image VERSION=v1` for another tag) |
+| `make app-up` | Build and start the API container next to the dev stack (stop everything with `make dev-down`) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -385,6 +387,26 @@ Every response carries `X-Request-ID` (send your own to trace a call) and `X-Pro
 | `PREDICTION_LOG_PATH` | `logs/predictions.jsonl` with `make api` | One JSON line per prediction (input summary, probabilities, version, timing), for the drift checks |
 
 The API tests (`tests/unit/api/`) use a small model trained on fake rides: no MLflow server or real data needed.
+
+**In Docker** (what Kubernetes will run). The image contains our code plus the model exported in `model/` at build
+time, so export first:
+
+```bash
+make export
+make image                                 # docker/api/Dockerfile -> ride-api:dev (~1.1 GB, first build ~4 min)
+docker run --rm -p 8000:8000 ride-api:dev  # http://127.0.0.1:8000/docs, Ctrl+C to stop
+# or, next to S3 + MLflow:
+make app-up                                # the "app" profile of docker-compose.yml
+```
+
+- **Contents:** core libraries plus the `api` dependency group at the exact `uv.lock` versions (the model's
+  training versions), our package, `model/`. No data, tests or secrets (`.dockerignore`).
+- **Safety:** runs as a non-root user (`appuser`), and Docker's healthcheck calls `/health`, so `docker ps` shows
+  `healthy` or `unhealthy`.
+- **Logs:** the prediction log goes to `docker logs` and to `/app/logs/predictions.jsonl` in the container.
+- **Speed:** a bit slower than `make api` on Windows (~110–360 ms per ride), because Docker Desktop runs containers
+  in a small virtual machine.
+- **Port:** stop `make api` before running the container: they both use port 8000.
 
 ---
 

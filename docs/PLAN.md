@@ -599,7 +599,7 @@ and the baseline and CNN plug into the same contract.
 | MOD-3 | ✅ Done 18/11: `registry/register.py` (+ `--promote`), `export_model.py` (+ `model_meta.json`), `repro_check.py`, Makefile targets + tests. `ride-classifier` v1 @staging = E0 baseline (run `ac97c123`), repro check: all 21 scores identical | WS2 | n/a |
 | API-1 | ✅ Done 18/11 (with API-3): `api/main.py`, `schemas.py`, `metrics.py`, `make api`, 15 tests on a model trained on fake rides. Golden rides: ~60–150 ms server time | WS3 | n/a |
 | API-2 | Streamlit app calling the API | WS3 | API-1 |
-| INF-1 | Dockerfiles (lab 5 pattern); compose profiles for api and webapp | WS4 | FND-1 |
+| INF-1 | ◐ API part done 18/11: `docker/api/Dockerfile` (1.11 GB, uv cache kept out with a cache mount, non-root, healthcheck), compose profile `app`, `make image` / `make app-up`; tested end to end in a container. Web app image comes with API-2 | WS4 | FND-1 |
 | INF-2 | Docker Hub repositories + GitHub secrets | WS4 | n/a |
 
 **Phase 2: baseline end to end (19–20/11) → M2**

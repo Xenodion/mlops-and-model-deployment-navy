@@ -79,6 +79,20 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Our API, in the "app" profile: `make dev-up` doesn't start it, `make app-up` does.
+  # Its image holds the model exported into model/ (make export) at build time.
+  api:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    image: ride-api:dev
+    profiles: ["app"]
+    environment:
+      RECKLESS_THRESHOLD: ${RECKLESS_THRESHOLD:-0.5}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
 
 volumes:
   s3-data:
