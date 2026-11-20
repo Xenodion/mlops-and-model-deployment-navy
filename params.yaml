@@ -9,6 +9,11 @@ data:
   golden_share: 0.2
   cv_folds: 5
   seed: 42
+  srv3490:
+    raw_path: data/raw/SRV3490.parquet
+    # rad/s -> deg/s = 180/pi. Measured GBG500/SRV3490 median-std ratio (notebook 02): rotation ~60 (95% CI 58-62),
+    # accelerations 0.77-0.97: the datasets also differ in riders/cities, so the ~5 % gap is population, not units.
+    rotation_factor: 57.2958
 
 train:
   experiment_id: E3          # experiment plan and results: docs/PLAN.md §6.5 (logged as an MLflow tag)
