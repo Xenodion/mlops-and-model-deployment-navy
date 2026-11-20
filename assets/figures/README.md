@@ -8,8 +8,8 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F01 | | The two datasets side by side (rides, readings, cities, labels) | MLOps, infra | core | `01_data_overview` | planned |
 | F02 | | Category counts (500 rides) and imbalance | MLOps | core | `01_data_overview` | planned |
 | F03 | | One ride per category: the 6 sensor channels over time | MLOps | core | `01_data_overview` | planned |
-| F04 | | Rotation units: GBG500 vs SRV3490 distributions before and after conversion | MLOps | core | `02_units_and_cities` | planned |
-| F05 | | Rides and falls per city (SRV3490) | MLOps | core | `02_units_and_cities` | planned |
+| F04 | rotation_units | Rotation units: GBG500 vs SRV3490 distributions before and after conversion | MLOps | core | `02_units_and_cities` | draft |
+| F05 | rides_falls_per_city | Rides and falls per city (SRV3490) | MLOps | core | `02_units_and_cities` | draft |
 | F06 | | A ride cut into 30 s windows (diagram) | both | core | `03_live_classifier` | planned |
 | F07 | | Per-window scores vs cumulative label along one ride | both | core | `03_live_classifier` | planned |
 | F08 | | Macro-F1 vs elapsed ride time (cumulative classifier vs reference vs random) | MLOps | core | `03_live_classifier` | planned |
@@ -40,7 +40,7 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F33 | | Instances and monthly cost vs request volume, CPU vs GPU | infra | core | `ai-infrastructure/cost-resilience` | planned |
 | F34 | | Rollback timeline measured on the cluster | both | core | `ai-infrastructure/cost-resilience` | planned |
 | F35 | | Decision table: recommended infrastructure by volume, model size and latency target | infra | core | `ai-infrastructure/README` | planned |
-| F36 | | Palette test (categories, heatmap, risk scales) | none (charter) | core | `00_visual_charter` | planned |
+| F36 | palette_test | Palette test (categories, heatmap, risk scales) | none (charter) | core | `00_visual_charter` | draft |
 | F37 | | Live replay of a ride (recording) | both | bonus | web app | planned |
 | F38 | | Fall forecast: probability before the fall vs comparison rides, alert trade-off | both | bonus | `07_fall_forecast` | planned |
 | F39 | | Encoder vs core model on golden rides | MLOps | bonus | `08_encoder` | planned |
