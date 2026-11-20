@@ -18,10 +18,9 @@
 /AGENTS.md
 /CLAUDE.md
 
-# Spec Kit (personal planning tool, kept local): templates, agent skills, specs
+# Spec Kit engine and agent skills stay local; the final specs/ (spec, plan, tasks) are committed
 /.specify/
 /.claude/
-/specs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
