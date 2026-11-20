@@ -152,6 +152,30 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
 - **FR-003**: All figures MUST follow the Visual Charter and be saved, as they are produced, as PNG and SVG into
   one assets folder, so that the decks are assembled from files, not redrawn.
 - **FR-004**: Every demo MUST have a fallback (recording or screenshots) in the assets folder.
+- **FR-005**: The drift and detection story MUST be shown in action: each drift scenario is replayed against the
+  deployed service while the dashboards and the alert list are recorded, so the slide shows the drift metrics
+  moving, the alerts firing and the runbook decision, from a real run.
+
+**MLOps submission (brief "Format")**
+
+- **FR-006**: The repository MUST contain all the code (preprocessing, training, operational API, interactive web
+  app for testing the model, monitoring), the pipeline DAG, the CI/CD workflows, all tests (unit, integration and
+  end-to-end, each kind present and run in CI where possible), the documentation, and a README explaining the
+  technical choices and the results with screenshots of the production environment and the Docker Hub image URLs.
+- **FR-007**: The submission email (subject `[ALBERT][MLOPS]`, to both teachers) MUST contain the repository link,
+  the Docker Hub URLs, the list of group members, and, if deployed remotely, the URLs and access to them; it is sent
+  before 25/11/2026 20:00.
+- **FR-008**: Gaps with the brief MUST be stated in the README with the reason: the API receives a ride's sensor
+  recording, not an image (the data has no images); GCP instead of AWS; feature store (bonus) not built unless time
+  allows, with what it would bring.
+
+**AI infrastructure submission (brief "Expected contribution" and checkpoint)**
+
+- **FR-009**: The AI infrastructure deliverable MUST reproduce the brief's templates as they are: the inventory of
+  the current system (model, framework, implemented components, where it runs) with the current-system diagram, the
+  baseline results table, the optimization comparison table, the distributed-training rationale, the proposed
+  architecture (API, model runtime, scaling, monitoring, failure recovery), costs with explicit assumptions, the
+  rollback procedure, and named responsibilities with next actions; files at the paths of the suggested layout.
 
 **Core system (MLOps)**
 
@@ -335,7 +359,10 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
   production change in the period is traceable to a trigger, a gate result and an approver.
 - **SC-008**: Distributed training is decided with a measured speedup and efficiency on 2 GPUs (or the documented
   refusal if GPUs were not granted) and the volume at which the decision flips.
-- **SC-009**: No billable cloud resource is left running after a measurement (checked after each session).
+- **SC-009**: No billable cloud resource is left running after a measurement (checked after each session), and
+  the remaining GCP credits are recorded before and after each cloud session.
+- **SC-012**: Every line of both briefs (MLOps objectives, format and bonus; AI infrastructure steps 1-5 and
+  checkpoint) is ticked in a compliance table in the README, pointing to where it is met, or marked as a stated gap.
 
 ## Assumptions
 
