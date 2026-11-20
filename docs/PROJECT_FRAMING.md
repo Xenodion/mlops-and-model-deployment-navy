@@ -3,7 +3,7 @@
 Shared understanding of what is expected, so the whole team works on the same problem. It updates
 [USE_CASE.md](USE_CASE.md) §3 (a ride is classified once, as a whole) and decision DEC-2 ("SRV3490 not used").
 
-Three kinds of statements are kept apart:
+Three kinds of statements are kept apart (section 3 was rewritten on 21/11 after reading the course `data.txt`):
 
 - **Teacher:** what the teacher said in the briefing (reported orally by Vincent, not a written brief).
 - **Fact:** measured in the data files ([USE_CASE.md](USE_CASE.md) §2).
@@ -33,51 +33,76 @@ Three kinds of statements are kept apart:
 | SRV3490 | 3,490 (8 cities) | 16.9 M | no category; `topple` = 1 at the moment of a fall: 698 rides with a fall, each with 4 comparison rides without one (same city) |
 
 - **Fact:** no ride appears in both files.
-- **Fact:** SRV3490 rotation is ~57x smaller than GBG500 (very likely rad/s vs deg/s): units must be harmonised first.
+- **Fact:** SRV3490 rotation is ~60x smaller than GBG500 (measured, notebook 02): rad/s vs deg/s, converted with 180/pi.
 - **Fact:** a fall is a moment inside a ride (`topple` on 761 readings), not a property of the whole ride.
 
-## 3. Decision (20/11): a cumulative "live" ride classifier
+## 3. Decision (21/11): a live danger detector, learned without labels, plus the ride's category
 
-**What we build:** a model that reads a ride as a time series, 30 s window after 30 s window, and at every moment
-gives the **ride's category so far**, with its confidence. At the end of the ride, that is the category of the whole
-ride: exactly what the brief asks ("classify trajectories into 5 categories").
+This replaces the 20/11 decision (a supervised cumulative classifier), which was in fact option 1 of §1. Two facts
+made us change:
+
+- **Fact (course `data.txt`, shipped with the data):** "GBG500 labels (used only for evaluation)". "Reckless rides
+  are the positive class we aim to detect; Safe rides are normal; the remaining categories (Safe Overall, Bad
+  Weather, Tandem) are counterfactual: they lie near the decision boundary and should not be flagged as
+  anomalies." SRV3490: 698 rides with user-confirmed crashes, each with 4 baseline rides.
+- **Fact (`data/processed/splits.csv`):** the frozen golden set holds **1** Reckless ride (train: 5). A Reckless
+  detection rate measured on golden alone is meaningless.
+
+### The problem we solve
+
+**Detect, live, a dangerous (reckless) riding style from the motion sensors, without raising alarms on rides that
+look unusual for legitimate reasons (two riders, bad weather, a few rough moments), and give the ride's category
+(one of the 5, as the MLOps brief asks).**
+
+- **Reckless** = a riding *style* over time (swerving, harsh braking and acceleration, weaving), not an event.
+- **A fall** is the accident itself. Detecting it after the fact has no value (the sensor and the rider already
+  know). The value is *prevention*: spotting the dangerous style before it ends in a fall, so an operator can warn
+  the rider or limit speed.
+- **The trap of the dataset:** Tandem, Bad weather and Safe overall also give unusual signals without being
+  reckless. A naive "unusual signal" detector flags them all. The hard part is telling "unusual" from "dangerous".
+
+### The model
 
 ```
- ride:      |-- w1 --|-- w2 --|-- w3 --|-- w4 --| ... |-- wn --|       30 s windows
- per window:  Safe     Reckless  Safe     Safe          Safe           hints ("rough phase here"), not validated
- cumulative:  Safe 60%  Safe 48%  Safe 61%  Safe 70% ... Safe 83%      the ride's label after t seconds (validated)
-                                                         └── at the end = the whole ride's category
+ ride:        |-- w1 --|-- w2 --|-- w3 --| ... |-- wn --|        windows (length decided by the window study)
+ encoder:      learned WITHOUT labels on the windows of all ~4,000 rides (GBG500 + SRV3490)
+ danger score: per window, cumulated as the ride goes  ->  live alert when it crosses a threshold
+ 5-class head: small classifier on the encoder, trained on GBG500 train labels (the supervised part, named so)
 ```
 
-Why cumulative rather than labelling each window on its own:
+1. **Encoder learned without labels** (an autoencoder on the windows of every ride). The danger score comes from
+   it (e.g. reconstruction error, or distance to normal riding); it is cumulated with the existing timeline.
+2. **5-class head** on the encoder, trained on the GBG500 train labels: the brief's "classify into 5 categories".
+3. **E3** (the supervised CNN) stays registered as the reference and the production fallback; "learned without
+   labels vs supervised" becomes a result to show.
 
-- **Only rides are labelled, not windows.** "This window is Reckless" inside a Safe ride cannot be checked. The
-  label of the ride after t seconds can: the ride's label is known at every t.
-- **It gives the "live" result:** macro-F1 as a function of elapsed time, i.e. how soon the label becomes reliable.
-- **It handles rough phases:** a rough window raises Reckless, the ride settles, the final answer is Safe. "Safe
-  overall" (mostly calm, a few rough moments) is learned from the mix of windows.
-- **It reuses the CNN:** E3 already scores each 30 s window and averages over the ride. The cumulative version is
-  that average computed as the ride goes (a small sequence model on top is optional), trained on ride beginnings as
-  well so it can answer on partial rides.
+### How it is evaluated (labels for evaluation only)
 
-Per-window scores stay visible (API, web app) as **phases**, described as hints, not as validated labels.
+- **Danger score**: it never sees a label, so it is evaluated on **all 500 labelled rides**: the 6 Reckless
+  detected (k / 6) and the **false-alarm rate per counterfactual category** (78 rides). The alert threshold is
+  chosen on the train rides only, never on golden.
+- **Falls (SRV3490), no label needed:** the score in the 30-60 s **before** a fall (impact excluded, with a margin)
+  vs the same moment of the 4 comparison rides of the same city. Answers "before a fall, is the rider in a
+  dangerous state?" with a measured share, whatever it is.
+- **5-class head**: on the golden rides only (as today), macro-F1 as a secondary metric.
+- Uncertainty is shown everywhere (6 Reckless).
+- **Gate**: better than random on Reckless detection **and** on the 5 categories.
 
-What the method is, named honestly: **supervised** on the 500 labelled GBG500 rides; SRV3490's 3,490 rides get
-pseudo-labels from it (semi-supervised) once the model works, and serve the AI infrastructure measurements.
+### Experiment, only if the fall analysis shows a signal
 
-Safety net: E3 stays in production until the cumulative model passes the gate.
+**Falls as weak supervision**: the pre-fall segments become extra "danger" examples (proxy labels, noisy: a fall
+can come from a pothole, not from reckless riding), the comparison rides the negatives. A fall and its 4 comparison
+rides stay on the same side of every split; held-out fall groups; checked that the model does not learn "other
+city" instead of "danger". Reported as with vs without falls, measured on the same evaluation rides.
 
-### Bonus, only once the core model works and is validated
+### Bonus, only once the core works
 
-1. **Live replay in the web app:** pick a ride, press play (with a speed), watch the cumulative class probabilities
-   and the phases evolve over the ride. Shows the time-series design and the live use case.
-2. **Fall forecast:** probability of a fall in the next X seconds, from what happened before only. Learned on
-   SRV3490 rides cut before the fall vs their 4 same-city comparison rides; horizon X chosen by measurement (5 / 10 /
-   30 s), a minimum warning time (1-2 s), a fall and its comparison rides always on the same side of the split.
-   SRV3490 contains 20 % falls by design, so measured alert rates are not real-world rates. A result close to
-   chance is possible and would be reported as such.
+1. **Live replay in the web app** (play, speed, danger score and category evolving).
+2. **Fall forecast**: probability of a fall in the next X seconds (X chosen by measurement, minimum warning time,
+   fall groups never split, held-out evaluation; SRV3490 has 20 % falls by design, so alert rates are not
+   real-world rates).
 
-Not done: fall detection after the fact (the `topple` label already says when it happened).
+Not done: fall detection after the fact.
 
 ## 4. One design, both courses: what we measure and show
 
@@ -106,15 +131,18 @@ Most of what is built stays: DVC pipeline, MLflow tracking and registry, model c
 
 | Piece | Change |
 |---|---|
-| Model | E3's per-window scores aggregated cumulatively; trained on ride beginnings as well |
-| `evaluate` and its gate | gate on the whole-ride prediction (as today), plus macro-F1 vs elapsed time |
-| API | per-window and cumulative probabilities (a timeline) in addition to the ride's category |
-| Data | SRV3490 versioned with DVC, units harmonised (rotation ~57x smaller: rad/s vs deg/s, to verify) |
+| Model | encoder learned without labels on all rides (danger score) + 5-class head; E3 kept as reference and fallback |
+| `evaluate` and its gate | danger score on all 500 labelled rides (Reckless k / 6, false alarms per counterfactual category) and before falls on SRV3490; 5-class head on golden; gate = better than random on both |
+| API | danger score and category, per window and cumulative (a timeline) |
+| Data | SRV3490 versioned with DVC (done), rotation converted with 180/pi (ratio measured ~60, see notebook 02) |
 | Docs | PLAN.md DEC-1, DEC-2, DEC-4 and USE_CASE.md §3, §5 to update |
 
-## 6. Open questions (to confirm with the teacher)
+## 6. Interpretation choices (ours, written down)
 
-1. Is a supervised model on GBG500 with pseudo-labels on SRV3490 an acceptable answer to "use all the data, validate
-   with the labels"?
-2. Is the cumulative, window-by-window design (live label) a welcome reading of "classify trajectories"?
-3. Is SRV3490's rotation unit difference known (rad/s vs deg/s)?
+We decide from the briefs, the briefing and `data.txt`; we do not wait for a confirmation.
+
+1. "Labels used only for evaluation" is met by the danger score (never trained on labels); the 5-class head uses
+   the train labels because the MLOps brief asks for 5 categories, and is named as supervised.
+2. The live, window-by-window design is our reading of "classify trajectories": the final value is the ride's.
+3. SRV3490 rotation is in rad/s: the measured ratio (~60, CI 58-62) is close to 180/pi; the gap is attributed to
+   different riders and cities (accelerations also differ by 3-23 %).

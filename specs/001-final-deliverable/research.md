@@ -4,41 +4,62 @@ Each entry: **Decision**, **Rationale**, **Alternatives considered**. Sources: t
 5dc1ab0, `docs/PROJECT_FRAMING.md`, the course labs (`lectures/mlops-labs/06-monitoring`, `05-kubernetes`,
 `retraining-location-notes.md`) and the AI infrastructure brief.
 
-## R1 - Cumulative live classifier, version 1
+## R1 - The model: danger detector learned without labels + 5-class head (reframed 21/11)
 
-- **Decision** (window length provisional until R15): v1 = the running mean of the per-window softmax over the
-  windows seen so far, on the window length chosen by R15 (E3 if 30 s wins). Add
-  `CNNModel.predict_timeline(readings) -> Timeline` next to `predict_proba` (the model contract is extended, not
-  changed). The last cumulative value equals today's `predict_proba` (E3 already averages its windows), so the
-  whole-ride label and the gate are unchanged. A model trained on ride beginnings (random prefixes) is a v2,
-  built only if the F1-vs-time curve shows early answers are weak **and** time remains.
-- **Rationale**: zero retraining, zero risk to the graded gate, and it produces the live story (F07, F08)
-  immediately. The pure function (`cumulative_mean(window_probas)`) is trivially testable.
-- **Alternatives**: a sequence model (GRU) over window embeddings: more to explain, needs retraining and a new
-  gate pass; exponential moving average: forgets the start of the ride, which "Safe overall" needs.
+- **Decision**: (1) a 1D-convolutional **autoencoder** on windows (encoder = E3's convolution blocks, decoder =
+  mirror), trained without labels on the windows of all GBG500 and SRV3490 rides except the held-out fall groups
+  (R16); (2) **danger score** per window = reconstruction error standardised on train windows (z-score), cumulated
+  with the existing timeline (running mean); alert when the cumulative score passes a threshold chosen on train
+  rides; (3) **5-class head** = logistic regression on the mean encoder embedding of a ride, trained on GBG500 train
+  labels (class weights as E3); (4) **E3** stays registered as reference and fallback. Contract: `prepare` / `fit`
+  / `predict_proba` plus `predict_timeline` returning both the danger score and the category probabilities.
+- **Rationale**: course `data.txt` says labels are for evaluation only and Reckless is the class to detect, with
+  3 counterfactual categories not to flag; the MLOps brief asks for 5 categories; the teacher asked for an
+  unsupervised method validated with labels and linked to falls. Reconstruction error is the simplest label-free
+  score that a jury understands; a logistic head on frozen features is the textbook semi-supervised step.
+- **Alternatives**: supervised cumulative classifier (the 20/11 decision: option 1, labels used for training);
+  isolation forest on window statistics (cheaper, kept as a sanity baseline if time allows); contrastive
+  self-supervised encoder (more to explain, no clear gain at this data size).
+- **Known risk**: rough-but-legitimate rides (Bad weather, Tandem) may also reconstruct badly: this is exactly what
+  the per-category false-alarm rate measures; a result where they are flagged is reported, not hidden.
 
-## R15 - Window length: an open choice until tested (blocks R1, R4, R8)
+## R16 - Evaluation of the danger score and use of the falls
+
+- **Labelled rides**: the score never sees labels, so all 500 GBG500 rides evaluate it: Reckless detected k / 6
+  at the chosen threshold, false-alarm rate per counterfactual category (Safe overall 38, Bad weather 22, Tandem 18)
+  and on Safe, ranking metrics (ROC-AUC Reckless vs counterfactuals) with bootstrap CIs. The threshold is fixed on
+  train rides (e.g. the 95th percentile of Safe train rides), never on golden.
+- **Falls**: fall groups (a fall ride + its 4 comparison rides) are split once, seeded: 70 % "development" (in the
+  encoder training data, used for choices such as the window length) and 30 % "held-out" (never used for training
+  or choices). Pre-fall segment = the last 30-60 s ending a margin (e.g. 2 s) before the first `topple`; compared
+  with the same elapsed time on the 4 comparison rides. Metric: share of falls whose pre-fall score exceeds all of
+  / the median of its comparisons, and the paired AUC, with CIs. Reported on held-out groups.
+- **Golden**: only the 5-class head is scored there (1 Reckless ride in golden).
+- **Weak supervision (experiment, FR-032)**: only if the held-out pre-fall comparison shows a signal (CI above
+  chance): add development pre-fall segments as "danger" examples; measured with vs without on the same rides.
+- **Alternatives**: evaluating Reckless on golden only (1 ride: meaningless); training on falls straight away
+  (noisy proxy, not validated yet).
+
+## R15 - Window length: an open choice until tested (blocks R4, R8; runs on the R1 model)
 
 - **Status**: **not admitted.** The data has one reading every 100 ms; 30 s (stride 15 s) is E3's modelling choice,
   never compared with other lengths (`docs/PLAN.md` §6.5 "Not tried"). Everything derived from it stays provisional
   until this test is done: minimum ride length (300 readings), window payload of `/v1/predict/window`, update rate
   of the live label, load-test request rate, F1-vs-time points.
 - **Test (hypothesis and rules written before running)**:
-  - Hypothesis: a shorter window gives a reliable cumulative label earlier with little loss on the whole-ride
-    label; below some length a window carries too little context and the whole-ride score drops.
-  - Candidates: 5, 10, 15, 30, 60 s; stride = half the window; same architecture, epochs, augmentation, class
-    weights and seed as E3; one change only (window length). If the shortest windows leave too few time steps after
-    pooling, the kernel stays 0.7 s and the number of pooling steps is the only adaptation, written down.
-  - Data: the ~400 training rides, the same stratified 5-fold ride-level CV as E3. **Golden rides not used** to
-    choose.
-  - Measured per candidate (mean ± std over folds): whole-ride macro-F1 (OOF); cumulative macro-F1 at 30, 60, 90,
-    120, 180, 240 s and end; time to first answer (= window length); per-window inference latency (laptop CPU,
-    `bench.py`); training time.
-  - Decision rule: keep the candidates whose whole-ride OOF macro-F1 is within one fold-std of the best; among
-    them pick the one with the highest cumulative macro-F1 at 60 s; tie → the shorter window. All candidates logged
-    in MLflow (`experiment_id` E4-window-*), results in `artifacts/window_study.csv`, figure F47.
-  - Then only: the chosen length goes through `evaluate` (golden scored once, gate). If it is not 30 s, it is
-    registered as a new version and replaces E3 after the gate; E3 stays the fallback.
+  - Hypothesis: shorter windows answer earlier but carry less context; the best length separates dangerous from
+    normal riding best without flagging the counterfactual categories.
+  - Candidates: 5, 10, 15, 30, 60 s; stride = half the window; same autoencoder, epochs and seed (one change only).
+    The network keeps 6 time steps after pooling even at 5 s: no adaptation needed (computed).
+  - Data: encoder trained on all rides except held-out fall groups (R16). **Golden rides not used**; held-out fall
+    groups not used.
+  - Measured per candidate: (a) paired AUC pre-fall vs comparison on the development fall groups (about 490
+    groups: the main signal); (b) ROC-AUC Reckless vs counterfactual categories on the GBG500 train rides (5
+    Reckless: secondary, wide CI); (c) false-alarm rate per counterfactual category at the train threshold; (d) time
+    to first answer; (e) per-window latency; (f) training time.
+  - Decision rule: keep the candidates whose (a) is within the bootstrap CI of the best; among them the highest (b);
+    tie -> the shorter window. Results in `artifacts/window_study.csv`, figure F47; MLflow `E4-window-*`.
+  - Then only: the chosen length is used for the final model, evaluated once (R16).
 - **Rationale**: Vincent's rule (20/11): a parameter that is neither a standard default nor the finest granularity
   of the data must be justified by a serious test before the constraints that follow from it are accepted.
 - **Alternatives**: keep 30 s without test (rejected: unjustified); per-reading model (rejected a priori would also
@@ -53,7 +74,7 @@ Each entry: **Decision**, **Rationale**, **Alternatives considered**. Sources: t
 - **Rationale**: Principle VI; the same unconverted data is reused as the "sensor unit bug" drift scenario.
 - **Alternatives**: per-dataset standardisation: hides the unit problem the monitoring story needs.
 
-## R3 - Getting SRV3490 (external blocker)
+## R3 - Getting SRV3490 (resolved 21/11: course archive, tracked with DVC)
 
 - **Decision**: ask the course platform/teammates first thing; track the file with DVC on the SeaweedFS remote
   like GBG500. Until it arrives, every SRV3490-dependent item (A9, two drift scenarios, x1-x8 training cost

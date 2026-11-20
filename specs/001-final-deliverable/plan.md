@@ -8,15 +8,18 @@ monitoring, drift job, simulator, runbooks) and `05-kubernetes` (Locust, capacit
 
 ## Summary
 
-Turn the existing ride classifier (E3, a 1D CNN that already scores 30 s windows and averages them per ride) into
-a **cumulative live classifier** by exposing the running mean of the window scores, without retraining first:
-the whole-ride label stays exactly E3's, so the gate result is unchanged and the live view is new. Around it,
+Build a **live danger detector** (reframed 21/11 after the course `data.txt`, see PROJECT_FRAMING §3): a
+convolutional autoencoder learned **without labels** on the windows of all ~4,000 rides gives a per-window danger
+score, cumulated as the ride goes; a small head on the encoder gives the 5 categories the brief asks for; E3 (the
+supervised CNN) stays as reference and fallback. Labels evaluate: Reckless k / 6 and false alarms per
+counterfactual category on all 500 labelled rides, the 5-class head on golden, and the score before falls vs
+comparison rides on SRV3490. Around it,
 build what both juries must see: a stateless window-by-window API, four-layer monitoring with Prometheus and
 Grafana, a drift monitor and a drift job fed by real resampled rides (unseen city, real unit bug, riskier mix),
 GitHub Actions workflows for training, deployment with human approval and drift flags, a live load test (one
 Locust user = one ride at real speed), and the `ai-infrastructure/` measurements (one `bench.py`, Vertex AI SPOT
 jobs for 1 and 2 GPUs, ONNX Runtime / int8, training cost on x1-x8 data). Bonus (live replay, fall forecast,
-encoder, automatic retraining) comes last.
+automatic retraining, falls as weak supervision) comes last.
 
 Order: **Phase A (core MLOps, safe first)** and **Phase B (AI infra measurements)** run in parallel with
 different owners; **Phase C (presentation assets)** is fed continuously; **Phase D (bonus)** starts only after
@@ -59,7 +62,7 @@ memory: one heavy service set at a time (compose **or** kind, not both).
 
 One choice is deliberately **open**: the window length (R15). 30 s / 15 s is E3's untested choice, not the data's
 granularity (10 Hz); every number derived from it (300-reading minimum, window payload, update every 15 s, load
-rate) is provisional until the study A1b decides. Other open points are resolved in [research.md](research.md)
+rate) is provisional until the study A1b decides. The model itself was reframed on 21/11 (R1, R16). Other open points are resolved in [research.md](research.md)
 (R1-R14). The one external
 blocker is getting SRV3490 (R3): everything that needs it has a GBG500-only fallback.
 
@@ -72,7 +75,7 @@ blocker is getting SRV3490 (R3): everything that needs it has a GBG500-only fall
 | I. Teachers' requirements | Every MLOps objective and format item and every AI infra step 1-5 maps to a phase item below and to the README compliance table (SC-012). All taught tools used: DVC, MLflow, SeaweedFS, FastAPI, Docker Hub, kind, GitHub Actions + self-hosted runner, Prometheus + Grafana, Locust, PSI/KS/chi², PyTorch profiler, ONNX Runtime, DDP, Vertex AI. Stated gaps: image input, GCP instead of AWS, feature store (FR-008) | pass |
 | II. Presentation first | Each work item names its figure IDs (F01-F46); theme module + `save_fig` in Phase A0, before any figure; bonus isolated in Phase D | pass |
 | III. Measure, do not claim | One `bench.py`, raw CSVs with environment columns, `status` column = measured/estimated (contract `benchmark-results.md`) | pass |
-| IV. Honest ML | v1 cumulative model = running mean of E3, named as such; golden untouched (thresholds calibrated on training rides); fall groups never split; per-window scores labelled "hint" in API and UI | pass |
+| IV. Honest ML | danger score never trained on labels, 5-class head named supervised, E3 as reference; golden untouched (thresholds calibrated on training rides); fall groups never split; per-window scores labelled "hint" in API and UI | pass |
 | V. Reuse | Model contract kept (`predict_timeline` added next to `predict_proba`, research R1); same pipeline, registry, images, kind manifests; E3 stays the production fallback | pass |
 | VI. Real data only | Scenarios = resampled real rides; replication x2-x8 labelled; unit factor verified before conversion (R2) | pass |
 | VII. Cost and data safety | SPOT Vertex jobs only, teardown checklist and credit log per session (SC-009); data stays in private stores | pass |
@@ -112,7 +115,8 @@ src/ride_classifier/
 ├── data/srv3490.py          # NEW load + unit harmonisation + fall groups (R2, R3)
 ├── pipeline/prepare.py      # + SRV3490 stage outputs; + drift reference (window feature deciles)
 ├── pipeline/evaluate.py     # + macro-F1 vs elapsed time (golden), saved as metrics + CSV
-├── pipeline/pseudo_label.py # NEW: SRV3490 pseudo-labels with confidence (F12, F13)
+├── models/autoencoder.py     # NEW: label-free encoder, danger score, 5-class head (R1)
+├── pipeline/falls.py        # NEW: fall-group split, pre-fall segments, pre-fall vs comparison metrics (R16, F49)
 ├── features/window_stats.py # NEW: per-window monitored features (shared by API, drift job, reference)
 ├── api/main.py, schemas.py  # + /v1/predict timeline, /v1/predict/window, /v1/feedback (contracts/api.md)
 ├── api/metrics.py           # + layer 2 (input deciles) and layer 4 (feedback) metrics
@@ -156,19 +160,21 @@ Each item lists: what it delivers → figures/demos → requirement. Owners are 
 |---|---|---|---|
 | A0 | Visual charter: `viz/palette.py`, `viz/theme.py`, `save_fig`, notebook `00_visual_charter` (Mako vs alternatives, Heat), freeze the palette | F36 | FR-003 |
 | A1 | Data overview notebook on GBG500 (SRV3490 parts added when available) | F01-F03 | FR-002 |
-| A1b | **Window-length study (R15), before A2/A3 freeze anything**: 5/10/15/30/60 s on train-rides CV, rules written before running, golden untouched; decision written in `docs/PLAN.md` §6.5 | F47 | FR-010, FR-011 |
-| A2 | Cumulative classifier v1 (window from A1b): `predict_timeline` + `timeline.py` (pure, tested); evaluate adds macro-F1 vs elapsed time (30, 60, 90, 120, 180, 240 s, end) for model, E3-as-whole-ride and random/majority | F06-F11 | FR-010, FR-011, SC-003 |
+| A2 | Danger detector (R1) at the provisional 30 s window: autoencoder + danger score + 5-class head in the model contract, `predict_timeline` (done: `timeline.py`), fall-group split (R16) | F06, F07 | FR-010 |
+| A1b | **Window-length study (R15)** on the A2 model: 5/10/15/30/60 s, rule pre-registered, golden and held-out fall groups untouched; decision in `docs/PLAN.md` §6.5 | F47 | FR-010 |
+| A2b | Evaluation (R16): danger score on all labelled rides (k / 6, false alarms per counterfactual), pre-fall vs comparison on held-out fall groups, 5-class head on golden, vs E3 and random, vs elapsed time; gate on both | F08-F11, F48, F49 | FR-011, FR-011b, SC-003 |
 | A3 | API: timeline in `/v1/predict`, stateless `/v1/predict/window`, `/v1/feedback`; schemas and Swagger examples; unit tests | F19 | FR-013, FR-019 |
 | A4 | Monitoring stack in compose: Prometheus + Grafana provisioned, four-layer dashboard, 5 alerts (contracts/metrics-and-alerts.md), runbooks | F20, F41, F42 | FR-015 |
 | A5 | Drift: `window_stats`, drift reference stage, `drift/psi.py`, offline `drift/job.py` (report + exit 3), live `drift/monitor.py` exporter | F45 | FR-018 |
 | A6 | Replay client + scenarios: normal, riskier mix (GBG500 only, available now), unseen city and unit bug (need SRV3490) | F21, F22, F44 | FR-016, FR-019 |
 | A7 | Workflows: `train.yml` (schedule, dispatch with reason, self-hosted), `cd.yml` (build, push, `production` environment approval, kind rollout, smoke, rollback), `drift.yml` (scheduled drift job, flag + summary); `ci.yml` adds e2e | F18, F43 | FR-014, FR-034, FR-036 |
 | A8 | kind: monitoring manifests, CPU-limited API (one "instance" = 1 replica with a fixed CPU limit), canary kept | F32, F34 | FR-014, FR-025 |
-| A9 | SRV3490 in the pipeline: DVC tracking, unit factor verified, harmonised, fall groups, pseudo-labels | F04, F05, F12, F13 | FR-012 |
+| A9 | SRV3490 in the pipeline: DVC tracking (done), unit factor verified (done), harmonised windows for training, predicted category mix by city | F04, F05, F12, F13 | FR-012 |
 | A10 | Drift demo in action: run each scenario on the kind deployment, record Grafana and the alert list, apply the runbook (retrain via `train.yml` for the new city; fix upstream for the unit bug) | F21, F40-F44 | FR-005, FR-034 |
 
 **Checkpoint A (target 23/11 evening)**: quickstart scenarios Q1-Q6 pass on kind; F01-F13, F16-F22, F41-F45
-saved. If SRV3490 is still missing, A9 and two scenarios are reported as blocked and the riskier-mix scenario
+saved. SRV3490 is available (21/11); if the encoder fails to separate anything, the result is reported and E3
+stays in production, and the riskier-mix scenario
 carries the demo.
 
 ### Phase B - AI infrastructure measurements (parallel to A)
@@ -202,7 +208,7 @@ via Alertmanager webhook → `repository_dispatch` (F40, FR-033) · D4 self-supe
 README (architecture, how to run monitoring, compliance table), `docs/how_to_use.md` (new endpoints, make
 targets), `docs/PLAN.md` DEC-1/2/4 and `docs/USE_CASE.md` §3/§5 aligned with PROJECT_FRAMING, `params.yaml` new
 sections, `Makefile` targets (`monitoring-up`, `drift`, `scenario`, `loadtest`, `bench`), `pyproject.toml` groups,
-`dvc.yaml` stages (`prepare_srv`, `reference`, `pseudo_label`), webapp palette, CI image list.
+`dvc.yaml` stages (`prepare_srv`, `reference`, `falls`), webapp palette, CI image list.
 
 ## Complexity Tracking
 

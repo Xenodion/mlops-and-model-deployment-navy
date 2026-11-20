@@ -1,24 +1,29 @@
 # E4 - Window length study (pre-registration)
 
-Written before any run. Rule source: `specs/001-final-deliverable/research.md` R15. Tracked by GitHub issue #11.
-Code: `src/ride_classifier/experiments/window_study.py`. Results go in `artifacts/window_study.csv`, figure F47.
+Written before any run. Rule source: `specs/001-final-deliverable/research.md` R15 (model: R1, evaluation: R16).
+Tracked by GitHub issue #11. Results go in `artifacts/window_study.csv`, figure F47.
+
+Revision 21/11, still before any run: the problem was reframed after the course `data.txt` (labels for evaluation
+only; Reckless = the class to detect; Safe overall, Bad weather and Tandem = counterfactuals that must not be
+flagged). The study now compares window lengths for the label-free danger detector, not for a supervised
+5-class classifier. The first version (supervised, macro-F1 rule) was never run.
 
 ## Question
 
-Which window length should the ride classifier use: does a shorter window give a reliable live label earlier,
-at little cost on the whole-ride label?
+Which window length should the danger detector use: does a shorter window warn earlier without losing the
+separation between dangerous and normal riding, and without flagging the counterfactual categories?
 
 ## Why
 
 The data has one reading every 100 ms (10 Hz). The 30 s window (stride 15 s) is E3's modelling choice and was
-never compared with other lengths (`docs/PLAN.md` section 6.5, "Not tried"). The minimum ride length, the
-payload of `/v1/predict/window`, the update rate of the live label and the load-test request rate all follow from
-it, so none is accepted until this test is done.
+never compared with other lengths (`docs/PLAN.md` section 6.5, "Not tried"). The minimum ride length, the payload
+of `/v1/predict/window`, the update rate of the live score and the load-test request rate all follow from it, so
+none is accepted until this test is done.
 
 ## Hypothesis
 
-A shorter window gives a reliable cumulative label earlier, with little loss on the whole-ride label. Below some
-length a window carries too little context and the whole-ride score drops.
+Shorter windows answer earlier but carry less context; below some length the danger score no longer separates
+pre-fall riding from comparison riding, nor Reckless rides from the counterfactual categories.
 
 ## Candidates
 
@@ -26,30 +31,31 @@ Window 5, 10, 15, 30, 60 s (50, 100, 150, 300, 600 readings); stride = window / 
 
 ## Fixed conditions
 
-- Everything else from `params.yaml` `train.cnn` (architecture, filters, kernel 7, dropout, epochs 10, batch
-  size, learning rate, weight decay, augmentation, `class_weight: sqrt`). One change only: window length (and the
-  stride that follows it).
-- Same seed (`data.seed`) for every candidate; same 5 CV folds, read from `data/processed/splits.csv`.
-- Train rides only. The golden rides are excluded: never read, never used to choose.
+- The model of R1: a convolutional autoencoder (encoder = E3's three convolution blocks), trained without labels;
+  danger score = reconstruction error standardised on train windows. Same architecture, epochs, batch size,
+  learning rate and seed for every candidate. One change only: window length (and the stride that follows it).
+- Training data: windows of all GBG500 rides and all SRV3490 rides **except the held-out fall groups** (30 % of fall
+  groups, seeded split, each fall ride with its 4 comparison rides; R16).
+- **Golden rides are not used to choose.** Held-out fall groups are not used at all.
 
 ## Metrics
 
-Mean and std over folds, unless stated:
+- (a) **Main signal**: paired AUC of the cumulative danger score in the pre-fall segment (last 30-60 s ending 2 s
+  before the first `topple`) vs the same elapsed time on the 4 comparison rides, on the development fall groups
+  (~490 groups), with a bootstrap 95 % CI over groups.
+- (b) Secondary: ROC-AUC of the whole-ride score, Reckless vs counterfactual categories, on the GBG500 train rides
+  (5 Reckless: wide CI, reported).
+- (c) False-alarm rate per counterfactual category (train rides) at the threshold = 95th percentile of Safe train
+  rides.
+- (d) Time to first answer = window length. (e) Per-window CPU latency (median of 200 single-window calls after 20
+  warm-up). (f) Training time.
 
-- Whole-ride macro-F1 on out-of-fold predictions (per fold, then mean +/- std).
-- Cumulative macro-F1 at 30, 60, 90, 120, 180, 240 s and at the end of the ride (all OOF rides pooled).
-- Time to first answer = window length.
-- Per-window CPU latency: median of 200 single-window calls after 20 warm-up calls, default torch threads,
-  laptop CPU (recorded with the CSV).
-- Training time (total over the folds).
+## Time steps after pooling
 
-## Time steps after pooling (T013)
+The encoder is 3 blocks of convolution (kernel 7, padding 3: length unchanged) and `MaxPool1d(2)`. Measured on a
+dummy tensor:
 
-The network is 3 blocks of convolution (kernel 7, padding 3: length unchanged) and `MaxPool1d(2)`
-(length -> floor(length / 2)). So the number of steps is floor(floor(floor(n / 2) / 2) / 2). Checked by
-instantiating `RideCNN` on a dummy tensor.
-
-| Window | Readings | After pool 1 | After pool 2 | After pool 3 (measured) |
+| Window | Readings | After pool 1 | After pool 2 | After pool 3 |
 | --- | --- | --- | --- | --- |
 | 5 s | 50 | 25 | 12 | 6 |
 | 10 s | 100 | 50 | 25 | 12 |
@@ -57,33 +63,28 @@ instantiating `RideCNN` on a dummy tensor.
 | 30 s | 300 | 150 | 75 | 37 |
 | 60 s | 600 | 300 | 150 | 75 |
 
-The shortest window keeps 6 steps (at least 3), each with a receptive field far larger than the kernel, and the
-final layer averages over time anyway. No adaptation is needed: the architecture is identical for all candidates.
+The shortest window keeps 6 steps: no adaptation is needed.
 
-## Decision rule (verbatim from R15)
+## Decision rule
 
-Keep the candidates whose whole-ride OOF macro-F1 is within one fold-std of the best; among them pick the one
-with the highest cumulative macro-F1 at 60 s; tie -> the shorter window. Implemented as `choose_window`
-(the fold-std is the std of the best candidate). All candidates are logged in MLflow
-(`experiment_id` E4-window-*), results in `artifacts/window_study.csv`, figure F47.
+Keep the candidates whose (a) is within the bootstrap CI of the best candidate's (a); among them pick the highest
+(b); tie -> the shorter window. All candidates logged in MLflow (`experiment_id` E4-window-*).
 
 ## After the study
 
-Only then: the chosen length goes through `evaluate` (golden scored once, gate). If it is not 30 s, it is
-registered as a new version and replaces E3 after the gate; E3 stays the fallback.
+The chosen length is used for the final model, which is then evaluated once (R16: all labelled rides for the
+danger score, golden rides for the 5-class head, held-out fall groups for the pre-fall comparison).
 
 ## Threats to validity
 
-- Very few Reckless rides (6 in total): per-fold macro-F1 for that class is close to noise, and some folds hold
-  1 or 0 of them.
-- Fold variance is large (E3 CV 0.36); differences between candidates may be inside it, which is why the rule
-  uses one fold-std.
-- Known confound: a shorter window with stride = window / 2 gives more windows per ride, hence more training
-  steps per epoch. Epochs are kept fixed (10) as the pre-registered choice; the number of training windows per
-  candidate is reported (`n_windows_train`) so the confound can be read, not removed.
+- Pre-fall riding is a proxy for danger, not a label: a fall can follow a pothole or wet ground. The metric
+  measures association, not recklessness.
+- SRV3490 comes from other cities and devices: differences may be partly "other population"; the comparison rides
+  are from the same city, which controls for it in (a).
+- 5 Reckless train rides: (b) has a wide CI and is only a tie-breaker.
+- Shorter windows give more windows per ride, hence more training steps per epoch; epochs are fixed and the number
+  of training windows is reported, so the confound can be read, not removed.
 - One seed per candidate: seed-to-seed variance is not measured.
-- Cumulative F1 at a given time only counts rides that reached that time (`n_rides`, `n_rides_complete` are
-  reported); the pool changes with the time point.
 
 ## Results
 
