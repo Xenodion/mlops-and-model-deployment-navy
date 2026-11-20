@@ -79,12 +79,24 @@ Safety net: E3 stays in production until the cumulative model passes the gate.
 
 Not done: fall detection after the fact (the `topple` label already says when it happened).
 
-## 4. Why this also serves the AI infrastructure course
+## 4. One design, both courses: what we measure and show
 
-- The key serving metric becomes **latency per window** and **how many rides one CPU pod can follow live**, which
-  sizes the infrastructure concretely.
-- SRV3490 (3,490 rides, 16.9 M readings) gives a real data volume for training measurements (data loading, memory,
-  CPU vs 1 vs 2 GPUs).
+The live design links the two courses. The question we answer with measurements: **rides stream their sensor data
+to our deployed model through the API; how many can we follow live, on what hardware, and when do we need a GPU or
+several?**
+
+| Topic | How (no synthetic data) | Course |
+|---|---|---|
+| Live load test | Each Locust user = one ride streaming its windows at real speed. Result: how many live rides one CPU pod follows before p95 latency passes 200 ms; seen live in Grafana (Prometheus metrics) | both |
+| Inference hardware | Same image and benchmark tool on CPU, 1 GPU, 2 GPUs (Vertex AI jobs); per-window latency, throughput, memory | AI infra |
+| Training cost vs data volume | GBG500 + SRV3490, then the data replicated x2, x4, x8 (the classic method: real cost, no new information, said so) on CPU, 1 GPU, 2 GPUs (DDP); finds where a GPU, then DDP, pays off | AI infra |
+| Drift scenarios | Real rides resampled, not generated: (1) a new city (SRV3490 city never seen), (2) a changed sensor (the real rad/s vs deg/s unit difference), (3) riskier riding (more fall / Reckless rides). Each one must show in Grafana (PSI, prediction mix) and can trigger the retraining pipeline | MLOps |
+| Live replay | Web app: pick a ride, press play, watch the cumulative label and phases evolve (bonus) | both |
+
+Infrastructure facts (20/11): GCP project `advanced-cloud-ai-i2`; Vertex AI GPU jobs work in SPOT mode (a 2x A100
+job in `europe-west4` succeeded on 12/11); Compute Engine GPU quota is 0; we cannot read quotas nor write to Cloud
+Storage, so jobs print their results to the logs (as in that job) and images go to a private Artifact Registry
+repository. Every GPU run has a planned teardown (Vertex jobs stop by themselves).
 
 ## 5. Impact on the existing repository
 

@@ -18,6 +18,11 @@
 /AGENTS.md
 /CLAUDE.md
 
+# Spec Kit (personal planning tool, kept local): templates, agent skills, specs
+/.specify/
+/.claude/
+/specs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
