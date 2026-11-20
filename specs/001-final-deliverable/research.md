@@ -6,7 +6,8 @@ Each entry: **Decision**, **Rationale**, **Alternatives considered**. Sources: t
 
 ## R1 - Cumulative live classifier, version 1
 
-- **Decision**: v1 = the running mean of E3's per-window softmax over the windows seen so far. Add
+- **Decision** (window length provisional until R15): v1 = the running mean of the per-window softmax over the
+  windows seen so far, on the window length chosen by R15 (E3 if 30 s wins). Add
   `CNNModel.predict_timeline(readings) -> Timeline` next to `predict_proba` (the model contract is extended, not
   changed). The last cumulative value equals today's `predict_proba` (E3 already averages its windows), so the
   whole-ride label and the gate are unchanged. A model trained on ride beginnings (random prefixes) is a v2,
@@ -15,6 +16,34 @@ Each entry: **Decision**, **Rationale**, **Alternatives considered**. Sources: t
   immediately. The pure function (`cumulative_mean(window_probas)`) is trivially testable.
 - **Alternatives**: a sequence model (GRU) over window embeddings: more to explain, needs retraining and a new
   gate pass; exponential moving average: forgets the start of the ride, which "Safe overall" needs.
+
+## R15 - Window length: an open choice until tested (blocks R1, R4, R8)
+
+- **Status**: **not admitted.** The data has one reading every 100 ms; 30 s (stride 15 s) is E3's modelling choice,
+  never compared with other lengths (`docs/PLAN.md` §6.5 "Not tried"). Everything derived from it stays provisional
+  until this test is done: minimum ride length (300 readings), window payload of `/v1/predict/window`, update rate
+  of the live label, load-test request rate, F1-vs-time points.
+- **Test (hypothesis and rules written before running)**:
+  - Hypothesis: a shorter window gives a reliable cumulative label earlier with little loss on the whole-ride
+    label; below some length a window carries too little context and the whole-ride score drops.
+  - Candidates: 5, 10, 15, 30, 60 s; stride = half the window; same architecture, epochs, augmentation, class
+    weights and seed as E3; one change only (window length). If the shortest windows leave too few time steps after
+    pooling, the kernel stays 0.7 s and the number of pooling steps is the only adaptation, written down.
+  - Data: the ~400 training rides, the same stratified 5-fold ride-level CV as E3. **Golden rides not used** to
+    choose.
+  - Measured per candidate (mean ± std over folds): whole-ride macro-F1 (OOF); cumulative macro-F1 at 30, 60, 90,
+    120, 180, 240 s and end; time to first answer (= window length); per-window inference latency (laptop CPU,
+    `bench.py`); training time.
+  - Decision rule: keep the candidates whose whole-ride OOF macro-F1 is within one fold-std of the best; among
+    them pick the one with the highest cumulative macro-F1 at 60 s; tie → the shorter window. All candidates logged
+    in MLflow (`experiment_id` E4-window-*), results in `artifacts/window_study.csv`, figure F47.
+  - Then only: the chosen length goes through `evaluate` (golden scored once, gate). If it is not 30 s, it is
+    registered as a new version and replaces E3 after the gate; E3 stays the fallback.
+- **Rationale**: Vincent's rule (20/11): a parameter that is neither a standard default nor the finest granularity
+  of the data must be justified by a serious test before the constraints that follow from it are accepted.
+- **Alternatives**: keep 30 s without test (rejected: unjustified); per-reading model (rejected a priori would also
+  be unjustified: 5 s is the shortest candidate because a 1D CNN with kernel 0.7 s and pooling needs at least a few
+  seconds of signal; the test shows whether even 5 s is too short).
 
 ## R2 - SRV3490 rotation units
 

@@ -306,6 +306,7 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F44 | Outcome layer: performance on labels received later, before and after a drift scenario | MLOps | core | `06_drift_scenarios` |
 | F45 | Drift report (per-feature PSI and test) for each scenario | MLOps | core | drift job output |
 | F46 | Where to retrain: options vs measured training cost (local, CI runner, inference machine, Vertex AI) | both | core | `ai-infrastructure/distributed-training` |
+| F47 | Window-length study: whole-ride CV macro-F1 and cumulative macro-F1 at 60 s per window length (5-60 s), with the decision rule | both | core | `03_live_classifier` |
 
 ### Visual Charter
 
@@ -341,7 +342,7 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 
 - **SC-001**: Each presentation fits its time slot (10 min for MLOps) in a timed dry run, and every graded
   criterion of each brief is covered by at least one slide, demo or figure.
-- **SC-002**: 100 % of core catalogue items (F01-F36, F41-F46) exist in the assets folder before 25/11 20:00, with a
+- **SC-002**: 100 % of core catalogue items (F01-F36, F41-F47) exist in the assets folder before 25/11 20:00, with a
   fallback for each demo.
 - **SC-003**: The whole-ride label of the deployed model beats random guessing on the golden rides and passes the
   gate; macro-F1 vs elapsed time is reported for at least 6 time points.

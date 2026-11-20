@@ -57,7 +57,10 @@ memory: one heavy service set at a time (compose **or** kind, not both).
 **Scale/Scope**: GBG500 500 rides / 1.5 M readings; SRV3490 3,490 rides / 16.9 M readings; model 45 k parameters,
 2.5 MB; 46 catalogue figures (40 core); 5 people, deadline 25/11/2026 20:00.
 
-No NEEDS CLARIFICATION left: the open points are resolved in [research.md](research.md) (R1-R14). The one external
+One choice is deliberately **open**: the window length (R15). 30 s / 15 s is E3's untested choice, not the data's
+granularity (10 Hz); every number derived from it (300-reading minimum, window payload, update every 15 s, load
+rate) is provisional until the study A1b decides. Other open points are resolved in [research.md](research.md)
+(R1-R14). The one external
 blocker is getting SRV3490 (R3): everything that needs it has a GBG500-only fallback.
 
 ## Constitution Check
@@ -153,7 +156,8 @@ Each item lists: what it delivers → figures/demos → requirement. Owners are 
 |---|---|---|---|
 | A0 | Visual charter: `viz/palette.py`, `viz/theme.py`, `save_fig`, notebook `00_visual_charter` (Mako vs alternatives, Heat), freeze the palette | F36 | FR-003 |
 | A1 | Data overview notebook on GBG500 (SRV3490 parts added when available) | F01-F03 | FR-002 |
-| A2 | Cumulative classifier v1: `predict_timeline` + `timeline.py` (pure, tested); evaluate adds macro-F1 vs elapsed time (30, 60, 90, 120, 180, 240 s, end) for model, E3-as-whole-ride and random/majority | F06-F11 | FR-010, FR-011, SC-003 |
+| A1b | **Window-length study (R15), before A2/A3 freeze anything**: 5/10/15/30/60 s on train-rides CV, rules written before running, golden untouched; decision written in `docs/PLAN.md` §6.5 | F47 | FR-010, FR-011 |
+| A2 | Cumulative classifier v1 (window from A1b): `predict_timeline` + `timeline.py` (pure, tested); evaluate adds macro-F1 vs elapsed time (30, 60, 90, 120, 180, 240 s, end) for model, E3-as-whole-ride and random/majority | F06-F11 | FR-010, FR-011, SC-003 |
 | A3 | API: timeline in `/v1/predict`, stateless `/v1/predict/window`, `/v1/feedback`; schemas and Swagger examples; unit tests | F19 | FR-013, FR-019 |
 | A4 | Monitoring stack in compose: Prometheus + Grafana provisioned, four-layer dashboard, 5 alerts (contracts/metrics-and-alerts.md), runbooks | F20, F41, F42 | FR-015 |
 | A5 | Drift: `window_stats`, drift reference stage, `drift/psi.py`, offline `drift/job.py` (report + exit 3), live `drift/monitor.py` exporter | F45 | FR-018 |

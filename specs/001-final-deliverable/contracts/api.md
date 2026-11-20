@@ -33,7 +33,8 @@ Request:
 }
 ```
 
-- `readings`: exactly `window_s × 10` readings (300), same validation as `Ride`.
+- `readings`: exactly `window_s × 10` readings, same validation as `Ride`. `window_s` comes from the served
+  model's metadata (provisional 30 s → 300 readings until the window study R15 decides).
 - `state`: optional; absent = first window (zeros). `n_windows` must equal `window_index`.
 
 Response:
@@ -52,8 +53,9 @@ Response:
 Errors: 422 malformed (wrong length, out-of-range values, inconsistent state); 503 no model loaded.
 Latency budget: 200 ms p95 (SC-004).
 
-Edge case recorded: a ride shorter than one window (< 300 readings) is rejected with 422, as today: a window
-cannot be scored on less than 30 s. The spec edge case ("returned, marked low confidence") is amended
+Edge case recorded: a ride shorter than one window is rejected with 422, as today: a window cannot be scored on
+less signal than it was trained on. The minimum follows the window length chosen by R15 (provisional 300
+readings). The spec edge case ("returned, marked low confidence") is amended
 accordingly at `/speckit-analyze`.
 
 ## `POST /v1/feedback` - label received later (outcome layer)
