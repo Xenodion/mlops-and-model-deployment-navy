@@ -91,6 +91,7 @@ several?**
 | Inference hardware | Same image and benchmark tool on CPU, 1 GPU, 2 GPUs (Vertex AI jobs); per-window latency, throughput, memory | AI infra |
 | Training cost vs data volume | GBG500 + SRV3490, then the data replicated x2, x4, x8 (the classic method: real cost, no new information, said so) on CPU, 1 GPU, 2 GPUs (DDP); finds where a GPU, then DDP, pays off | AI infra |
 | Drift scenarios | Real rides resampled, not generated: (1) a new city (SRV3490 city never seen), (2) a changed sensor (the real rad/s vs deg/s unit difference), (3) riskier riding (more fall / Reckless rides). Each one must show in Grafana (PSI, prediction mix) and can trigger the retraining pipeline | MLOps |
+| Monitoring and retraining | Four layers (infrastructure, inputs, predictions, outcome on labels received later), each with an alert and a runbook. Hybrid retraining policy: schedule + input-drift + prediction-drift + performance triggers start the training workflow; the gate decides registration; a human approves production. The runbook separates retraining from an upstream bug (the sensor unit change is fixed at the source). Where to retrain (CI runner vs Vertex AI) is decided from the measured training cost | both |
 | Live replay | Web app: pick a ride, press play, watch the cumulative label and phases evolve (bonus) | both |
 
 Infrastructure facts (20/11): GCP project `advanced-cloud-ai-i2`; Vertex AI GPU jobs work in SPOT mode (a 2x A100

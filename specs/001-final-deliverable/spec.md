@@ -57,6 +57,10 @@ from a clean start and every screenshot exists in the assets folder.
 4. **Given** a drift scenario is replayed (new city, changed sensor, riskier mix), **When** the dashboard is
    shown, **Then** the drift indicator moves past its alert threshold for that scenario and stays calm for
    normal traffic.
+5. **Given** an alert fires, **When** the presenter follows the retraining policy, **Then** the jury sees which
+   trigger fired (schedule, input drift, prediction drift or performance drop), the runbook decision (for the
+   changed-sensor scenario: an upstream bug, fixed at the source, no retraining; for the new city: retrain), the
+   retraining run, the gate, and the human approval before the new version reaches production.
 
 ---
 
@@ -163,10 +167,27 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
 - **FR-014**: Training MUST run through the pipeline, register a version only when the gate passes, and deploy
   through CI/CD (build, test, push to the image registry, manual approval, rollout, automatic rollback on a
   failed smoke test) on the local cluster, with a self-hosted runner.
-- **FR-015**: Monitoring MUST show live service metrics (requests, latency, errors), prediction mix and input
-  drift indicators on dashboards.
+- **FR-015**: Monitoring MUST cover the four layers taught in the course, each with a dashboard row, an alert
+  and a runbook entry: infrastructure (latency, errors, throughput), input distribution (sensor channels),
+  prediction distribution (category mix, confidence), business outcome (performance on labels received later).
 - **FR-016**: Three drift scenarios MUST be produced by resampling real rides (a city never seen, the real
   sensor unit difference, a riskier ride mix) and each MUST be visible on the drift dashboard.
+- **FR-018**: Drift MUST be measured by a job comparing the inputs logged by the service with the training
+  reference (per-feature PSI with an alert and a retraining threshold, a statistical test per feature, a
+  readable drift report), runnable on demand, on a schedule and in CI/CD, where it raises a visible flag.
+- **FR-019**: Labels received after the prediction MUST be accepted by the service (outcome layer). They come
+  from real labelled rides replayed after their prediction, and feed a performance metric with an alert.
+- **FR-034**: Retraining MUST follow a hybrid policy: a schedule, an input-drift trigger (PSI above the
+  retraining threshold), a prediction-drift trigger and a performance trigger (outcome metric below its floor).
+  A trigger starts the training workflow with its reason; the new version is registered only if the gate passes
+  and reaches production only after a human approval (human in the loop). The runbook tells retraining apart
+  from an upstream bug (unit change: fixed at the source, no retraining).
+- **FR-035**: Where retraining runs MUST be justified against the options taught (local, CI/CD runner,
+  inference machine, dedicated cloud such as Vertex AI) using the measured training cost; the recommendation is
+  part of both presentations.
+- **FR-036**: If any part of the retraining loop cannot be fully automated before the deadline, the measurements
+  and the CI/CD flags MUST still exist, and the presentation MUST state the recommended policy and what is
+  missing.
 - **FR-017**: The reference supervised model (E3) MUST stay registered and serve as production fallback until the
   cumulative classifier passes the gate.
 
@@ -196,7 +217,8 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
   5 / 10 / 30 s, with a minimum warning time of 1-2 s, a fall and its comparison rides always on the same side of
   the split, held-out evaluation).
 - **FR-032** (bonus): Self-supervised encoder trained on all rides' raw signals, compared with the core model.
-- **FR-033** (bonus): Retraining triggered by a drift alert.
+- **FR-033** (bonus): Fully automatic retraining on a drift alert, end to end without a manual start (the core
+  loop of FR-034 may start the workflow by hand from the alert).
 
 **Constraints**
 
@@ -253,7 +275,13 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F37 | Live replay of a ride (recording) | both | bonus | web app |
 | F38 | Fall forecast: probability before the fall vs comparison rides, alert trade-off | both | bonus | `07_fall_forecast` |
 | F39 | Encoder vs core model on golden rides | MLOps | bonus | `08_encoder` |
-| F40 | Drift alert triggering retraining (screenshot of the run) | MLOps | bonus | screenshots |
+| F40 | Drift alert triggering retraining end to end (screenshot of the run) | MLOps | bonus | screenshots |
+| F41 | Four-layer monitoring dashboard: baseline and each incident (screenshots) | MLOps | core | screenshots |
+| F42 | Alerts going inactive → pending → firing during an incident (screenshot) | MLOps | core | screenshots |
+| F43 | Retraining policy diagram: triggers → workflow → gate → human approval → production, and the runbook fork (retrain vs fix upstream) | both | core | `docs/` diagram |
+| F44 | Outcome layer: performance on labels received later, before and after a drift scenario | MLOps | core | `06_drift_scenarios` |
+| F45 | Drift report (per-feature PSI and test) for each scenario | MLOps | core | drift job output |
+| F46 | Where to retrain: options vs measured training cost (local, CI runner, inference machine, Vertex AI) | both | core | `ai-infrastructure/distributed-training` |
 
 ### Visual Charter
 
@@ -281,6 +309,7 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
   warm-up, versions) and its status (measured or estimated).
 - **Drift scenario**: a resampled stream of real rides (unseen city, sensor unit change, riskier mix).
 - **Figure / asset**: a saved PNG and SVG with its catalogue ID, story and source.
+- **Retraining trigger**: what started a training run (schedule, input drift, prediction drift, performance drop), with its value and time; linked to the run, the gate result and the approver.
 
 ## Success Criteria *(mandatory)*
 
@@ -288,7 +317,7 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 
 - **SC-001**: Each presentation fits its time slot (10 min for MLOps) in a timed dry run, and every graded
   criterion of each brief is covered by at least one slide, demo or figure.
-- **SC-002**: 100 % of core catalogue items (F01-F36) exist in the assets folder before 25/11 20:00, with a
+- **SC-002**: 100 % of core catalogue items (F01-F36, F41-F46) exist in the assets folder before 25/11 20:00, with a
   fallback for each demo.
 - **SC-003**: The whole-ride label of the deployed model beats random guessing on the golden rides and passes the
   gate; macro-F1 vs elapsed time is reported for at least 6 time points.
@@ -300,6 +329,10 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
   points to a raw result file and a re-runnable procedure.
 - **SC-007**: Each of the three drift scenarios moves its drift indicator past the alert threshold on the
   dashboard, while normal traffic stays below it.
+- **SC-010**: Each of the four monitoring layers has an alert that is seen firing in at least one rehearsed
+  incident, with a runbook entry giving the decision.
+- **SC-011**: From a retraining trigger to a new version waiting for approval takes under 30 minutes, and every
+  production change in the period is traceable to a trigger, a gate result and an approver.
 - **SC-008**: Distributed training is decided with a measured speedup and efficiency on 2 GPUs (or the documented
   refusal if GPUs were not granted) and the volume at which the decision flips.
 - **SC-009**: No billable cloud resource is left running after a measurement (checked after each session).
