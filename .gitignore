@@ -10,9 +10,13 @@
 /model/
 /logs/
 
-# Course material: kept locally for reference, not part of the repo
+# Course material (slides of both courses): kept locally for reference, not part of the repo
 /labs/
 /lectures/
+
+# Local agent instructions (each teammate keeps their own)
+/AGENTS.md
+/CLAUDE.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
