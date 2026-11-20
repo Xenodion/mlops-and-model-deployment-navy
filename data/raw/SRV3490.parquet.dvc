@@ -1,0 +1,5 @@
+outs:
+- md5: dc3537544c57a6500203db714e0e857a
+  size: 268229940
+  hash: md5
+  path: SRV3490.parquet
