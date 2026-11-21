@@ -259,8 +259,20 @@ def test_fall_risk_scores_windows_when_model_2_is_loaded(model_dir, ride, tmp_pa
     features = ride_features(pd.concat(frames)).drop(columns=["duration_s"]).reset_index(drop=True)
     joblib.dump(FallRiskModel(1.0, 0).fit(features, pd.Series([0, 1] * 4)), tmp_path / "m.joblib")
     monkeypatch.setenv("FALL_RISK_MODEL_PATH", str(tmp_path / "m.joblib"))
+    monkeypatch.setenv("FALL_RISK_THRESHOLD", "0")
     with TestClient(create_app(model_uri=str(model_dir))) as c:
         body = c.post("/v1/predict", json=ride).json()
+        from ride_classifier.api import metrics
+
+        histogram = metrics.FALL_RISK.labels(endpoint="/v1/predict/window")
+        counter = metrics.FALL_ALERTS.labels(endpoint="/v1/predict/window")
+        count_before = sum(sample.value for sample in histogram.collect()[0].samples if sample.name.endswith("_count"))
+        alerts_before = counter._value.get()
+        response = c.post("/v1/predict/window", json={"ride_id": "r", "window_index": 0, "readings": _window(ride)})
+        assert response.status_code == 200 and response.json()["fall_alert"] is True
+        count_after = sum(sample.value for sample in histogram.collect()[0].samples if sample.name.endswith("_count"))
+        assert count_after == count_before + 1
+        assert counter._value.get() == alerts_before + 1
     fall = body["fall_risk"]
     assert fall["retrospective"] and len(fall["windows"]) == (600 - 100) // 50 + 1
     assert all(0 <= w["risk"] <= 1 for w in fall["windows"])

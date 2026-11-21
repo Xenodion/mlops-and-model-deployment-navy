@@ -31,6 +31,10 @@ DANGER_SCORE = Histogram(
     buckets=(-2, -1, 0, 0.5, 1, 1.5, 2, 3, 5, 10),
 )
 DANGER_ALERTS = Counter("danger_alerts_total", "Answers flagged is_dangerous", ["endpoint"])
+FALL_RISK = Histogram(
+    "fall_risk", "Fall-risk scores for live windows", ["endpoint"], buckets=(0.1, 0.2, 0.4, 0.6, 0.8, 1.0)
+)
+FALL_ALERTS = Counter("fall_alerts_total", "Live windows with a fall-risk alert", ["endpoint"])
 MODEL_INFO = Gauge("model_info", "Model being served (value 1, version as label)", ["version"])
 
 # Layer 4: outcome (labels received later through /v1/feedback)

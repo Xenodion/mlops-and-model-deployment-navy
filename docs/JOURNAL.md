@@ -10,11 +10,10 @@ This block is rewritten at each stop; the dated entries below are the history.
 
 - **Resume, notebook:** `notebooks/07_fall_risk.ipynb` now plots F49 from the existing held-out metrics; the 10 s
   check shifts the entire 60 s segment, so the difference cannot be attributed only to its last five seconds.
-  Registering `fall-risk` remains open: the training stage now logs a loadable MLflow model with provenance and
-  `registry.register_fall_risk` registers only clean, gate-passing runs to staging. This path was tested on a local
-  temporary registry; the shared proxy was not reachable. Commit the changes, rerun training on a clean tree and
-  register against the shared server before claiming publication. The MLflow interface accepts window statistics;
-  the API still loads its joblib artifact separately.
+  `fall-risk` v1 was registered at `@staging` on the shared MLflow server on 22/11: run
+  `a970ab9cb9994727a3ceb7c885916491`, clean commit `f8ba66e`, gate passed, held-out paired AUC 0.888 / 0.756
+  (5 s / 10 s gap). The MLflow interface accepts window statistics; the API still loads its joblib artifact
+  separately. Training ran directly, so the changed DVC stage still needs reproduction and a lock update.
 - **Model 1 figures:** notebooks `03_live_classifier` and `04_evaluation` now produce F06-F11 and F47-F48 from
   existing outputs. The golden split contains only one Reckless ride; F11 shows the actual counts. F08 compares
   elapsed-time E3 results to whole-ride reference scores, not references recomputed at each time.
@@ -22,6 +21,8 @@ This block is rewritten at each stop; the dated entries below are the history.
   implemented and tested. A direct local run used 7,568 training windows and OOF predictions. Repeated quantiles
   are collapsed and actual reference bin shares retained. DVC reproduction and integration with the API and drift
   job remain to be checked; the model field currently identifies the MLflow model URI rather than a registry version.
+- **API metrics:** live model-2 scores now increment `fall_risk` and `fall_alerts_total` Prometheus metrics;
+  29 API tests pass. T063 remains open for removal of old danger fields and the image/model loading decision.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
@@ -36,8 +37,7 @@ This block is rewritten at each stop; the dated entries below are the history.
     tuned). 148 tests pass.
   - Model 1 vs elapsed time (T029, code): `artifacts/golden_f1_vs_elapsed.csv` and MLflow; golden macro-F1 0.21 at
     30 s, 0.23 at 60 s, 0.51 from 120 s, 0.516 at the end.
-- **Left on those tasks:** T062 register `fall-risk` in MLflow; T063 (remove the old `danger_*` fields, a model-2
-  Prometheus metric, ship `fall_risk_model.joblib` in the API image: decide with Alex, PR #32).
+- **Left on those tasks:** T063 remove the old `danger_*` fields and settle API model loading with Alex (PR #32).
 - **Next, in order:** monitoring, drift job, scenarios, workflows (#16-#21, CI unit-bug test T059); AI-infrastructure
   measurements on the fixed models (#3-#8, Vertex, GPUs only in `advanced-cloud-ai-i2`); README, compliance table,
   submission (#24).

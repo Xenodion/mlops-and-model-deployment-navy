@@ -348,6 +348,10 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             request, body.readings.to_frame().tail(round(FALL_WINDOW_S * SAMPLING_HZ)).reset_index(drop=True)
         )
         fall_risk = fall.windows[-1].risk if fall and fall.windows else None
+        if fall_risk is not None:
+            m.FALL_RISK.labels(endpoint="/v1/predict/window").observe(fall_risk)
+            if fall_risk >= request.app.state.fall_threshold:
+                m.FALL_ALERTS.labels(endpoint="/v1/predict/window").inc()
         _observe("/v1/predict/window", label, cumulative[label], cumulative_danger, is_dangerous)
         log_event(
             {
