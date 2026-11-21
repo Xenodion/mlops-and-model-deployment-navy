@@ -13,14 +13,14 @@ This block is rewritten at each stop; the dated entries below are the history.
   `fall-risk` v1 was registered at `@staging` on the shared MLflow server on 22/11: run
   `a970ab9cb9994727a3ceb7c885916491`, clean commit `f8ba66e`, gate passed, held-out paired AUC 0.888 / 0.756
   (5 s / 10 s gap). The MLflow interface accepts window statistics; the API still loads its joblib artifact
-  separately. Training ran directly, so the changed DVC stage still needs reproduction and a lock update.
+  separately. Training ran directly; its outputs were recorded in `dvc.lock` with `dvc commit`.
 - **Model 1 figures:** notebooks `03_live_classifier` and `04_evaluation` now produce F06-F11 and F47-F48 from
   existing outputs. The golden split contains only one Reckless ride; F11 shows the actual counts. F08 compares
   elapsed-time E3 results to whole-ride reference scores, not references recomputed at each time.
-- **Drift reference (T031, in progress):** eight window standard deviations, PSI and the reference DVC stage are
-  implemented and tested. A direct local run used 7,568 training windows and OOF predictions. Repeated quantiles
-  are collapsed and actual reference bin shares retained. DVC reproduction and integration with the API and drift
-  job remain to be checked; the model field currently identifies the MLflow model URI rather than a registry version.
+- **Drift reference (T031):** eight window standard deviations, PSI and the reference DVC stage are implemented
+  and tested. DVC reproduced the reference from 7,568 training windows and OOF predictions. Repeated quantiles are
+  collapsed and actual reference bin shares retained. Integration with the API and drift job remains; the model
+  field currently identifies the MLflow model URI rather than a registry version.
 - **API metrics:** live model-2 scores now increment `fall_risk` and `fall_alerts_total` Prometheus metrics;
   29 API tests pass. T063 remains open for removal of old danger fields and the image/model loading decision.
 

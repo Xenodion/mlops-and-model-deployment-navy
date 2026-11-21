@@ -287,10 +287,18 @@ stages:
       hash: md5
       md5: f59411859ddf5bba15dd3271b7044263
       size: 4714
+    - path: src/ride_classifier/models/fall_risk_pyfunc.py
+      hash: md5
+      md5: fcdecfca575dac8b8b0d62907b7677ed
+      size: 477
+    - path: src/ride_classifier/models/plots.py
+      hash: md5
+      md5: 0f18c01f71aba1a410b69afc7c2f3af8
+      size: 1510
     - path: src/ride_classifier/pipeline/train_fall_risk.py
       hash: md5
-      md5: f02edb1ca6ba7f7c8e999f4823f232db
-      size: 4849
+      md5: 50f5e5213c3f8c6bba1e3e0a5a70db3b
+      size: 5566
     params:
       params.yaml:
         fall_risk:
@@ -303,6 +311,7 @@ stages:
           seed: 42
           experiment: fall-risk
           model_path: artifacts/fall_risk_model.joblib
+          run_path: artifacts/fall_risk_run.json
           metrics_path: artifacts/fall_risk_metrics.json
           scores_path: artifacts/fall_risk_heldout_scores.csv
           roc_path: artifacts/fall_risk_roc.png
@@ -325,3 +334,43 @@ stages:
       hash: md5
       md5: d9d77091920e3e3efeb080240e57444a
       size: 57625
+    - path: artifacts/fall_risk_run.json
+      hash: md5
+      md5: 7616f5626981fb99c1a9f9cea4990faa
+      size: 114
+  reference:
+    cmd: python -m ride_classifier.pipeline.reference
+    deps:
+    - path: artifacts/oof_predictions.csv
+      hash: md5
+      md5: 978b34205f458763310c878bf65bfc4e
+      size: 54980
+    - path: artifacts/train_run.json
+      hash: md5
+      md5: 43b52169989eb8d0ab1a8c40fafd45c5
+      size: 114
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: c203e4c111ed4e58c808eba79ce245c3
+      size: 24908635
+    - path: src/ride_classifier/data/clean.py
+      hash: md5
+      md5: ddf33a2872ce3b78b85f51c5a2671806
+      size: 1537
+    - path: src/ride_classifier/features/window_stats.py
+      hash: md5
+      md5: c3d3827a3cf3fd1137eedd94a95787e6
+      size: 991
+    - path: src/ride_classifier/pipeline/reference.py
+      hash: md5
+      md5: f332904fb74499ddbd7e0f9a6dd16d55
+      size: 2689
+    params:
+      params.yaml:
+        train.cnn.stride_s: 15
+        train.cnn.window_s: 30
+    outs:
+    - path: artifacts/drift_reference.json
+      hash: md5
+      md5: 3208e2101d24d91552d8c225a85ec4a5
+      size: 5373
