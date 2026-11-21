@@ -72,3 +72,16 @@ def test_danger_at_gives_no_answer_before_first_window_ends():
     assert danger_at(timeline, timeline.end_s[0] - 0.1) is None
     assert danger_at(timeline, timeline.end_s[0]) == pytest.approx(timeline.danger[0])
     assert danger_at(timeline, float("inf")) == pytest.approx(timeline.cumulative_danger[-1])
+
+
+def test_danger_windows_batched_equals_one_pass(monkeypatch):
+    """Batching the forward pass (memory bound) must not change the scores."""
+    import ride_classifier.models.autoencoder as ae
+
+    rng = np.random.default_rng(0)
+    windows = rng.normal(size=(10, 6, 50)).astype(np.float32)
+    model = ae.DangerModel(5, 2.5, [4, 8, 8], 3, 1, 4, 0.01, 0.0, 0.05, "sqrt", seed=0)
+    model.fit(pd.Series({"a": windows[:5], "b": windows[5:]}))
+    one_pass = model.danger_windows(windows)
+    monkeypatch.setattr(ae, "INFERENCE_BATCH", 3)
+    np.testing.assert_allclose(model.danger_windows(windows), one_pass, rtol=1e-5, atol=1e-6)

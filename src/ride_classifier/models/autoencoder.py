@@ -18,6 +18,8 @@ from ride_classifier.features.windows import windows_by_ride
 from ride_classifier.models.cnn import class_weights
 from ride_classifier.models.timeline import Timeline, cumulative_mean, window_end_times
 
+INFERENCE_BATCH = 4096  # windows per forward pass outside training (bounds peak memory)
+
 
 class RideAutoencoder(nn.Module):
     """Encoder: N x (Conv1d, BatchNorm, ReLU, MaxPool1d(2)). Decoder: mirror, Upsample(2) instead of pooling."""
@@ -85,11 +87,15 @@ class DangerModel:
         x = np.concatenate(inputs.to_list())
         self.mean_ = x.mean(axis=(0, 2), keepdims=True)
         self.std_ = x.std(axis=(0, 2), keepdims=True) + 1e-6
-        x_all = self._normalise(x)
+        n_channels = x.shape[1]
+        x -= self.mean_  # in place: x is a fresh copy, so no second array of all windows is made
+        x /= self.std_
+        x_all = torch.from_numpy(x.astype(np.float32, copy=False))
+        del x
 
         torch.manual_seed(self.seed)
         order_rng = np.random.default_rng(self.seed)
-        self.net_ = RideAutoencoder(x.shape[1], self.filters, self.kernel)
+        self.net_ = RideAutoencoder(n_channels, self.filters, self.kernel)
         optimizer = torch.optim.Adam(self.net_.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
         self.history_ = []  # mean training MSE per epoch
         self.net_.train()
@@ -108,7 +114,8 @@ class DangerModel:
             self.history_.append(total / len(x_all))
         self.net_.eval()
 
-        errors = self._errors(x)
+        errors = self._errors_standardised(x_all)
+        del x_all
         self.error_mean_, self.error_std_ = float(errors.mean()), float(errors.std() + 1e-9)
         if labels is not None:
             self._fit_head(inputs, labels)
@@ -125,15 +132,22 @@ class DangerModel:
     def _normalise(self, windows: np.ndarray) -> torch.Tensor:
         return torch.from_numpy(((windows - self.mean_) / self.std_).astype(np.float32))
 
+    def _errors_standardised(self, x: torch.Tensor) -> np.ndarray:
+        """Mean squared reconstruction error per window of already standardised windows, by batches."""
+        with torch.no_grad():
+            parts = [
+                ((self.net_(b) - b) ** 2).mean(dim=(1, 2)) for b in torch.split(x, INFERENCE_BATCH)
+            ]  # batches: the activations of all windows at once would not fit in memory
+        return torch.cat(parts).numpy()
+
     def _errors(self, windows: np.ndarray) -> np.ndarray:
         """Mean squared reconstruction error per window, on standardised windows."""
-        with torch.no_grad():
-            x = self._normalise(windows)
-            return ((self.net_(x) - x) ** 2).mean(dim=(1, 2)).numpy()
+        return self._errors_standardised(self._normalise(windows))
 
     def _embeddings(self, windows: np.ndarray) -> np.ndarray:
         with torch.no_grad():
-            return self.net_.embed(self._normalise(windows)).numpy()
+            parts = [self.net_.embed(b) for b in torch.split(self._normalise(windows), INFERENCE_BATCH)]
+        return torch.cat(parts).numpy()
 
     def danger_windows(self, windows: np.ndarray) -> np.ndarray:
         """(n_windows, channels, time) -> (n_windows,) reconstruction error z-scored on the training windows."""

@@ -200,7 +200,9 @@ def evaluate_candidate(
     start = time.perf_counter()
     model.fit(inputs)  # no labels
     train_time = time.perf_counter() - start
-    timelines = model.predict_timeline(inputs)
+    latency = _latency_ms(model, inputs.iloc[0])
+    del inputs  # windows are rebuilt by chunks of rides below, so all of them never sit twice in memory
+    timelines = {**_timelines(model, gbg), **_timelines(model, srv)}
 
     fall_scores, comparison = pre_fall_scores(timelines, groups, fall_times, params["falls"])
     auc_fall = paired_fall_auc(fall_scores, comparison)
@@ -230,12 +232,22 @@ def evaluate_candidate(
         "auc_reckless": float(auc_reckless),
         **{f"false_alarm_{c}": float(rates.get(c, math.nan)) for c in LABELS},
         "first_answer_s": window_s,
-        "latency_ms": _latency_ms(model, inputs.iloc[0]),
+        "latency_ms": latency,
         "train_time_s": train_time,
         "epoch_time_s": train_time / danger_params["epochs"],
         "rss_after_fit_mb": _rss_mb(),
         "n_windows_train": float(n_windows),
     }, model
+
+
+def _timelines(model: DangerModel, readings: pd.DataFrame, rides_per_chunk: int = 300) -> dict[str, Timeline]:
+    """Timelines of every ride, windows built chunk by chunk of rides to bound memory."""
+    ride_ids = readings[ID_COLUMN].unique()
+    out: dict[str, Timeline] = {}
+    for start in range(0, len(ride_ids), rides_per_chunk):
+        chunk = readings[readings[ID_COLUMN].isin(ride_ids[start : start + rides_per_chunk])]
+        out.update(model.predict_timeline(model.prepare(chunk)))
+    return out
 
 
 def _rss_mb() -> float:
