@@ -242,4 +242,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-/reports/  # local run logs and set-aside results
+# local run logs and set-aside results
+/reports/
