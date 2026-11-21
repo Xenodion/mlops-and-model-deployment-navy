@@ -10,11 +10,18 @@ This block is rewritten at each stop; the dated entries below are the history.
 
 - **Resume, notebook:** `notebooks/07_fall_risk.ipynb` now plots F49 from the existing held-out metrics; the 10 s
   check shifts the entire 60 s segment, so the difference cannot be attributed only to its last five seconds.
-  Registering `fall-risk` remains open: the training run logs a joblib artifact, not a registered MLflow model, and
-  the shared proxy was not reachable on localhost:5001 during this session.
+  Registering `fall-risk` remains open: the training stage now logs a loadable MLflow model with provenance and
+  `registry.register_fall_risk` registers only clean, gate-passing runs to staging. This path was tested on a local
+  temporary registry; the shared proxy was not reachable. Commit the changes, rerun training on a clean tree and
+  register against the shared server before claiming publication. The MLflow interface accepts window statistics;
+  the API still loads its joblib artifact separately.
 - **Model 1 figures:** notebooks `03_live_classifier` and `04_evaluation` now produce F06-F11 and F47-F48 from
   existing outputs. The golden split contains only one Reckless ride; F11 shows the actual counts. F08 compares
   elapsed-time E3 results to whole-ride reference scores, not references recomputed at each time.
+- **Drift reference (T031, in progress):** eight window standard deviations, PSI and the reference DVC stage are
+  implemented and tested. A direct local run used 7,568 training windows and OOF predictions. Repeated quantiles
+  are collapsed and actual reference bin shares retained. DVC reproduction and integration with the API and drift
+  job remain to be checked; the model field currently identifies the MLflow model URI rather than a registry version.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

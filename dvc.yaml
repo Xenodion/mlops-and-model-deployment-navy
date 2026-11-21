@@ -63,6 +63,21 @@ stages:
     metrics:
       - artifacts/cv_metrics.json  # `uv run dvc metrics show`
 
+  reference:
+    cmd: python -m ride_classifier.pipeline.reference
+    deps:
+      - data/processed/train.parquet
+      - artifacts/oof_predictions.csv
+      - artifacts/train_run.json
+      - src/ride_classifier/data/clean.py
+      - src/ride_classifier/features/window_stats.py
+      - src/ride_classifier/pipeline/reference.py
+    params:
+      - train.cnn.window_s
+      - train.cnn.stride_s
+    outs:
+      - artifacts/drift_reference.json
+
   evaluate:
     cmd: python -m ride_classifier.pipeline.evaluate  # exit 1 = quality gate failed: the pipeline stops here
     deps:
@@ -89,11 +104,14 @@ stages:
       - data/processed/srv3490.parquet
       - data/processed/fall_groups.csv
       - src/ride_classifier/models/fall_risk.py
+      - src/ride_classifier/models/fall_risk_pyfunc.py
+      - src/ride_classifier/models/plots.py
       - src/ride_classifier/pipeline/train_fall_risk.py
     params:
       - fall_risk
     outs:
       - artifacts/fall_risk_model.joblib
+      - artifacts/fall_risk_run.json
       - artifacts/fall_risk_heldout_scores.csv
       - artifacts/fall_risk_roc.png
     metrics:

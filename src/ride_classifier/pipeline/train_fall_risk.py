@@ -18,10 +18,11 @@ from sklearn.metrics import roc_auc_score
 from ride_classifier.config import ID_COLUMN, MLFLOW_TRACKING_URI, ROOT, TIME_COLUMN, load_params
 from ride_classifier.data.srv3490 import TOPPLE_COLUMN, load_srv3490
 from ride_classifier.models.fall_risk import GROUP, LABEL, FallRiskModel, window_features, window_table
+from ride_classifier.models.fall_risk_pyfunc import FallRiskPyfunc
 from ride_classifier.models.plots import roc_figure
 from ride_classifier.pipeline.cli import setup
 from ride_classifier.pipeline.falls import DEVELOPMENT, GROUP_SPLIT_COLUMN, HELD_OUT
-from ride_classifier.registry.tracking import check_server, flatten
+from ride_classifier.registry.tracking import check_server, flatten, run_tags
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,14 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
 
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(p["experiment"])
-    with mlflow.start_run(run_name="fall-risk-logreg"):
+    with mlflow.start_run(run_name="fall-risk-logreg") as active_run:
+        mlflow.set_tags(
+            {
+                **run_tags({"srv3490_md5": root / f"{data['srv3490']['raw_path']}.dvc"}),
+                "model_type": "fall-risk-logreg",
+                "gate": "passed" if metrics["gate_passed"] else "failed",
+            }
+        )
         mlflow.log_params(flatten(params["fall_risk"], "fall_risk"))
         mlflow.log_metrics(metrics)
         scores = pd.concat([main_scores, check_scores])
@@ -83,6 +91,12 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
         mlflow.log_figure(figure, "fall_risk_roc.png")
         joblib.dump(model, root / p["model_path"])
         mlflow.log_artifact(str(root / p["model_path"]))
+        model_info = mlflow.pyfunc.log_model(
+            name="model", python_model=FallRiskPyfunc(model), code_paths=[str(Path(__file__).resolve().parents[1])]
+        )
+    (root / p["run_path"]).write_text(
+        json.dumps({"run_id": active_run.info.run_id, "model_uri": model_info.model_uri}, indent=2), encoding="utf-8"
+    )
     (root / p["metrics_path"]).write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     logger.info(
         "model 2 held-out paired AUC %.3f (gap 10 s: %.3f)",

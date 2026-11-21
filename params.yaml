@@ -77,6 +77,7 @@ fall_risk:                   # model 2 (ADR 001, 004): 10 s windows, logistic re
   seed: 42
   experiment: fall-risk
   model_path: artifacts/fall_risk_model.joblib
+  run_path: artifacts/fall_risk_run.json
   metrics_path: artifacts/fall_risk_metrics.json
   scores_path: artifacts/fall_risk_heldout_scores.csv   # risk of every held-out window, both gaps
   roc_path: artifacts/fall_risk_roc.png                 # F49: ROC curves, gap 5 s and 10 s

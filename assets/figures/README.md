@@ -10,12 +10,12 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F03 |  | One ride per category: the 6 sensor channels over time | MLOps | core | `01_data_overview` | planned |
 | F04 | rotation_units | Rotation units: GBG500 vs SRV3490 distributions before and after conversion | MLOps | core | `02_units_and_cities` | draft |
 | F05 | rides_falls_per_city | Rides and falls per city (SRV3490) | MLOps | core | `02_units_and_cities` | draft |
-| F06 |  | A ride cut into 30 s windows (diagram) | both | core | `03_live_classifier` | planned |
-| F07 |  | Per-window scores vs cumulative label along one ride | both | core | `03_live_classifier` | planned |
-| F08 |  | Macro-F1 vs elapsed ride time (cumulative classifier vs reference vs random) | MLOps | core | `03_live_classifier` | planned |
-| F09 |  | Golden confusion matrix of the whole-ride label | MLOps | core | `04_evaluation` | planned |
-| F10 |  | Gate: golden macro-F1 of candidates vs floor, majority and random references | MLOps | core | `04_evaluation` | planned |
-| F11 |  | Reckless rides detected k / 6 and false-alarm rate per counterfactual category, danger score vs E3 vs random | both | core | `04_evaluation` | planned |
+| F06 | ride_windows | A ride cut into 30 s windows (diagram) | both | core | `03_live_classifier` | draft |
+| F07 | window_vs_cumulative | Per-window and cumulative probabilities along one golden ride | both | core | `03_live_classifier` | draft |
+| F08 | golden_f1_vs_elapsed | Macro-F1 vs elapsed time with whole-ride reference scores | MLOps | core | `03_live_classifier` | draft |
+| F09 | golden_confusion_matrix | Golden confusion matrix of the whole-ride label | MLOps | core | `04_evaluation` | draft |
+| F10 | golden_quality_gate | Golden macro-F1 vs floor, majority and random references | MLOps | core | `04_evaluation` | draft |
+| F11 | golden_reckless_predictions | Reckless predictions by known category on golden rides, with counts | both | core | `04_evaluation` | draft |
 | F12 |  | Pseudo-label mix on SRV3490 by city vs GBG500 mix | MLOps | core | `05_srv3490_pseudo_labels` | planned |
 | F13 |  | Model confidence on GBG500 vs SRV3490 | MLOps | core | `05_srv3490_pseudo_labels` | planned |
 | F14 |  | Current system architecture diagram | both | core | `ai-infrastructure/architecture` | planned |
@@ -51,6 +51,6 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F44 |  | Outcome layer: performance on labels received later, before and after a drift scenario | MLOps | core | `06_drift_scenarios` | planned |
 | F45 |  | Drift report (per-feature PSI and test) for each scenario | MLOps | core | drift job output | planned |
 | F46 |  | Where to retrain: options vs measured training cost (local, CI runner, inference machine, Vertex AI) | both | core | `ai-infrastructure/distributed-training` | planned |
-| F47 |  | Window-length study: Reckless detection and counterfactual false alarms (train rides, CV) per window length (5-60 s), with the decision rule | both | core | `03_live_classifier` | planned |
-| F48 |  | Danger score distribution: Safe vs each counterfactual category vs Reckless (all labelled rides) | both | core | `04_evaluation` | planned |
-| F49 |  | Danger score before a fall vs the same moment of comparison rides (SRV3490), share of falls preceded by danger | both | core | `07_falls_analysis` | planned |
+| F47 | window_length_study | Development fall-group paired AUC vs window length for the earlier label-free score | both | core | `03_live_classifier` | draft |
+| F48 | cumulative_vs_sliding | Cumulative ride type vs current sliding-window fall risk | both | core | `03_live_classifier` | draft |
+| F49 | fall_risk_gap_check | Held-out window-level ROC curves for the 5 s and 10 s anti-leakage gaps (SRV3490) | both | core | `07_fall_risk` | draft |
