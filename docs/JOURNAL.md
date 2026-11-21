@@ -4,26 +4,37 @@ What was done, why, and where the evidence is, newest first. Decisions are detai
 [decisions/](decisions/README.md); this log is the story behind them, written to be reread when preparing the
 presentations. One entry per working session; mistakes found and corrected are logged too.
 
-## Where we are (resume here) - updated 21/11 night
+## Where we are (resume here) - updated 21/11 end of session
 
 This block is rewritten at each stop; the dated entries below are the history.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
-  cumulatively (done, registered). Model 2 = fall risk on 10 s sliding windows, trained on SRV3490 falls with a 5 s
-  anti-leakage gap (10 s check), evaluated on held-out fall groups (ADR 002, ADR 004): to build.
-- **Nothing is running.** The window study is closed (results in `docs/experiments/window_study.md`).
-- **Shared MLflow + DVC (#30, ADR 011): deployed and tested** (Cloud Run `ride-mlflow`, bucket
-  `gs://albert-navy-ride-mlops`, teammates' access granted). The 11 local runs are migrated
-  (verified). Remaining: Vincent's isolated Google login for DVC (README "Working as a team"), then
-  `make shared-data-push`. Lesson: Cloud Run `/tmp` is RAM, so the service now has 2 GiB (1 GiB was OOM-killed).
-- **Next, in order:** (1) finish #30 as above; (2) model 2 (T060-T062) and the API serving both
-  (T063, replaces the danger fields added on 21/11); (3) model 1 evaluation additions (T029); (4) monitoring, drift
-  job, scenarios, workflows (#16-#21, CI unit-bug test T059); (5) AI-infrastructure measurements on the fixed
-  models (#3-#8); (6) README, compliance table, submission (#24).
-- **PR #9** (dev_vincent -> main) is a draft: mark it ready and ask @Xenodion for review once (1) is done.
+  cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
+- **Done:**
+  - Shared MLflow (Cloud Run `ride-mlflow`) + shared DVC remote (`gs://albert-navy-ride-mlops/dvc`), ADR 011. 11 runs
+    migrated, data and pipeline outputs pushed (`make shared-data-push`). #30 can be closed.
+  - Model 2 (T060, T061): `models/fall_risk.py`, DVC stage `train_fall_risk`, logistic regression on window
+    statistics. Held-out paired AUC 0.89 with the 5 s gap, 0.76 with the 10 s check (window AUC 0.71 / 0.69): gate
+    passed; the drop at 10 s means part of the signal is very close to the fall; say so when presenting.
+  - API (T063, mostly): `fall_risk` on `/v1/predict` (retrospective) and `/v1/predict/window`, `/health` fields;
+    model 2 optional (`FALL_RISK_MODEL_PATH`, default `artifacts/fall_risk_model.joblib`), threshold 0.6 (contract, not
+    tuned). 148 tests pass.
+  - Model 1 vs elapsed time (T029, code): `artifacts/golden_f1_vs_elapsed.csv` and MLflow; golden macro-F1 0.21 at
+    30 s, 0.23 at 60 s, 0.51 from 120 s, 0.516 at the end.
+- **Left on those tasks:** T062 (notebook `07_fall_risk`, F49) and register `fall-risk` in MLflow; T063 (remove the
+  old `danger_*` fields, a model-2 Prometheus metric, ship `fall_risk_model.joblib` in the API image: decide with
+  Alex, PR #32); T029 notebooks 03/04 (F06-F11).
+- **Next, in order:** monitoring, drift job, scenarios, workflows (#16-#21, CI unit-bug test T059); AI-infrastructure
+  measurements on the fixed models (#3-#8, Vertex, GPUs only in `advanced-cloud-ai-i2`); README, compliance table,
+  submission (#24).
+- **PRs:** #32 (Alex -> main: Docker, web app, E3, kind) is open and must be merged **before** #9; then rebase #9. #9
+  (dev_vincent -> main) stays a draft until #32 is merged; then mark it ready and ask @Xenodion for review.
+  `dev_alex` is merged into `dev_vincent` (21/11).
+- **Known limits (ADR 011):** one MLflow instance, SQLite snapshot (a hard kill can lose the last seconds of registry
+  writes); E3 v2 is registered only on Alex's machine and must be republished to the shared registry.
 - **To-do list:** `specs/001-final-deliverable/tasks.md` and GitHub issues (P0-P3, milestones 23/11, 24/11, 25/11).
 - **Rules:** MLflow always on (`make dev-up`, scripts stop without it); no data, weights or secrets in the repo;
-  English in everything committed; work on `dev_vincent`, PR to `main`.
+  English in everything committed; work on `dev_vincent`, PR to `main`; ask before any push.
 
 ## 21/11/2026 (night)
 
