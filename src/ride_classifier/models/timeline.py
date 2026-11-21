@@ -21,6 +21,8 @@ class Timeline:
     end_s: np.ndarray  # (n_windows,) elapsed seconds when each window is complete
     window_probas: np.ndarray  # (n_windows, n_labels)
     cumulative: np.ndarray  # (n_windows, n_labels) running mean of window_probas
+    danger: np.ndarray | None = None  # (n_windows,) z-scored reconstruction error (danger detector only)
+    cumulative_danger: np.ndarray | None = None  # (n_windows,) running mean of danger
 
     @property
     def label(self) -> str:
@@ -53,6 +55,14 @@ def cumulative_at(timeline: Timeline, t_s: float) -> np.ndarray | None:
     """
     completed = int(np.searchsorted(timeline.end_s, t_s, side="right"))
     return timeline.cumulative[completed - 1] if completed else None
+
+
+def danger_at(timeline: Timeline, t_s: float) -> float | None:
+    """Cumulative danger using only the windows complete by t_s; None before the first window ends or if unscored."""
+    if timeline.cumulative_danger is None:
+        return None
+    completed = int(np.searchsorted(timeline.end_s, t_s, side="right"))
+    return float(timeline.cumulative_danger[completed - 1]) if completed else None
 
 
 def f1_vs_elapsed(timelines: Mapping[str, Timeline], labels: pd.Series, times_s: Sequence[float]) -> pd.DataFrame:

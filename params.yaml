@@ -33,6 +33,17 @@ train:
     weight_decay: 0.0001     # small penalty on large weights, against overfitting
     augment: true            # random ±10 % scaling + noise on training windows
     class_weight: sqrt       # balanced over-predicted the rare categories (E1: golden 0.18); sqrt = softer
+  danger:                    # label-free autoencoder (specs R1); the head alone uses labels
+    window_s: 30             # provisional window until the window study (R15)
+    stride_s: 15
+    filters: [32, 64, 64]
+    kernel: 7
+    epochs: 10
+    batch_size: 64
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    head_C: 0.05             # as the baseline's C
+    class_weight: sqrt
   model_path: artifacts/model                  # MLflow model, read by the evaluate stage and the API
   oof_path: artifacts/oof_predictions.csv      # cross-validated prediction for every train ride
   metrics_path: artifacts/cv_metrics.json      # DVC metrics: `uv run dvc metrics show`
@@ -45,3 +56,10 @@ evaluate:
   gate:                       # the model passes only if every check passes; otherwise the stage fails (exit 1)
     min_macro_f1: 0.30        # floor = 1.5x random (≈ 0.20). First baseline: CV 0.37 ± 0.06, golden 0.48
     must_beat_references: true  # golden macro-F1 above "always Safe" and random guessing on the same rides
+
+falls:
+  groups_path: data/processed/fall_groups.csv   # one row per SRV3490 ride: group, role, development/held_out (committed to git)
+  held_out_share: 0.3        # share of fall groups, per city, never trained on nor used to choose
+  seed: 42
+  pre_fall_s: 60             # length of the pre-fall segment
+  margin_s: 2                # excluded just before the first topple

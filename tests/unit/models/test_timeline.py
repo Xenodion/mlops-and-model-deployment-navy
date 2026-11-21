@@ -83,3 +83,16 @@ def test_f1_vs_elapsed_matches_known_answers_with_a_short_ride():
     assert out["n_rides_complete"].tolist() == [4, 3, 4]  # r4 is shorter than 60 s but still counted; "end" = all
     # t=30: Safe F1 1/2, Safe overall 0, Reckless 2/3. t=60 and end: Safe 2/3, Safe overall 1, Reckless 2/3.
     np.testing.assert_allclose(out["macro_f1"].tolist(), [(0.5 + 2 / 3) / 5, (4 / 3 + 1) / 5, (4 / 3 + 1) / 5])
+
+
+def test_danger_at_is_none_without_danger_and_uses_only_completed_windows():
+    from ride_classifier.models.timeline import danger_at
+
+    plain = make_timeline("a", [0, 1], [30, 45])
+    assert danger_at(plain, 100) is None
+    scored = Timeline(
+        "b", np.array([30.0, 45.0]), plain.window_probas, plain.cumulative, np.array([1.0, 3.0]), np.array([1.0, 2.0])
+    )
+    assert danger_at(scored, 29) is None
+    assert danger_at(scored, 44) == 1.0
+    assert danger_at(scored, math.inf) == 2.0
