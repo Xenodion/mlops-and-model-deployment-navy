@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from ride_classifier.config import GYRO_COLUMNS, ID_COLUMN, TIME_COLUMN
+from ride_classifier.config import GYRO_COLUMNS, ID_COLUMN, SENSOR_COLUMNS, TIME_COLUMN
+from ride_classifier.data.clean import clean_rides
 
 logger = logging.getLogger(__name__)
 
@@ -58,3 +59,17 @@ def harmonise_rotation(readings: pd.DataFrame, factor: float) -> pd.DataFrame:
     for column in GYRO_COLUMNS:
         out[column] = out[column] * factor
     return out
+
+
+def load_clean_srv3490(path: Path, rotation_factor: float, ride_ids: Iterable[str] | None = None) -> pd.DataFrame:
+    """SRV3490 sensor readings ready for the model: rotation converted to deg/s, cleaned, float32.
+
+    The one entry point for SRV3490 sensor data (the dataset has ~1.6 % missing sensor values): conversion is a
+    fix of this source, applied here; cleaning is the same `clean_rides` the model applies to every ride it serves.
+    """
+    filters = [(ID_COLUMN, "in", list(ride_ids))] if ride_ids is not None else None
+    readings = pd.read_parquet(path, columns=[ID_COLUMN, TIME_COLUMN, *SENSOR_COLUMNS], filters=filters)
+    readings = clean_rides(harmonise_rotation(readings, rotation_factor))
+    readings[SENSOR_COLUMNS] = readings[SENSOR_COLUMNS].astype("float32")
+    logger.info("SRV3490: %d clean readings, %d rides", len(readings), readings[ID_COLUMN].nunique())
+    return readings

@@ -17,6 +17,31 @@ stages:
       - data/processed/splits.csv:
           cache: false  # small and committed to git: the frozen golden list is readable on GitHub
 
+  prepare_srv:
+    cmd: python -m ride_classifier.pipeline.prepare_srv  # SRV3490: rad/s -> deg/s, cleaned (same clean_rides)
+    deps:
+      - data/raw/SRV3490.parquet
+      - src/ride_classifier/data/clean.py
+      - src/ride_classifier/data/srv3490.py
+      - src/ride_classifier/pipeline/prepare_srv.py
+    params:
+      - data.srv3490
+    outs:
+      - data/processed/srv3490.parquet
+
+  falls:
+    cmd: python -m ride_classifier.pipeline.falls  # fall groups split once (development / held_out)
+    deps:
+      - data/raw/SRV3490.parquet
+      - src/ride_classifier/data/srv3490.py
+      - src/ride_classifier/pipeline/falls.py
+    params:
+      - falls.held_out_share
+      - falls.seed
+    outs:
+      - data/processed/fall_groups.csv:
+          cache: false  # small and committed to git, like splits.csv
+
   train:
     cmd: python -m ride_classifier.pipeline.train  # needs MLflow running: make dev-up
     deps:

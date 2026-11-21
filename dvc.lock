@@ -188,3 +188,57 @@ stages:
       hash: md5
       md5: 2dd43e502e1a34a97d163028a0b035d7
       size: 13617
+  prepare_srv:
+    cmd: python -m ride_classifier.pipeline.prepare_srv
+    deps:
+    - path: data/raw/SRV3490.parquet
+      hash: md5
+      md5: dc3537544c57a6500203db714e0e857a
+      size: 268229940
+    - path: src/ride_classifier/data/clean.py
+      hash: md5
+      md5: ddf33a2872ce3b78b85f51c5a2671806
+      size: 1537
+    - path: src/ride_classifier/data/srv3490.py
+      hash: md5
+      md5: f3cda92ccc97d0da4ef3161f5e2a097f
+      size: 3431
+    - path: src/ride_classifier/pipeline/prepare_srv.py
+      hash: md5
+      md5: 58166b29dbe8704424415fa98deda150
+      size: 1615
+    params:
+      params.yaml:
+        data.srv3490:
+          raw_path: data/raw/SRV3490.parquet
+          clean_path: data/processed/srv3490.parquet
+          rotation_factor: 57.2958
+    outs:
+    - path: data/processed/srv3490.parquet
+      hash: md5
+      md5: a65eec8c3841080622adc52693c00aec
+      size: 226115704
+  falls:
+    cmd: python -m ride_classifier.pipeline.falls
+    deps:
+    - path: data/raw/SRV3490.parquet
+      hash: md5
+      md5: dc3537544c57a6500203db714e0e857a
+      size: 268229940
+    - path: src/ride_classifier/data/srv3490.py
+      hash: md5
+      md5: f3cda92ccc97d0da4ef3161f5e2a097f
+      size: 3431
+    - path: src/ride_classifier/pipeline/falls.py
+      hash: md5
+      md5: d9afea785ec7b6f7b4feb64e5abc5940
+      size: 3902
+    params:
+      params.yaml:
+        falls.held_out_share: 0.3
+        falls.seed: 42
+    outs:
+    - path: data/processed/fall_groups.csv
+      hash: md5
+      md5: bda5f857653be37df0cf3c3e18d6c0eb
+      size: 537162

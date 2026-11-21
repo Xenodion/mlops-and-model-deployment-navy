@@ -45,7 +45,16 @@ Window 5, 10, 15, 30, 60 s (50, 100, 150, 300, 600 readings); stride = window / 
   the pre-fall segment (the 60 s ending 2 s before the first `topple`: impact excluded; `params.yaml` `falls`); the
   comparison rides are scored on the same elapsed span. A comparison ride too short to cover the span gives no
   pair (334 of 2,792 comparison rides are shorter than their fall's segment end); a group with no valid pair is
-  dropped; the number of groups kept is reported per candidate.
+  dropped; the number of groups kept is reported per candidate, and (a) is also reported on the groups whose 4
+  comparison rides all have a score (`auc_fall_full_groups`), to check that dropped pairs do not drive the result.
+- Why 60 s and 2 s: 60 s is the smallest segment that gives every candidate (up to 60 s windows, stride 30 s) at
+  least two window ends, so the candidates are compared on the same span; 2 s is the spec's minimum warning time
+  and keeps the impact out. With 60 s windows the windows ending in the segment start up to 60 s earlier, so
+  "the state before the fall" covers up to 2 minutes for that candidate (stated, not corrected). Segments of 30
+  and 120 s and a 5 s margin are reported later as a sensitivity check in the fall analysis (#29), never used to
+  choose.
+- The run is resumable: one CSV row per finished candidate; each row records the epoch time and the process
+  memory after training (also an AI-infrastructure sizing measurement).
 - SRV3490 readings are cleaned with the pipeline's `clean_rides` (1.6 % missing sensor values) and rotation is
   converted with 180/pi before any use.
 - (b) Secondary: ROC-AUC of the whole-ride score, Reckless vs counterfactual categories, on the GBG500 train rides

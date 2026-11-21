@@ -16,6 +16,7 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import pandas as pd
+import psutil
 import torch
 from sklearn.metrics import roc_auc_score
 
@@ -26,13 +27,11 @@ from ride_classifier.config import (
     LABELS,
     MLFLOW_TRACKING_URI,
     ROOT,
-    SENSOR_COLUMNS,
     TIME_COLUMN,
     load_params,
 )
-from ride_classifier.data.clean import clean_rides
 from ride_classifier.data.split import SPLIT_COLUMN, TRAIN
-from ride_classifier.data.srv3490 import CRASH_REF_COLUMN, TOPPLE_COLUMN, harmonise_rotation
+from ride_classifier.data.srv3490 import CRASH_REF_COLUMN, TOPPLE_COLUMN
 from ride_classifier.models.autoencoder import DangerModel
 from ride_classifier.models.timeline import Timeline
 from ride_classifier.pipeline.cli import setup
@@ -146,9 +145,11 @@ def load_data(
         filters=[(ID_COLUMN, "in", ids)],
     )
     fall_times = _fall_times_ms(small)
-    srv = pd.read_parquet(srv_path, columns=[ID_COLUMN, TIME_COLUMN, *SENSOR_COLUMNS], filters=[(ID_COLUMN, "in", ids)])
-    srv = clean_rides(harmonise_rotation(srv, data["srv3490"]["rotation_factor"]))
     del small
+    clean_path = ROOT / data["srv3490"]["clean_path"]
+    if not clean_path.exists():
+        raise SystemExit(f"{clean_path} is missing: run `uv run dvc repro prepare_srv` first.")
+    srv = pd.read_parquet(clean_path, filters=[(ID_COLUMN, "in", ids)])  # converted and cleaned (prepare_srv)
     return gbg, labels, srv, groups, fall_times
 
 
@@ -212,6 +213,8 @@ def evaluate_candidate(window_s: float, params: dict, data: tuple, epochs: int |
         else math.nan
     )
     rates = false_alarm_rates(ride_scores, labels, safe_threshold(ride_scores, labels))
+    full = comparison.notna().sum(axis=1) == comparison.shape[1]  # groups whose 4 comparison rides all have a score
+    auc_fall_full = paired_fall_auc(fall_scores[full], comparison[full]) if full.any() else math.nan
     logger.info("window %gs: auc_fall %.3f (%d groups), auc_reckless %.3f", window_s, auc_fall, len(wins), auc_reckless)
     return {
         "window_s": window_s,
@@ -220,13 +223,23 @@ def evaluate_candidate(window_s: float, params: dict, data: tuple, epochs: int |
         "auc_fall_ci_low": ci_low,
         "auc_fall_ci_high": ci_high,
         "n_fall_groups": float(len(wins)),
+        "n_fall_groups_full": float(full.sum()),
+        "auc_fall_full_groups": auc_fall_full,
         "auc_reckless": float(auc_reckless),
         **{f"false_alarm_{c}": float(rates.get(c, math.nan)) for c in LABELS},
         "first_answer_s": window_s,
         "latency_ms": _latency_ms(model, inputs.iloc[0]),
         "train_time_s": train_time,
+        "epoch_time_s": train_time / danger_params["epochs"],
+        "rss_after_fit_mb": _rss_mb(),
         "n_windows_train": float(n_windows),
     }
+
+
+def _rss_mb() -> float:
+    """Memory of this process (peak working set on Windows, current RSS elsewhere), in MB."""
+    info = psutil.Process().memory_info()
+    return getattr(info, "peak_wset", info.rss) / 2**20
 
 
 def _log_mlflow(row: dict[str, float], params: dict) -> None:
@@ -263,15 +276,19 @@ def main() -> None:
             use_mlflow = False
 
     torch.set_num_threads(max(1, torch.get_num_threads() // 2))  # RAM and CPU are shared on this laptop
+    done = pd.read_csv(out) if out.exists() and not args.smoke else pd.DataFrame(columns=["window_s"])
+    todo = [w for w in candidates if w not in set(done["window_s"])]  # resumable: one CSV row per finished candidate
+    if len(todo) < len(candidates):
+        logger.info("already in %s: %s s; running %s s", out, sorted(set(candidates) - set(todo)), todo)
     data = load_data(params, args.smoke, params["data"]["seed"])
-    rows = []
-    for window_s in candidates:
-        rows.append(evaluate_candidate(window_s, params, data, epochs))
-        if use_mlflow:
-            _log_mlflow(rows[-1], params)
-    results = pd.DataFrame(rows)
     out.parent.mkdir(parents=True, exist_ok=True)
-    results.to_csv(out, index=False)
+    for window_s in todo:
+        row = evaluate_candidate(window_s, params, data, epochs)
+        if use_mlflow:
+            _log_mlflow(row, params)
+        pd.DataFrame([row]).to_csv(out, mode="a", header=not out.exists() or out.stat().st_size == 0, index=False)
+    results = pd.read_csv(out)
+    results = results[results["window_s"].isin(candidates)]
     logger.info("\n%s", results.to_string(index=False))
     logger.info("chosen window: %g s (written to %s)", choose_window(results), out)
 

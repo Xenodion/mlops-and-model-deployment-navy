@@ -11,6 +11,7 @@ data:
   seed: 42
   srv3490:
     raw_path: data/raw/SRV3490.parquet
+    clean_path: data/processed/srv3490.parquet   # converted + cleaned (stage prepare_srv)
     # rad/s -> deg/s = 180/pi. Measured GBG500/SRV3490 median-std ratio (notebook 02): rotation ~60 (95% CI 58-62),
     # accelerations 0.77-0.97: the datasets also differ in riders/cities, so the ~5 % gap is population, not units.
     rotation_factor: 57.2958
@@ -61,5 +62,5 @@ falls:
   groups_path: data/processed/fall_groups.csv   # one row per SRV3490 ride: group, role, development/held_out (committed to git)
   held_out_share: 0.3        # share of fall groups, per city, never trained on nor used to choose
   seed: 42
-  pre_fall_s: 60             # length of the pre-fall segment
-  margin_s: 2                # excluded just before the first topple
+  pre_fall_s: 60             # pre-fall segment: smallest length giving every window candidate (up to 60 s, stride 30 s) >= 2 window ends
+  margin_s: 2                # excluded just before the first topple (impact); = the spec's minimum warning time

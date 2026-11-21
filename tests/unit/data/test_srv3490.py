@@ -39,3 +39,28 @@ def test_check_no_overlap_raises_naming_the_count():
     with pytest.raises(ValueError, match="2 ride ids"):
         check_no_overlap(["a", "b", "c"], ["b", "c", "d"])
     check_no_overlap(["a"], ["b"])
+
+
+def test_load_clean_srv3490_converts_rotation_and_fills_gaps(tmp_path):
+    from ride_classifier.data.srv3490 import load_clean_srv3490
+
+    raw = pd.DataFrame(
+        {
+            "ride_id": ["a", "a", "a", "b"],
+            "time_index": [0, 100, 200, 0],
+            "ax": [1.0, None, 3.0, 0.0],
+            "ay": [0.0] * 4,
+            "az": [0.0] * 4,
+            "rx": [1.0, 1.0, 1.0, 2.0],
+            "ry": [0.0] * 4,
+            "rz": [0.0] * 4,
+            "topple": [0.0] * 4,
+        }
+    )
+    path = tmp_path / "srv.parquet"
+    raw.to_parquet(path)
+    out = load_clean_srv3490(path, rotation_factor=10.0, ride_ids=["a"])
+    assert list(out["ride_id"].unique()) == ["a"]
+    assert out["ax"].tolist() == [1.0, 2.0, 3.0]  # gap interpolated inside the ride
+    assert out["rx"].tolist() == [10.0, 10.0, 10.0]
+    assert "topple" not in out.columns and out["ax"].dtype == "float32"
