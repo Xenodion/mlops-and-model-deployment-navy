@@ -1,5 +1,6 @@
 import io
 import json
+import os
 
 import mlflow
 import pandas as pd
@@ -21,7 +22,8 @@ def model_dir(tmp_path_factory, ride_model):
 
 
 @pytest.fixture(scope="module")
-def client(model_dir):
+def client(model_dir, tmp_path_factory):
+    os.environ["FALL_RISK_MODEL_PATH"] = str(tmp_path_factory.mktemp("none") / "absent.joblib")  # model 2 not loaded
     with TestClient(create_app(model_uri=str(model_dir))) as c:  # `with` runs the startup: the model gets loaded
         yield c
 
@@ -48,6 +50,8 @@ def test_health_reports_the_model_and_the_threshold(client):
         "reckless_threshold": 0.5,
         "drift_reference_loaded": False,
         "danger_threshold": None,  # the test model is a baseline: no danger score
+        "fall_risk_loaded": False,
+        "fall_risk_threshold": 0.6,
     }
 
 
@@ -231,3 +235,32 @@ def test_prediction_metrics_are_recorded(client, ride):
     assert _metric(client, 'prediction_confidence_count{endpoint="/v1/predict"}') == before + 1
     text = client.get("/metrics").text
     assert "danger_score" in text and "danger_alerts_total" in text  # declared; no danger model -> no sample
+
+
+def test_fall_risk_is_null_without_model_2(client, ride):
+    body = client.post("/v1/predict", json=ride).json()
+    assert body["fall_risk"] is None
+    assert client.get("/health").json()["fall_risk_loaded"] is False
+
+
+def test_fall_risk_scores_windows_when_model_2_is_loaded(model_dir, ride, tmp_path, monkeypatch):
+    import joblib
+    import numpy as np
+    import pandas as pd
+
+    from ride_classifier.config import ID_COLUMN
+    from ride_classifier.features.stats import ride_features
+    from ride_classifier.models.fall_risk import FallRiskModel
+
+    rng = np.random.default_rng(0)
+    frames = [
+        pd.DataFrame(rng.normal(size=(100, 6)), columns=SENSOR_COLUMNS).assign(**{ID_COLUMN: i}) for i in range(8)
+    ]
+    features = ride_features(pd.concat(frames)).drop(columns=["duration_s"]).reset_index(drop=True)
+    joblib.dump(FallRiskModel(1.0, 0).fit(features, pd.Series([0, 1] * 4)), tmp_path / "m.joblib")
+    monkeypatch.setenv("FALL_RISK_MODEL_PATH", str(tmp_path / "m.joblib"))
+    with TestClient(create_app(model_uri=str(model_dir))) as c:
+        body = c.post("/v1/predict", json=ride).json()
+    fall = body["fall_risk"]
+    assert fall["retrospective"] and len(fall["windows"]) == (600 - 100) // 50 + 1
+    assert all(0 <= w["risk"] <= 1 for w in fall["windows"])

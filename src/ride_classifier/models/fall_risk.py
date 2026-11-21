@@ -46,7 +46,9 @@ def window_table(
 def window_features(readings: pd.DataFrame, table: pd.DataFrame, window_s: float) -> pd.DataFrame:
     """Statistics of each window of `table` (same row order). `readings`: clean rides, 10 Hz, sorted by time."""
     size = round(window_s * 1000 / SAMPLING_PERIOD_MS)
-    by_ride = {ride: r[[TIME_COLUMN, *SENSOR_COLUMNS]].set_index(TIME_COLUMN) for ride, r in readings.groupby(ID_COLUMN)}
+    by_ride = {
+        ride: r[[TIME_COLUMN, *SENSOR_COLUMNS]].set_index(TIME_COLUMN) for ride, r in readings.groupby(ID_COLUMN)
+    }
     parts = []
     for i, (ride, end) in enumerate(zip(table[ID_COLUMN], table[END_MS], strict=True)):
         win = by_ride[ride].loc[:end].tail(size).reset_index(drop=True)
@@ -71,3 +73,24 @@ class FallRiskModel:
 
     def predict_risk(self, features: pd.DataFrame) -> np.ndarray:
         return self.pipeline.predict_proba(features[self.columns_].to_numpy())[:, 1]
+
+
+def score_windows(
+    model: FallRiskModel, clean: pd.DataFrame, window_s: float, stride_s: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Risk of every window of one clean ride (columns time_index + sensors): (end times in s, risks).
+
+    A ride shorter than one window gets no score (empty arrays).
+    """
+    size, step = round(window_s * 1000 / SAMPLING_PERIOD_MS), round(stride_s * 1000 / SAMPLING_PERIOD_MS)
+    if len(clean) < size:
+        return np.empty(0), np.empty(0)
+    sensors = clean[SENSOR_COLUMNS].to_numpy(dtype=float)
+    starts = range(0, len(clean) - size + 1, step)
+    parts = [
+        pd.DataFrame(sensors[s : s + size], columns=SENSOR_COLUMNS).assign(**{ID_COLUMN: i})
+        for i, s in enumerate(starts)
+    ]
+    features = ride_features(pd.concat(parts, ignore_index=True)).drop(columns=["duration_s"])
+    ends = clean[TIME_COLUMN].to_numpy()[[s + size - 1 for s in starts]] / 1000.0
+    return ends, model.predict_risk(features.reset_index(drop=True))

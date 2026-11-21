@@ -85,6 +85,21 @@ class TimelinePoint(BaseModel):
     probabilities: dict[str, float]
 
 
+class FallRiskPoint(BaseModel):
+    end_s: float
+    risk: float = Field(description="Probability that a fall follows this 10 s window (model 2)")
+    alert: bool
+
+
+class FallRisk(BaseModel):
+    window_s: float
+    stride_s: float
+    windows: list[FallRiskPoint]
+    threshold: float
+    retrospective: bool = True
+    note: str = "computed on a recorded ride: for analysis, not a forecast"
+
+
 class RideTimeline(BaseModel):
     window_s: float
     stride_s: float
@@ -109,6 +124,7 @@ class Prediction(BaseModel):
     is_dangerous: bool | None = Field(default=None, description="danger_score above danger_threshold")
     danger_threshold: float | None = Field(default=None, description="Threshold chosen on train rides (see /health)")
     timeline: RideTimeline | None = Field(default=None, description="The prediction as the ride unfolds")
+    fall_risk: FallRisk | None = Field(default=None, description="Model 2 over the ride (null if not loaded)")
 
 
 class Health(BaseModel):
@@ -118,6 +134,8 @@ class Health(BaseModel):
     reckless_threshold: float
     drift_reference_loaded: bool = Field(default=False, description="Layer-2 input histograms need the drift reference")
     danger_threshold: float | None = Field(default=None, description="null when the model has no danger score")
+    fall_risk_loaded: bool = False
+    fall_risk_threshold: float | None = None
 
 
 _PROBA_EXAMPLE = {"Safe": 0.6, "Safe overall": 0.1, "Bad weather": 0.1, "Tandem": 0.1, "Reckless": 0.1}
@@ -161,6 +179,8 @@ class WindowPrediction(BaseModel):
     confidence: float
     state: WindowState = Field(description="Send this back with the next window")
     model_version: str
+    fall_risk: float | None = Field(default=None, description="Model 2 on the last 10 s of the window")
+    fall_alert: bool | None = None
 
 
 class Feedback(BaseModel):

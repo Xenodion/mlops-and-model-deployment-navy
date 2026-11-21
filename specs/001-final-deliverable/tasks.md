@@ -43,10 +43,10 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 - [x] T055 `pipeline/falls.py`: fall-group split 70/30 by city, pre-fall windows, DVC stage `falls` (#29)
 - [x] T056 `models/autoencoder.py`: label-free window encoder (built 21/11 for the superseded "danger score"; kept as a candidate feature extractor for model 2) (#29)
 - [x] T057a Stage `prepare_srv`: SRV3490 converted and cleaned table (#22)
-- [ ] T060 Model 2 data: 10 s windows (stride 5 s) of SRV3490 rides; positive = windows of a fall ride ending in the 60 s before the 5 s anti-leakage gap; negative = windows ending at the same moments of its comparison rides; development groups only for training (ADR 004; data-model.md "Fall group") (#29)
-- [ ] T061 `models/fall_risk.py`: simplest model 2 following the model contract (e.g. logistic regression on autoencoder embeddings, or a small CNN on the 10 s window); DVC stage `train_fall_risk`, logged in MLflow, registered as `fall-risk` after its gate (better than chance on development groups) (#29)
+- [x] T060 Model 2 data: 10 s windows (stride 5 s) of SRV3490 rides; positive = windows of a fall ride ending in the 60 s before the 5 s anti-leakage gap; negative = windows ending at the same moments of its comparison rides; development groups only for training (ADR 004; data-model.md "Fall group") (#29)
+- [x] T061 `models/fall_risk.py`: simplest model 2 following the model contract (e.g. logistic regression on autoencoder embeddings, or a small CNN on the 10 s window); DVC stage `train_fall_risk`, logged in MLflow, registered as `fall-risk` after its gate (better than chance on development groups) (#29)
 - [ ] T062 Model 2 evaluation on held-out groups with the 5 s gap and the 10 s sanity check; F49 in `notebooks/07_fall_risk.ipynb` (#29)
-- [ ] T063 API serves both models from one image (ADR 010): `fall_risk` block on `/v1/predict` (retrospective), `fall_risk` / `fall_alert` on `/v1/predict/window`, degraded mode without model 2; replace the danger fields added on 21/11 (#15)
+- [~] T063 API serves both models from one image (ADR 010): `fall_risk` block on `/v1/predict` (retrospective), `fall_risk` / `fall_alert` on `/v1/predict/window`, degraded mode without model 2; replace the danger fields added on 21/11 (#15)
 
 ### Window lengths (#11) — closed
 

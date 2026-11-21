@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
+import joblib
 import mlflow
 import numpy as np
 import pandas as pd
@@ -31,6 +32,8 @@ from pydantic import ValidationError
 
 from ride_classifier.api import metrics as m
 from ride_classifier.api.schemas import (
+    FallRisk,
+    FallRiskPoint,
     Feedback,
     Health,
     Prediction,
@@ -42,10 +45,14 @@ from ride_classifier.api.schemas import (
     WindowState,
 )
 from ride_classifier.config import ID_COLUMN, LABELS, SAMPLING_HZ, SENSOR_COLUMNS, TIME_COLUMN
+from ride_classifier.data.clean import clean_rides
+from ride_classifier.models.fall_risk import score_windows
 from ride_classifier.models.timeline import Timeline, window_end_times
 from ride_classifier.registry.export_model import META_FILE
 
 DEFAULT_THRESHOLD = 0.5  # docs/PLAN.md §6.3; override with RECKLESS_THRESHOLD
+FALL_RISK_THRESHOLD = 0.6  # alert level on model 2's risk (contract), override with FALL_RISK_THRESHOLD
+FALL_WINDOW_S, FALL_STRIDE_S = 10, 5  # model 2 windows (params.yaml fall_risk)
 LATENCY_BUDGET_MS = 200  # S5 latency budget: slower requests are logged as SLOW
 
 logger = logging.getLogger("ride_classifier.api")
@@ -120,6 +127,14 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             app.state.meta = read_meta(uri)
         except Exception as exc:  # start anyway: /health reports it and Kubernetes keeps traffic away
             logger.error(json.dumps({"event": "model_load_failed", "model_uri": uri, "error": str(exc)}))
+        app.state.fall_model = None  # model 2 is optional: without it the fall_risk fields are null
+        fall_path = Path(os.getenv("FALL_RISK_MODEL_PATH", "artifacts/fall_risk_model.joblib"))
+        if fall_path.exists():
+            try:
+                app.state.fall_model = joblib.load(fall_path)
+            except Exception as exc:  # noqa: BLE001
+                logger.error(json.dumps({"event": "fall_risk_load_failed", "path": str(fall_path), "error": str(exc)}))
+        app.state.fall_threshold = float(os.getenv("FALL_RISK_THRESHOLD", FALL_RISK_THRESHOLD))
         loaded = app.state.model is not None
         app.state.version = str(
             app.state.meta.get("version", os.getenv("MODEL_VERSION", "unregistered" if loaded else "none"))
@@ -186,6 +201,8 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             model_version=state.version,
             reckless_threshold=state.threshold,
             danger_threshold=state.model.unwrap_python_model().danger_threshold if loaded else None,
+            fall_risk_loaded=state.fall_model is not None,
+            fall_risk_threshold=state.fall_threshold,
             drift_reference_loaded=False,  # ponytail: no drift reference stage yet, issue #17 loads it
         )
         return body if loaded else JSONResponse(status_code=503, content=body.model_dump())
@@ -203,6 +220,19 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             m.DANGER_SCORE.labels(endpoint=endpoint).observe(danger)
         if dangerous:
             m.DANGER_ALERTS.labels(endpoint=endpoint).inc()
+
+    def fall_risk_of(request: Request, frame: pd.DataFrame) -> FallRisk | None:
+        """Model 2 over a recorded ride (retrospective), or None when it is not loaded."""
+        state = request.app.state
+        if state.fall_model is None:
+            return None
+        clean = clean_rides(frame.assign(**{ID_COLUMN: "ride"}))
+        ends, risks = score_windows(state.fall_model, clean, FALL_WINDOW_S, FALL_STRIDE_S)
+        points = [
+            FallRiskPoint(end_s=float(e), risk=float(r), alert=bool(r >= state.fall_threshold))
+            for e, r in zip(ends, risks, strict=True)
+        ]
+        return FallRisk(window_s=FALL_WINDOW_S, stride_s=FALL_STRIDE_S, windows=points, threshold=state.fall_threshold)
 
     def predict_ride(request: Request, ride: Ride) -> Prediction:
         state = request.app.state
@@ -233,6 +263,7 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             is_dangerous=is_dangerous,
             danger_threshold=threshold,
             timeline=build_timeline(timeline, served.window_s, served.stride_s),
+            fall_risk=fall_risk_of(request, frame),
         )
         _observe("/v1/predict", label, probabilities[label], danger_score, is_dangerous)
         if prediction.is_reckless:
@@ -313,6 +344,10 @@ def create_app(model_uri: str | None = None) -> FastAPI:
         threshold = served.danger_threshold
         is_dangerous = None if cumulative_danger is None or threshold is None else cumulative_danger > threshold
         label = max(cumulative, key=cumulative.get)
+        fall = fall_risk_of(
+            request, body.readings.to_frame().tail(round(FALL_WINDOW_S * SAMPLING_HZ)).reset_index(drop=True)
+        )
+        fall_risk = fall.windows[-1].risk if fall and fall.windows else None
         _observe("/v1/predict/window", label, cumulative[label], cumulative_danger, is_dangerous)
         log_event(
             {
@@ -337,6 +372,8 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             confidence=cumulative[label],
             state=WindowState(sum_proba=sum_proba, sum_danger=sum_danger, n_windows=n),
             model_version=request.app.state.version,
+            fall_risk=fall_risk,
+            fall_alert=None if fall_risk is None else fall_risk >= request.app.state.fall_threshold,
         )
 
     @v1.post("/feedback", status_code=204, tags=["outcome"])
