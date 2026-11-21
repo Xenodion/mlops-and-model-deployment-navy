@@ -30,8 +30,19 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import ValidationError
 
 from ride_classifier.api import metrics as m
-from ride_classifier.api.schemas import Health, Prediction, Ride
-from ride_classifier.config import ID_COLUMN, LABELS, SENSOR_COLUMNS, TIME_COLUMN
+from ride_classifier.api.schemas import (
+    Feedback,
+    Health,
+    Prediction,
+    Ride,
+    RideTimeline,
+    TimelinePoint,
+    WindowPrediction,
+    WindowRequest,
+    WindowState,
+)
+from ride_classifier.config import ID_COLUMN, LABELS, SAMPLING_HZ, SENSOR_COLUMNS, TIME_COLUMN
+from ride_classifier.models.timeline import Timeline, window_end_times
 from ride_classifier.registry.export_model import META_FILE
 
 DEFAULT_THRESHOLD = 0.5  # docs/PLAN.md §6.3; override with RECKLESS_THRESHOLD
@@ -68,6 +79,33 @@ def log_event(event: dict) -> None:
         Path(log_path).parent.mkdir(parents=True, exist_ok=True)
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
+
+
+def _proba(row: np.ndarray) -> dict[str, float]:
+    return {label: float(p) for label, p in zip(LABELS, row, strict=True)}
+
+
+def _optional(values: np.ndarray | None, k: int) -> float | None:
+    return None if values is None else float(values[k])
+
+
+def build_timeline(timeline: Timeline, window_s: float, stride_s: float) -> RideTimeline:
+    """The Timeline as the API contract shows it. `danger` fields are optional on the Timeline (E3 has none)."""
+    danger = getattr(timeline, "danger", None)
+    cumulative_danger = getattr(timeline, "cumulative_danger", None)
+
+    def points(probas: np.ndarray, dangers: np.ndarray | None) -> list[TimelinePoint]:
+        return [
+            TimelinePoint(end_s=float(t), danger=_optional(dangers, k), probabilities=_proba(probas[k]))
+            for k, t in enumerate(timeline.end_s)
+        ]
+
+    return RideTimeline(
+        window_s=window_s,
+        stride_s=stride_s,
+        windows=points(timeline.window_probas, danger),
+        cumulative=points(timeline.cumulative, cumulative_danger),
+    )
 
 
 def create_app(model_uri: str | None = None) -> FastAPI:
@@ -147,38 +185,63 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             model_loaded=loaded,
             model_version=state.version,
             reckless_threshold=state.threshold,
+            danger_threshold=state.model.unwrap_python_model().danger_threshold if loaded else None,
+            drift_reference_loaded=False,  # ponytail: no drift reference stage yet, issue #17 loads it
         )
         return body if loaded else JSONResponse(status_code=503, content=body.model_dump())
 
+    def _served(request: Request):
+        """The RideClassifierModel behind the MLflow wrapper (503 without a model)."""
+        if request.app.state.model is None:
+            raise HTTPException(status_code=503, detail="model not loaded")
+        return request.app.state.model.unwrap_python_model()
+
+    def _observe(endpoint: str, label: str, confidence: float, danger: float | None, dangerous: bool | None) -> None:
+        m.PREDICTIONS.labels(label=label).inc()
+        m.CONFIDENCE.labels(endpoint=endpoint).observe(confidence)
+        if danger is not None:
+            m.DANGER_SCORE.labels(endpoint=endpoint).observe(danger)
+        if dangerous:
+            m.DANGER_ALERTS.labels(endpoint=endpoint).inc()
+
     def predict_ride(request: Request, ride: Ride) -> Prediction:
         state = request.app.state
-        if state.model is None:
-            raise HTTPException(status_code=503, detail="model not loaded")
+        served = _served(request)
         frame = ride.to_frame()
         start = time.perf_counter()
         row = state.model.predict(frame).iloc[0]  # cleaning + features happen inside the model
+        timeline = served.predict_timeline(frame)
         inference_ms = (time.perf_counter() - start) * 1000
 
         probabilities = {label: float(row[label]) for label in LABELS}
         label = max(probabilities, key=probabilities.get)
         reckless_score = probabilities["Reckless"]
+        cumulative_danger = getattr(timeline, "cumulative_danger", None)
+        danger_score = None if cumulative_danger is None else float(cumulative_danger[-1])
+        threshold = served.danger_threshold
+        is_dangerous = None if danger_score is None or threshold is None else danger_score > threshold
         prediction = Prediction(
             ride_id=ride.ride_id,
             label=label,
             probabilities=probabilities,
             reckless_score=reckless_score,
-            is_reckless=reckless_score >= state.threshold,
+            # With 5 categories the top one can be under 50 %: a ride predicted Reckless is always flagged
+            is_reckless=label == "Reckless" or reckless_score >= state.threshold,
             model_version=state.version,
             n_readings=len(frame),
+            danger_score=danger_score,
+            is_dangerous=is_dangerous,
+            danger_threshold=threshold,
+            timeline=build_timeline(timeline, served.window_s, served.stride_s),
         )
-        m.PREDICTIONS.labels(label=label).inc()
+        _observe("/v1/predict", label, probabilities[label], danger_score, is_dangerous)
         if prediction.is_reckless:
             m.RECKLESS_FLAGS.inc()
         log_event(
             {
                 "event": "prediction",
                 "request_id": request.state.request_id,
-                **prediction.model_dump(),
+                **prediction.model_dump(exclude={"timeline"}),
                 "input": input_summary(frame),
                 "inference_ms": round(inference_ms, 1),
             }
@@ -219,6 +282,73 @@ def create_app(model_uri: str | None = None) -> FastAPI:
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=exc.errors(include_url=False, include_context=False)) from exc
         return predict_ride(request, ride)
+
+    @v1.post(
+        "/predict/window",
+        responses={422: {"description": "Wrong length or inconsistent state"}, 503: {"description": "No model loaded"}},
+    )
+    def predict_window(body: WindowRequest, request: Request) -> WindowPrediction:
+        """Score one live window (stateless): send back the returned `state` with the next window."""
+        served = _served(request)
+        expected = round(served.window_s * SAMPLING_HZ)
+        if len(body.readings.time_index) != expected:
+            raise HTTPException(422, f"a window has exactly {expected} readings ({served.window_s:g} s)")
+        previous = body.state or WindowState(sum_proba=dict.fromkeys(LABELS, 0.0), sum_danger=0.0, n_windows=0)
+        if previous.n_windows != body.window_index:
+            raise HTTPException(
+                422, f"state.n_windows ({previous.n_windows}) must equal window_index ({body.window_index})"
+            )
+        if set(previous.sum_proba) != set(LABELS):
+            raise HTTPException(422, f"state.sum_proba must have exactly the keys {LABELS}")
+        start = time.perf_counter()
+        timeline = served.predict_timeline(body.readings.to_frame())
+        inference_ms = (time.perf_counter() - start) * 1000
+        window = timeline.window_probas[0]
+        n = previous.n_windows + 1
+        sum_proba = {label: previous.sum_proba[label] + float(window[k]) for k, label in enumerate(LABELS)}
+        cumulative = {label: total / n for label, total in sum_proba.items()}
+        window_danger = _optional(getattr(timeline, "danger", None), 0)
+        sum_danger = previous.sum_danger + (window_danger or 0.0)
+        cumulative_danger = None if window_danger is None else sum_danger / n
+        threshold = served.danger_threshold
+        is_dangerous = None if cumulative_danger is None or threshold is None else cumulative_danger > threshold
+        label = max(cumulative, key=cumulative.get)
+        _observe("/v1/predict/window", label, cumulative[label], cumulative_danger, is_dangerous)
+        log_event(
+            {
+                "event": "window_prediction",
+                "request_id": request.state.request_id,
+                "ride_id": body.ride_id,
+                "window_index": body.window_index,
+                "label": label,
+                "inference_ms": round(inference_ms, 1),
+            }
+        )
+        return WindowPrediction(
+            ride_id=body.ride_id,
+            window_index=body.window_index,
+            end_s=float(window_end_times(body.window_index + 1, served.window_s, served.stride_s)[-1]),
+            window_probabilities=_proba(window),
+            cumulative_probabilities=cumulative,
+            window_danger=window_danger,
+            cumulative_danger=cumulative_danger,
+            is_dangerous=is_dangerous,
+            label=label,
+            confidence=cumulative[label],
+            state=WindowState(sum_proba=sum_proba, sum_danger=sum_danger, n_windows=n),
+            model_version=request.app.state.version,
+        )
+
+    @v1.post("/feedback", status_code=204, tags=["outcome"])
+    def feedback(body: Feedback) -> Response:
+        """The true label of a ride, received later. The caller sends the predicted label (no server-side join)."""
+        for field in ("predicted_label", "true_label"):
+            if getattr(body, field) not in LABELS:
+                raise HTTPException(422, f"{field} must be one of {LABELS}")
+        correct = str(body.predicted_label == body.true_label).lower()
+        m.FEEDBACK.labels(true_label=body.true_label, correct=correct).inc()
+        logger.info(json.dumps({"event": "feedback", **body.model_dump()}))
+        return Response(status_code=204)
 
     app.include_router(v1)
     return app

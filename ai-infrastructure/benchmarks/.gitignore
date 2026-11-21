@@ -1,0 +1,4 @@
+# Generated from the golden split (course data): never commit.
+windows.npy
+net_state.pt
+reference_argmax.npy

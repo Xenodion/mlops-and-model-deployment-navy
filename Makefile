@@ -2,9 +2,11 @@
 # Each owner adds the targets of their task (pipeline, api, image, kind-up, kind-deploy, load...). See docs/PLAN.md §7.
 .DEFAULT_GOAL := help
 ALIAS ?= staging
+VERSION ?= dev
+export DOCKERHUB_USER
 
 help: ## List the commands
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install the project and dev tools (exact versions from uv.lock), set up the git hooks
 	uv sync
@@ -25,7 +27,7 @@ dev-up: ## Start the dev stack (S3, Postgres, MLflow on http://localhost:5000)
 	docker compose up -d
 
 dev-down: ## Stop the dev stack (data is kept in Docker volumes)
-	docker compose down
+	docker compose --profile app down
 
 data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the git-ignored .dvc/config.local)
 	uv run dvc remote modify --local storage access_key_id mlops
@@ -33,6 +35,15 @@ data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the
 
 data: ## Download the versioned data from S3 into data/raw/ (start the storage first: make dev-up)
 	uv run dvc pull
+
+shared-data-pull: ## Team: download the versioned data from the shared GCS bucket (needs: gcloud auth application-default login)
+	uv run dvc pull -r shared
+
+shared-data-push: ## Team: upload the versioned data to the shared GCS bucket
+	uv run dvc push -r shared
+
+shared-mlflow: ## Team: open the shared MLflow (Cloud Run, private) on http://localhost:5001 (needs: gcloud auth login with your school account)
+	gcloud run services proxy ride-mlflow --project advanced-cloud-ai-i2 --region europe-west1 --port 5001
 
 pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
 	uv run dvc repro
@@ -52,4 +63,44 @@ repro-check: ## Rebuild the latest training from scratch and compare every score
 api: ## Run the API on http://localhost:8000 (Swagger: /docs) with the model in model/ (make export first)
 	PREDICTION_LOG_PATH=logs/predictions.jsonl uv run uvicorn ride_classifier.api.main:app --host 0.0.0.0 --port 8000
 
-.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api
+image: ## Build both images, ride-api and ride-webapp, tagged $(VERSION) (make export first). Example: make image VERSION=v1
+	docker build -f docker/api/Dockerfile -t ride-api:$(VERSION) .
+	docker build -f docker/webapp/Dockerfile -t ride-webapp:$(VERSION) .
+
+app-up: ## Build and start our containers next to the dev stack: API on :8000, web app on http://127.0.0.1:8501
+	docker compose --profile app up -d --build
+
+webapp: ## Run the web app on http://127.0.0.1:8501 (it calls the API: run make api first)
+	uv run streamlit run webapp/app.py --server.port 8501 --server.headless true --browser.gatherUsageStats false
+
+webapp-examples: ## Regenerate the web app example rides (one golden ride per category) from data/processed/
+	uv run python webapp/make_examples.py
+
+push: ## Build both images with traceable tags and push them to Docker Hub (docker login first): make push DOCKERHUB_USER=<name>
+	bash docker/push.sh
+
+smoke-test: ## Smoke test the running containers (after make app-up), as CI does
+	uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501
+
+kind-up: ## Create the production cluster (kind, ports 8080-8086 on the laptop), once
+	kind create cluster --config k8s/kind-config.yaml
+
+kind-down: ## Delete the production cluster (its data goes with it)
+	kind delete cluster --name ride-mlops
+
+kind-load: ## Load our locally built MLflow image into the cluster (the other images come from Docker Hub)
+	docker build -t mlops-mlflow:3.17.2 docker/mlflow
+	kind load docker-image mlops-mlflow:3.17.2 --name ride-mlops
+
+k8s-secrets: ## Create the production secrets in the cluster (S3, Postgres) from env vars
+	bash k8s/secrets.sh
+
+k8s-deploy: ## Deploy (or update) everything in the cluster and wait until it runs
+	kubectl apply -k k8s/
+	kubectl -n ride-prod rollout status statefulset/s3 statefulset/postgres --timeout=5m
+	kubectl -n ride-prod rollout status deploy/mlflow deploy/ride-api-v1 deploy/ride-webapp --timeout=10m
+
+k8s-status: ## What runs in the cluster: pods, services, jobs
+	kubectl -n ride-prod get pods,services,jobs -o wide
+
+.PHONY: help install lint format test dev-up dev-down data-setup data pipeline register promote export repro-check api image app-up webapp webapp-examples push smoke-test kind-up kind-down kind-load k8s-secrets k8s-deploy k8s-status

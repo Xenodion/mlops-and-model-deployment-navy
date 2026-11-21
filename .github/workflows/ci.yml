@@ -30,3 +30,46 @@ jobs:
 
       - name: Tests
         run: uv run pytest
+
+  # Build both images and start them: test the containers, not only the build (lab 2).
+  # The real model lives in our MLflow, out of reach of GitHub's machines: the API image gets a tiny test model.
+  # Real images are built and pushed where MLflow is (make push, later the CD workflow).
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Install (exact versions from uv.lock)
+        run: uv sync --locked
+
+      - name: Tiny test model in model/
+        run: uv run python tests/integration/make_test_model.py model
+
+      - name: Build the images
+        run: |
+          docker build -f docker/api/Dockerfile -t ride-api:ci .
+          docker build -f docker/webapp/Dockerfile -t ride-webapp:ci .
+
+      - name: Start the containers
+        run: |
+          docker network create ride
+          docker run -d --name api --network ride -p 8000:8000 ride-api:ci
+          docker run -d --name webapp --network ride -p 8501:8501 -e API_URL=http://api:8000 ride-webapp:ci
+
+      - name: Smoke test
+        run: uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501
+
+      - name: The web app reaches the API by its name
+        run: >
+          docker exec webapp python -c "import sys; sys.path.insert(0, 'webapp');
+          from api_client import health; print(health('http://api:8000'))"
+
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs api 2>&1 | tail -n 30
+          docker logs webapp 2>&1 | tail -n 30

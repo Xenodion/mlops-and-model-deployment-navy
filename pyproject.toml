@@ -14,7 +14,18 @@ dependencies = [
     "pyyaml>=6.0.3",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
+    "torch>=2.15",  # the CNN: needed to train it and to serve it (CPU build, see [tool.uv.sources])
 ]
+
+# PyTorch's CPU-only index: the default Linux build drags in ~3 GB of GPU (CUDA) libraries we never use.
+# macOS keeps PyPI's build (CPU-only there anyway, and not on the CPU index).
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
 
 # Each image installs only its group: `uv sync --no-default-groups --group api`.
 # Owners add groups as they start their task, e.g. `uv add --group api fastapi`.
@@ -29,19 +40,34 @@ api = [
 dev = [
     "httpx2>=2.16.2",
     "ipykernel>=7.4.0",
+    "nbconvert>=7.17.2",
+    "nbformat>=5.11.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
     "ruff>=0.17.5",
 ]
+infra = [
+    "onnx>=1.23.2",
+    "onnxruntime>=1.32.0",
+    "psutil>=7.2.2",
+]
+loadtest = [
+    "locust>=2.47.0",
+]
 train = [
-    "dvc[s3]>=3.67.1",
+    "dvc[s3,gs]>=3.67.1",
     "matplotlib>=3.11.2",
     "mlflow~=3.17.2",
+    "seaborn>=0.13.2",
+]
+webapp = [
+    "httpx2>=2.16.2",
+    "streamlit>=1.67.0",
 ]
 
 [tool.uv]
 # `uv sync` on a laptop or in CI installs everything: dev tools, training stack, API. Images pick one group.
-default-groups = ["dev", "train", "api"]
+default-groups = ["dev", "train", "api", "webapp", "infra", "loadtest"]
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]

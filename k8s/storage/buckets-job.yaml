@@ -1,0 +1,33 @@
+# Creates the buckets "mlflow" and "dvc" once S3 answers (the s3-init service of docker-compose.yml).
+# A Job runs to completion; it's safe to run again: existing buckets are kept.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-buckets
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 600  # removed 10 min after success, so the next `kubectl apply` can run it again
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-buckets
+          image: ride-mlflow  # our MLflow image: it has boto3 (set in kustomization.yaml)
+          env:
+            - { name: S3_ENDPOINT, value: "http://s3:8333" }
+            - { name: BUCKETS, value: "mlflow,dvc" }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: storage-credentials, key: s3-access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: storage-credentials, key: s3-secret-key } }
+            - { name: AWS_DEFAULT_REGION, value: us-east-1 }
+          command: ["python", "-c"]
+          args:
+            - |
+              import os, boto3
+              s3 = boto3.client("s3", endpoint_url=os.environ["S3_ENDPOINT"])
+              existing = {b["Name"] for b in s3.list_buckets().get("Buckets", [])}  # fails until S3 is up: retried
+              for bucket in os.environ["BUCKETS"].split(","):
+                  if bucket not in existing:
+                      s3.create_bucket(Bucket=bucket)
+                  print(f"bucket {bucket}: ok")

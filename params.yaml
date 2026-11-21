@@ -9,13 +9,42 @@ data:
   golden_share: 0.2
   cv_folds: 5
   seed: 42
+  srv3490:
+    raw_path: data/raw/SRV3490.parquet
+    clean_path: data/processed/srv3490.parquet   # converted + cleaned (stage prepare_srv)
+    # rad/s -> deg/s = 180/pi. Measured GBG500/SRV3490 median-std ratio (notebook 02): rotation ~60 (95% CI 58-62),
+    # accelerations 0.77-0.97: the datasets also differ in riders/cities, so the ~5 % gap is population, not units.
+    rotation_factor: 57.2958
 
 train:
-  experiment_id: E0          # experiment plan, docs/PLAN.md §6.5 (logged as an MLflow tag)
-  model: baseline            # baseline = per-ride statistics + logistic regression (the CNN comes with MOD-4)
+  experiment_id: E3          # experiment plan and results: docs/PLAN.md §6.5 (logged as an MLflow tag)
+  model: cnn                 # baseline (statistics + logistic regression) or cnn (1D CNN on windows)
   baseline:
     C: 0.05                  # inverse regularisation strength: small = simpler model (400 rides, ~170 statistics)
     max_iter: 5000
+  cnn:
+    window_s: 30             # window length: 300 readings at 10 Hz
+    stride_s: 15             # a new window every 15 s: ~19 overlapping windows per ride
+    filters: [32, 64, 64]    # one convolution block per value: its number of filters
+    kernel: 7                # filter width: 0.7 s
+    dropout: 0.3
+    epochs: 10               # 20 overfitted (E2): CV 0.31, golden 0.29 -> 10 (E3): CV 0.36, golden 0.51
+    batch_size: 64
+    learning_rate: 0.001
+    weight_decay: 0.0001     # small penalty on large weights, against overfitting
+    augment: true            # random ±10 % scaling + noise on training windows
+    class_weight: sqrt       # balanced over-predicted the rare categories (E1: golden 0.18); sqrt = softer
+  danger:                    # label-free autoencoder (specs R1); the head alone uses labels
+    window_s: 30             # provisional window until the window study (R15)
+    stride_s: 15
+    filters: [32, 64, 64]
+    kernel: 7
+    epochs: 10
+    batch_size: 64
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    head_C: 0.05             # as the baseline's C
+    class_weight: sqrt
   model_path: artifacts/model                  # MLflow model, read by the evaluate stage and the API
   oof_path: artifacts/oof_predictions.csv      # cross-validated prediction for every train ride
   metrics_path: artifacts/cv_metrics.json      # DVC metrics: `uv run dvc metrics show`
@@ -28,3 +57,10 @@ evaluate:
   gate:                       # the model passes only if every check passes; otherwise the stage fails (exit 1)
     min_macro_f1: 0.30        # floor = 1.5x random (≈ 0.20). First baseline: CV 0.37 ± 0.06, golden 0.48
     must_beat_references: true  # golden macro-F1 above "always Safe" and random guessing on the same rides
+
+falls:
+  groups_path: data/processed/fall_groups.csv   # one row per SRV3490 ride: group, role, development/held_out (committed to git)
+  held_out_share: 0.3        # share of fall groups, per city, never trained on nor used to choose
+  seed: 42
+  pre_fall_s: 60             # pre-fall segment: smallest length giving every window candidate (up to 60 s, stride 30 s) >= 2 window ends
+  margin_s: 2                # excluded just before the first topple (impact); = the spec's minimum warning time
