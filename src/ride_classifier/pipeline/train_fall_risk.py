@@ -17,7 +17,7 @@ from sklearn.metrics import roc_auc_score
 
 from ride_classifier.config import ID_COLUMN, MLFLOW_TRACKING_URI, ROOT, TIME_COLUMN, load_params
 from ride_classifier.data.srv3490 import TOPPLE_COLUMN, load_srv3490
-from ride_classifier.models.fall_risk import END_MS, GROUP, LABEL, FallRiskModel, window_features, window_table
+from ride_classifier.models.fall_risk import GROUP, LABEL, FallRiskModel, window_features, window_table
 from ride_classifier.pipeline.cli import setup
 from ride_classifier.pipeline.falls import DEVELOPMENT, GROUP_SPLIT_COLUMN, HELD_OUT
 from ride_classifier.registry.tracking import check_server, flatten
@@ -73,8 +73,11 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
         joblib.dump(model, root / p["model_path"])
         mlflow.log_artifact(str(root / p["model_path"]))
     (root / p["metrics_path"]).write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    logger.info("model 2 held-out paired AUC %.3f (gap 10 s: %.3f)", metrics["held_out_paired_auc"],
-                metrics[f"held_out_gap{int(p['check_gap_s'])}s_paired_auc"])
+    logger.info(
+        "model 2 held-out paired AUC %.3f (gap 10 s: %.3f)",
+        metrics["held_out_paired_auc"],
+        metrics[f"held_out_gap{int(p['check_gap_s'])}s_paired_auc"],
+    )
     if not metrics["gate_passed"]:
         raise SystemExit(1)
     return metrics

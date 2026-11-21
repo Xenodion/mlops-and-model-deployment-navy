@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 
 from ride_classifier.models.fall_risk import window_ends, window_table
@@ -17,4 +16,6 @@ def test_window_table_pairs_comparison_moments_and_skips_short_rides():
     table = window_table(last, pd.Series({"f": 100_000}), groups, P, 5)
     assert set(table.loc[table.ride_id == "c1", "end_ms"]) == set(table.loc[table.ride_id == "f", "end_ms"])
     assert table.loc[table.ride_id == "c2", "end_ms"].max() <= 50_000
-    assert table.loc[table.ride_id == "f", "label"].eq(1).all() and table.loc[table.ride_id == "c1", "label"].eq(0).all()
+    assert (
+        table.loc[table.ride_id == "f", "label"].eq(1).all() and table.loc[table.ride_id == "c1", "label"].eq(0).all()
+    )
