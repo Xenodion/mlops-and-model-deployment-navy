@@ -1,36 +1,80 @@
+import numpy as np
 import pandas as pd
+import pytest
 
-from ride_classifier.experiments.window_study import choose_window
-
-
-def _frame(rows: list[tuple[float, float, float, float]]) -> pd.DataFrame:
-    return pd.DataFrame(rows, columns=["window_s", "f1_mean", "f1_std", "f1_at_60"])
-
-
-def test_choose_window_picks_best_f1_at_60_among_windows_within_one_std():
-    results = _frame([(5, 0.30, 0.05, 0.25), (10, 0.34, 0.05, 0.33), (30, 0.36, 0.05, 0.28)])
-    assert choose_window(results) == 10
-
-
-def test_choose_window_prefers_shorter_window_on_tie():
-    results = _frame([(30, 0.36, 0.05, 0.30), (10, 0.35, 0.05, 0.30)])
-    assert choose_window(results) == 10
+from ride_classifier.experiments.window_study import (
+    bootstrap_ci,
+    choose_window,
+    false_alarm_rates,
+    group_wins,
+    paired_fall_auc,
+    safe_threshold,
+    segment_danger,
+)
+from ride_classifier.models.timeline import Timeline
 
 
-def test_choose_window_excludes_window_outside_one_std_even_if_best_at_60():
-    results = _frame([(5, 0.20, 0.03, 0.50), (30, 0.36, 0.03, 0.30)])
-    assert choose_window(results) == 30
+def results(rows: list[tuple[float, float, float, float, float]]) -> pd.DataFrame:
+    return pd.DataFrame(rows, columns=["window_s", "auc_fall", "auc_fall_ci_low", "auc_fall_ci_high", "auc_reckless"])
 
 
-def test_choose_window_uses_std_of_the_best_row_not_of_the_candidate():
-    results = _frame([(5, 0.34, 0.20, 0.40), (30, 0.36, 0.01, 0.30)])  # threshold 0.35 excludes 5
-    assert choose_window(results) == 30
+def test_choose_window_picks_clear_winner():
+    table = results([(5, 0.55, 0.50, 0.60, 0.9), (30, 0.80, 0.75, 0.85, 0.6), (60, 0.60, 0.55, 0.65, 0.9)])
+    assert choose_window(table) == 30
 
 
-def test_choose_window_single_candidate_returns_it():
-    assert choose_window(_frame([(30, 0.36, 0.05, 0.3)])) == 30
+def test_choose_window_prefers_auc_reckless_among_candidates_inside_best_ci():
+    table = results([(10, 0.78, 0.70, 0.86, 0.9), (30, 0.80, 0.75, 0.85, 0.6)])
+    assert choose_window(table) == 10
 
 
-def test_choose_window_long_window_best_overall_but_shorter_wins_at_60():
-    results = _frame([(60, 0.40, 0.05, 0.31), (15, 0.37, 0.06, 0.38), (5, 0.30, 0.05, 0.45)])
-    assert choose_window(results) == 15
+def test_choose_window_ties_go_to_shorter_window():
+    table = results([(30, 0.80, 0.75, 0.85, 0.7), (15, 0.79, 0.74, 0.84, 0.7)])
+    assert choose_window(table) == 15
+
+
+def test_choose_window_excludes_candidate_far_below_best():
+    table = results([(5, 0.60, 0.55, 0.65, 0.99), (30, 0.80, 0.75, 0.85, 0.5)])
+    assert choose_window(table) == 30
+
+
+def test_paired_fall_auc_counts_wins_and_ties():
+    fall = pd.Series({"g1": 2.0, "g2": 1.0})
+    comparison = pd.DataFrame({"a": [1.0, 1.0], "b": [3.0, 0.0]}, index=["g1", "g2"])
+    # g1: win, loss; g2: tie, win -> (1 + 0 + 0.5 + 1) / 4
+    assert paired_fall_auc(fall, comparison) == pytest.approx(0.625)
+    assert group_wins(fall, comparison).to_dict() == {"g1": 0.5, "g2": 0.75}
+
+
+def test_paired_fall_auc_ignores_nan_pairs():
+    fall = pd.Series({"g1": 2.0, "g2": np.nan})
+    comparison = pd.DataFrame({"a": [1.0, 1.0]}, index=["g1", "g2"])
+    assert paired_fall_auc(fall, comparison) == 1.0
+
+
+def test_bootstrap_ci_brackets_the_mean_and_is_seeded():
+    values = np.random.default_rng(0).random(200)
+    low, high = bootstrap_ci(values, 500, seed=1)
+    assert low < values.mean() < high
+    assert (low, high) == bootstrap_ci(values, 500, seed=1)
+
+
+def test_false_alarm_rates_per_category_at_safe_p95_threshold():
+    scores = pd.Series([0.0, 1.0, 2.0, 3.0, 10.0, 0.5, 20.0], index=list("abcdefg"))
+    labels = pd.Series(["Safe"] * 4 + ["Tandem", "Tandem", "Reckless"], index=scores.index)
+    threshold = safe_threshold(scores, labels)
+    assert threshold == pytest.approx(2.85)
+    rates = false_alarm_rates(scores, labels, threshold)
+    assert rates.to_dict() == {"Safe": 0.25, "Tandem": 0.5, "Reckless": 1.0}
+
+
+def test_segment_danger_averages_only_windows_ending_inside_the_segment():
+    timeline = Timeline(
+        ride_id="a",
+        end_s=np.array([30.0, 45.0, 60.0, 75.0]),
+        window_probas=np.zeros((4, 5)),
+        cumulative=np.zeros((4, 5)),
+        danger=np.array([10.0, 1.0, 3.0, 99.0]),
+    )
+    assert segment_danger(timeline, 30.0, 60.0) == 2.0  # windows ending at 45 and 60; 75 is after the segment
+    assert segment_danger(timeline, 80.0, 90.0) is None

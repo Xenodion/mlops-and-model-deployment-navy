@@ -3,7 +3,7 @@
 Written before any run. Rule source: `specs/001-final-deliverable/research.md` R15 (model: R1, evaluation: R16).
 Tracked by GitHub issue #11. Results go in `artifacts/window_study.csv`, figure F47.
 
-Revision 21/11, still before any run: the problem was reframed after the course `data.txt` (labels for evaluation
+Revisions 21/11, still before any full run (only 1-epoch smoke runs on a small subset): the problem was reframed after the course `data.txt` (labels for evaluation
 only; Reckless = the class to detect; Safe overall, Bad weather and Tandem = counterfactuals that must not be
 flagged). The study now compares window lengths for the label-free danger detector, not for a supervised
 5-class classifier. The first version (supervised, macro-F1 rule) was never run.
@@ -40,9 +40,14 @@ Window 5, 10, 15, 30, 60 s (50, 100, 150, 300, 600 readings); stride = window / 
 
 ## Metrics
 
-- (a) **Main signal**: paired AUC of the cumulative danger score in the pre-fall segment (last 30-60 s ending 2 s
-  before the first `topple`) vs the same elapsed time on the 4 comparison rides, on the development fall groups
-  (~490 groups), with a bootstrap 95 % CI over groups.
+- (a) **Main signal**: paired AUC of the pre-fall danger vs the 4 comparison rides, on the development fall groups
+  (489 groups), with a bootstrap 95 % CI over groups. Pre-fall danger = mean danger of the windows ending inside
+  the pre-fall segment (the 60 s ending 2 s before the first `topple`: impact excluded; `params.yaml` `falls`); the
+  comparison rides are scored on the same elapsed span. A comparison ride too short to cover the span gives no
+  pair (334 of 2,792 comparison rides are shorter than their fall's segment end); a group with no valid pair is
+  dropped; the number of groups kept is reported per candidate.
+- SRV3490 readings are cleaned with the pipeline's `clean_rides` (1.6 % missing sensor values) and rotation is
+  converted with 180/pi before any use.
 - (b) Secondary: ROC-AUC of the whole-ride score, Reckless vs counterfactual categories, on the GBG500 train rides
   (5 Reckless: wide CI, reported).
 - (c) False-alarm rate per counterfactual category (train rides) at the threshold = 95th percentile of Safe train
