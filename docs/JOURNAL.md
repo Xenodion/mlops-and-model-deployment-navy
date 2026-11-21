@@ -4,7 +4,52 @@ What was done, why, and where the evidence is, newest first. Decisions are detai
 [decisions/](decisions/README.md); this log is the story behind them, written to be reread when preparing the
 presentations. One entry per working session; mistakes found and corrected are logged too.
 
-## 21/11/2026
+## Where we are (resume here) - updated 21/11 evening
+
+This block is rewritten at each stop; the dated entries below are the history.
+
+- **Model:** label-free danger detector + 5-class head (ADR 001), code and tests done. Window length not chosen
+  yet (ADR 002).
+- **Running / to resume:** window study, `uv run python -m ride_classifier.experiments.window_study --candidates
+  60,15,10` then `--candidates 5`. Needs `make dev-up` (MLflow) first and a clean git tree. Finished candidates are
+  in `artifacts/window_study.csv` and MLflow (experiment `ride-classifier`, runs `E4-window-*`) and are skipped on
+  rerun. Done: 30 s. If 5 s does not fit in the laptop's RAM, run it on Vertex AI (research R9-R11).
+- **Next, in order:** (1) finish the study, fill its Results, F47, decide the window (T016-T018); (2) final
+  training at that window, `evaluate` stage per R16 and gate, register (T029, T057, T058); (3) fall analysis on
+  held-out groups, F49 (#29); (4) monitoring, drift job, scenarios, workflows (#16-#21, CI unit-bug test T059);
+  (5) AI-infrastructure measurements on the fixed model: sizing, Vertex CPU / 1 GPU / 2 GPUs with MLflow logged in
+  the job and imported (#3-#8); (6) team sharing of MLflow runs and DVC data (#30).
+- **To-do list:** `specs/001-final-deliverable/tasks.md` (checkboxes) and GitHub issues (labels P0-P3, milestones
+  23/11, 24/11, 25/11 20:00).
+- **Rules:** MLflow always on; no data, weights or secrets in the repo; English in everything committed; work on
+  `dev_vincent`, PR to `main`.
+
+## 21/11/2026 (afternoon)
+
+**MLflow mandatory.** The first full 30 s run went untracked because the local MLflow server was down. Rule
+(Vincent): every run is tracked; the study now stops when MLflow is unreachable (smoke runs included, tagged
+`run_type=smoke`) and logs per candidate the parameters, metrics, code and data versions, the trained weights and
+the fall-group table (commit ff243a9). The 30 s candidate was rerun with MLflow on a clean tree (run 35c834ee): the
+metrics are identical to the untracked run, a reproducibility check for free.
+
+**First result, 30 s window (measured, laptop CPU, 10 epochs, 83,610 training windows):** danger before a fall vs
+comparison rides, paired AUC 0.75 (95 % CI 0.73-0.78) on 485 development groups (0.75 on the 445 complete groups);
+Reckless vs counterfactual categories AUC 0.84 (5 Reckless train rides, wide CI); 4 of 5 Reckless train rides above
+the threshold; false alarms Safe 5 %, Bad weather 6 %, Tandem 21 %, Safe overall 27 %. The label-free score rises
+before falls; the counterfactual trap of `data.txt` is real for Tandem and Safe overall. Training: 13 min, peak
+memory 6.7 GB.
+
+**Memory bug fixed** (commit 13df52d): the reconstruction errors were computed on all windows in one forward pass
+(about 3 GB of activations for the first layer alone); now batched, standardised in place, timelines built by
+chunks of rides; a test checks batching does not change the scores. Treated as a development bug, not as an
+AI-infrastructure optimisation (the infrastructure work starts on the fixed model). The 30 s run keeps the memory
+measured before the fix; the other candidates run after it (memory only, scores unaffected).
+
+**Team sharing problem** (issue #30): each teammate's MLflow and DVC remote live in their own Docker volumes, so
+runs are not shared. Proposed: export run metadata to the repo, a private GCS bucket for artifacts and data, a
+hosted MLflow server later if time allows.
+
+## 21/11/2026 (morning)
 
 **Reframing after reading the course `data.txt`** (ADR 001). The archive shipped with SRV3490 contains a data
 description: GBG500 labels are "used only for evaluation", Reckless is "the positive class we aim to detect", and
@@ -48,7 +93,7 @@ shows a signal (issue #28).
 comparison rides are shorter than their fall's pre-fall segment and give no pair. No fall happens before 120 s of
 riding.
 
-**Open:** full window study (candidate 30 s running first to measure time and memory on the laptop); CI test of the
+**Open at that point:** full window study; CI test of the
 unit-bug drift (task T059); fall analysis on held-out groups (issue #29).
 
 ## 20/11/2026
