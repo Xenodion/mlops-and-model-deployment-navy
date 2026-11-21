@@ -610,7 +610,7 @@ and the baseline and CNN plug into the same contract.
 | API-1 | ✅ Done 18/11 (with API-3): `api/main.py`, `schemas.py`, `metrics.py`, `make api`, 15 tests on a model trained on fake rides. Golden rides: ~60–150 ms server time | WS3 | n/a |
 | API-2 | ✅ Done 19/11: `webapp/app.py` + `api_client.py`, 5 example golden rides, `make webapp`; 8 tests (fake API + Streamlit test runner). Against the real API: 5/5 examples correct | WS3 | n/a |
 | INF-1 | ✅ Done 19/11: `docker/api/Dockerfile` (1.11 GB) and `docker/webapp/Dockerfile` (852 MB, Streamlit + HTTP client only); uv cache kept out with a cache mount, non-root, healthchecks; compose profile `app`, `make image` / `make app-up`. Both tested in containers | WS4 | n/a |
-| INF-2 | ◐ 19/11: `docker/push.sh` + `make push` (tags `<commit>-m<model version>` / `<commit>`, refuses uncommitted code), guide §11. **To do by a human:** Docker Hub account + token, first push, GitHub secrets `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` | WS4 | n/a |
+| INF-2 | ✅ Done 21/11: `docker/push.sh` + `make push` (tags `<commit>-m<model version>` / `<commit>`, refuses uncommitted code), guide §11; images pushed to Docker Hub (`alexwaer110302/ride-api`, `ride-webapp`); GitHub secrets `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` set for the workflows. Follow-up: code-only images (ADR 007, T036) | WS4 | n/a |
 
 **Phase 2: baseline end to end (19–20/11) → M2**
 
