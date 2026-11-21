@@ -25,7 +25,8 @@ Storage: `data/raw/*.parquet` (DVC), `data/processed/*` (DVC outputs).
 |---|---|---|
 | `ride_id`, `window_index` | str, int | window `k` covers `[k·stride_s, k·stride_s + window_s)`; `window_s` = 30, `stride_s` = 15 (`params.yaml`) |
 | `end_s` | float | elapsed ride time when the window is complete; used for "label after t seconds" |
-| `probabilities` | 5 floats, sum 1 | the per-window score: a **hint**, never compared with a label |
+| `probabilities` | 5 floats, sum 1 | per-window category probabilities from the 5-class head: a **hint**, never compared with a label |
+| `danger` | float | per-window danger score: reconstruction error of the label-free autoencoder, z-scored on train windows |
 | `stats` | 8 floats | monitored features (`features/window_stats.py`): std of 6 channels, norm of acc and rot |
 
 ## Timeline
@@ -35,36 +36,45 @@ Storage: `data/raw/*.parquet` (DVC), `data/processed/*` (DVC outputs).
 | `ride_id` | str | |
 | `windows` | list of Window (probabilities, end_s) | ordered by `window_index` |
 | `cumulative` | list of 5-float vectors | `cumulative[k]` = mean of `windows[0..k].probabilities` (R1); uses only data up to `end_s[k]` |
+| `cumulative_danger` | list of floats or null | running mean of `windows[0..k].danger`; null for E3 |
 | `label`, `confidence` | category, float | argmax and max of `cumulative[-1]`; equals the whole-ride prediction |
 
-Invariant (tested): `cumulative[-1] == predict_proba(ride)` within 1e-6.
+Invariants (tested): `cumulative[-1] == predict_proba(ride)` within 1e-6; before the first window ends there is no
+answer (no future data).
 
 ## Live window state (API streaming)
 
 | Field | Type | Rule |
 |---|---|---|
 | `sum_proba` | 5 floats ≥ 0 | sum of the per-window probabilities so far |
+| `sum_danger` | float | sum of the per-window danger scores so far (0 for E3) |
 | `n_windows` | int ≥ 0 | windows seen so far; `0` with zero sums at the first window |
 
 Held by the client; the server is stateless (R4). Transition: `(sum, n) + window p → (sum + p, n + 1)`,
 cumulative = `(sum + p) / (n + 1)`.
 
-## Elapsed-time evaluation (F08, SC-003)
+## Evaluation records (R16, SC-003)
 
-One row per (model, `t_s`): `t_s` in {30, 60, 90, 120, 180, 240, end}, `macro_f1`, `n_rides` (rides at least
-`t_s` long; shorter rides use their full length and are counted), `split = golden`. Saved as
-`artifacts/golden_f1_vs_time.csv` and in `golden_metrics.json`.
+- **Danger on labelled rides**: one row per GBG500 ride (all 500): `ride_id`, `label`, `split`, whole-ride
+  `danger_score`, `is_dangerous`; summary: Reckless detected k / 6, false-alarm rate per category, ROC-AUC Reckless
+  vs counterfactuals, bootstrap CIs. Threshold from train rides only.
+- **Pre-fall comparison**: one row per held-out fall group: pre-fall danger of the fall ride, danger of each of the
+  4 comparison rides at the same elapsed time, `exceeds_all`, `exceeds_median`; summary: shares and paired AUC.
+- **5-class head on golden**: macro-F1 and confusion matrix (as today).
+- **Vs elapsed time**: one row per (model, metric, `t_s`), `t_s` in {30, 60, 90, 120, 180, 240, end}; NaN before
+  the first window ends.
 
 ## Golden ride
 
-A GBG500 ride with `split = golden` (100 rides, frozen). Read only by `pipeline/evaluate.py` (and the read-only
-quality check of the optimization, R11). Replaying golden rides to the API for a demo is allowed; calibrating a
-threshold on them is not.
+A GBG500 ride with `split = golden` (100 rides, frozen, **1 Reckless**). Scores the 5-class head only (and the
+read-only quality check of the optimization, R11). The label-free danger score is evaluated on all labelled
+rides. Replaying golden rides to the API for a demo is allowed; calibrating a threshold on them is not.
 
-## Fall group (bonus D2)
+## Fall group
 
-A fall ride + its 4 comparison rides, same city. Split unit for the fall forecast: all 5 rides go to the same
-side; a held-out set of groups is drawn once, seeded, and saved.
+A fall ride + its 4 comparison rides, same city (`fall_group_id`). Split once, seeded, saved in
+`data/processed/fall_groups.csv`: `development` (70 %, may be in the encoder training data and used for choices)
+or `held_out` (30 %, never trained on nor used to choose). All 5 rides of a group share the same side.
 
 ## Drift reference
 

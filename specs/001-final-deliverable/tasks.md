@@ -32,7 +32,7 @@ US1 = MLOps jury, US2 = AI infra jury, US3 = live replay (bonus), US4 = fall war
 
 ### Timeline core (part of A2 #14) — done
 
-- [x] T009 [P] Write `src/ride_classifier/models/timeline.py`: `cumulative_mean(window_probas: np.ndarray) -> np.ndarray` (data-model.md `Timeline.cumulative`) and `f1_vs_elapsed(timelines, labels, times_s) -> pd.DataFrame` (data-model.md "Elapsed-time evaluation": rides shorter than `t_s` use their full length and are counted) (#14)
+- [x] T009 [P] Write `src/ride_classifier/models/timeline.py`: `cumulative_mean(window_probas: np.ndarray) -> np.ndarray` (data-model.md `Timeline.cumulative`) and `f1_vs_elapsed(timelines, labels, times_s) -> pd.DataFrame` (data-model.md "Evaluation records", vs elapsed time) (#14)
 - [x] T010 [P] Test `tests/unit/models/test_timeline.py`: running mean on a 3-window example, last row equals the mean of all windows, `f1_vs_elapsed` on a 4-ride toy set (#14)
 - [x] T011 Add `CNNModel.predict_timeline(inputs) -> dict[str, Timeline]` in `src/ride_classifier/models/cnn.py` returning per-window probabilities with `end_s` (data-model.md `Window.window_index`, `Window.end_s`) and cumulative values; test in `tests/unit/models/test_cnn.py` that the last cumulative equals `predict_proba` within 1e-6 (data-model.md Timeline invariant) (#14)
 

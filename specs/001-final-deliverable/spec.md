@@ -283,8 +283,8 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F09 | Golden confusion matrix of the whole-ride label | MLOps | core | `04_evaluation` |
 | F10 | Gate: golden macro-F1 of candidates vs floor, majority and random references | MLOps | core | `04_evaluation` |
 | F11 | Reckless rides detected k / 6 and false-alarm rate per counterfactual category, danger score vs E3 vs random | both | core | `04_evaluation` |
-| F12 | Pseudo-label mix on SRV3490 by city vs GBG500 mix | MLOps | core | `05_srv3490_pseudo_labels` |
-| F13 | Model confidence on GBG500 vs SRV3490 | MLOps | core | `05_srv3490_pseudo_labels` |
+| F12 | Predicted category mix and danger-alert rate on SRV3490 by city vs GBG500 | MLOps | core | `05_srv3490_by_city` |
+| F13 | Danger score and category confidence on GBG500 vs SRV3490 | MLOps | core | `05_srv3490_by_city` |
 | F14 | Current system architecture diagram | both | core | `ai-infrastructure/architecture` |
 | F15 | Proposed (target) architecture diagram | infra | core | `ai-infrastructure/architecture` |
 | F16 | Pipeline graph (prepare, train, evaluate) | MLOps | core | pipeline tool output |

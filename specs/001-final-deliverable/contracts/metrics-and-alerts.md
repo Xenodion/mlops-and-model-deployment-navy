@@ -14,6 +14,8 @@ Config files: `monitoring/prometheus/{prometheus.yml,alerts.yml}`, mounted as-is
 | 2 input | `drift_psi` | gauge (drift monitor) | `feature` |
 | 3 prediction | `predictions_total` | counter | `label`, `endpoint` (exists, + endpoint) |
 | 3 prediction | `prediction_confidence` | histogram | `endpoint` |
+| 3 prediction | `danger_score` | histogram (cumulative danger at each answer) | `endpoint` |
+| 3 prediction | `danger_alerts_total` | counter (answers with `is_dangerous`) | `endpoint` |
 | 3 prediction | `drift_prediction_chi2_pvalue` | gauge (drift monitor) | |
 | 4 outcome | `feedback_total` | counter | `true_label`, `correct` |
 | all | `model_info` | gauge | `version` (exists) |
@@ -34,7 +36,7 @@ Warning level (dashboard colour, no alert): PSI ≥ 0.1.
 ## Grafana dashboard (`monitoring/grafana/dashboards/ride-api.json`)
 
 One row per layer, light theme, category colours from `viz/palette.py`: (1) req/s, p95 vs 200 ms line, 5xx share;
-(2) PSI per feature with 0.1 / 0.25 lines, rotation-std distribution; (3) category mix stacked, confidence;
+(2) PSI per feature with 0.1 / 0.25 lines, rotation-std distribution; (3) category mix stacked, confidence, danger score distribution and alert rate;
 (4) rolling accuracy, labels received; plus an alert list panel and the model version.
 
 ## Runbooks (`docs/runbooks.md`)

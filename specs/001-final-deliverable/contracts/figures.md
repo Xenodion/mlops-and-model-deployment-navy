@@ -28,11 +28,12 @@ same naming by hand. Demo fallbacks (FR-004) go to `assets/demos/` (recordings).
 | `notebooks/01_data_overview.ipynb` | F01-F03 |
 | `notebooks/02_units_and_cities.ipynb` | F04, F05 |
 | `notebooks/03_live_classifier.ipynb` | F06-F08, F47 |
-| `notebooks/04_evaluation.ipynb` | F09-F11 |
-| `notebooks/05_srv3490_pseudo_labels.ipynb` | F12, F13 |
+| `notebooks/04_evaluation.ipynb` | F09-F11, F48 |
+| `notebooks/05_srv3490_by_city.ipynb` | F12, F13 |
 | `notebooks/06_drift_scenarios.ipynb` | F22, F44 (+ F45 from the job output) |
-| `notebooks/07_fall_forecast.ipynb` | F38 (bonus) |
-| `notebooks/08_encoder.ipynb` | F39 (bonus) |
+| `notebooks/07_falls_analysis.ipynb` | F49 |
+| `notebooks/09_fall_forecast.ipynb` | F38 (bonus) |
+| `notebooks/08_falls_weak_supervision.ipynb` | F39 (experiment) |
 | `ai-infrastructure/benchmarks/benchmark.ipynb` | F23-F27 |
 | `ai-infrastructure/optimization/comparison.ipynb` | F28 |
 | `ai-infrastructure/distributed-training/` notebook | F29, F30, F46 |

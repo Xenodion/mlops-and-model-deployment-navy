@@ -127,7 +127,7 @@ Each entry: **Decision**, **Rationale**, **Alternatives considered**. Sources: t
      the outcome layer moves too) - available now;
   3. **unseen city**: SRV3490 rides from one city, units harmonised;
   4. **sensor unit bug**: the same SRV3490 rides sent **without** the conversion (a real upstream bug).
-  3 vs 4 isolates the unit effect from the city effect. Runbook: 3 → retrain (with pseudo-labels, stated as such);
+  3 vs 4 isolates the unit effect from the city effect. Runbook: 3 → retrain (the encoder learns without labels, so new-city rides can enter its training data);
   4 → upstream fix, no retraining.
 - **Rationale**: no synthetic data; each scenario shows a different trigger (input drift, prediction drift,
   performance).
