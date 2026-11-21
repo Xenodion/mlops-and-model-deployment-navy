@@ -47,6 +47,15 @@ fall is a good alarm and an alarm on a comparison ride is a false one.
 Cloud SQL is disabled in the course project, so the shared MLflow server will use SQLite on the bucket, a stated
 limit. Access will be granted to the four team members' school accounts (not committed).
 
+**Model 1 clarified.** E3 classifies each 30 s window on its own and averages the window probabilities: the
+network has no memory, the cumulative mean is the memory. With 400 train rides, windows are what makes learning
+possible (~7,500 examples). Weak point: the plain mean dilutes short episodes. Recorded as a planned improvement, not
+scheduled (issue #31): top-k mean of the windows, then a learned aggregator, both recomputed at every live step.
+
+**Model 2 output on a recorded ride:** a table (ride id, end of window, risk, alert), one row every 5 s; it is the
+same computation as live, done at once; it serves the evaluation (does the risk rise before the gap?) and a
+per-ride summary (when the ride was risky).
+
 **Learned:** the "S3" of the brief is the storage protocol, served locally by SeaweedFS (as MinIO in the labs); no
 AWS account is used. GCP is our cloud (ADR 006); the local S3-compatible storage stays for the dev stack.
 

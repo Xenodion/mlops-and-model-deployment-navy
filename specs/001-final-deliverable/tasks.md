@@ -131,6 +131,7 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 - [ ] T051 [P] Align `docs/PLAN.md` DEC-1/2/4, `docs/how_to_use.md` (new endpoints, make targets) with PROJECT_FRAMING (#24)
 - [ ] T052 Story outline per course, demo fallbacks in `assets/demos/`, timed dry runs (#24)
 - [ ] T053 Submission email before 25/11 20:00 (#24)
+- [ ] T064 [P] Improvement, not scheduled: model 1 top-k mean aggregation, then learned aggregator, live-compatible (#31)
 - [ ] T054 [P] Bonus D3 automatic retraining via `repository_dispatch` (#27); experiment D4 falls as weak supervision `notebooks/08_falls_weak_supervision.ipynb`, only if F49 shows a signal (#28) — only after checkpoints A and B
 
 ---

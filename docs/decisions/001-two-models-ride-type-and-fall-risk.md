@@ -34,6 +34,12 @@ classifier only (20/11), then one label-free "danger score" used for everything 
 - Model 1 is ready (E3 + `predict_timeline`); model 2 is new work, second in priority after CI/CD and cloud.
 - The label-free autoencoder built on 21/11 is kept as a candidate feature extractor for model 2.
 - Model quality is not graded: no further parameter search; numbers are chosen and explained (ADR 002).
+- How model 1 works: E3 classifies each 30 s window on its own (no memory) and the ride gets the mean of its
+  window probabilities; the "memory" is the cumulative mean. Windows multiply the training examples (~7,500 windows
+  from 400 train rides), which a whole-ride model would not have. Known weakness: the plain mean dilutes short
+  episodes. Planned improvement, not scheduled: a top-k mean, then a learned aggregator, both live-compatible
+  (issue #31). A sequence model with real memory (GRU over window embeddings) is the longer-term option, risky with
+  400 rides.
 
 ## Evidence
 
