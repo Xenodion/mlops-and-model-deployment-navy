@@ -268,6 +268,7 @@ def main() -> None:
     if args.smoke:
         candidates, epochs, use_mlflow = SMOKE_CANDIDATES, SMOKE_EPOCHS, False
         out = Path(tempfile.gettempdir()) / "window_study_smoke.csv"
+        out.unlink(missing_ok=True)  # a smoke run never resumes
     if use_mlflow:
         try:
             check_server(MLFLOW_TRACKING_URI)
