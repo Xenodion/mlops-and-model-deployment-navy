@@ -13,8 +13,9 @@ This block is rewritten at each stop; the dated entries below are the history.
   anti-leakage gap (10 s check), evaluated on held-out fall groups (ADR 002, ADR 004): to build.
 - **Nothing is running.** The window study is closed (results in `docs/experiments/window_study.md`).
 - **Shared MLflow + DVC (#30, ADR 011): deployed and tested** (Cloud Run `ride-mlflow`, bucket
-  `gs://albert-navy-ride-mlops`, teammates' access granted). Remaining: Vincent's isolated Google login for DVC
-  (README "Working as a team"), then `make shared-data-push` and the migration of the local MLflow runs.
+  `gs://albert-navy-ride-mlops`, teammates' access granted). The 11 local runs are migrated
+  (verified). Remaining: Vincent's isolated Google login for DVC (README "Working as a team"), then
+  `make shared-data-push`. Lesson: Cloud Run `/tmp` is RAM, so the service now has 2 GiB (1 GiB was OOM-killed).
 - **Next, in order:** (1) finish #30 as above; (2) model 2 (T060-T062) and the API serving both
   (T063, replaces the danger fields added on 21/11); (3) model 1 evaluation additions (T029); (4) monitoring, drift
   job, scenarios, workflows (#16-#21, CI unit-bug test T059); (5) AI-infrastructure measurements on the fixed

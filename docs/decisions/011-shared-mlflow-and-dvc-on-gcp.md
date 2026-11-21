@@ -12,7 +12,7 @@ others' experiments, registered models or versioned data. The MLflow lab of the 
 ## Decision
 
 - **Shared MLflow tracking server** on Cloud Run (`ride-mlflow`, project `advanced-cloud-ai-i2`, europe-west1):
-  private (no anonymous access), one instance, scale to zero, 1 vCPU / 1 GiB. Image built from
+  private (no anonymous access), one instance, scale to zero, 1 vCPU / 2 GiB (1 GiB was killed for memory during the migration: `/tmp`, which holds the registry database, is in RAM on Cloud Run). Image built from
   `docker/mlflow-gcp/` (same MLflow 3.17.2 as the local stack) and stored in the private Artifact Registry
   repository `cloud-ai`.
 - **Artifacts and DVC data** in one private bucket, `gs://albert-navy-ride-mlops` (project `agentics-workflows-2`,
@@ -46,6 +46,10 @@ others' experiments, registered models or versioned data. The MLflow lab of the 
 - Vertex AI jobs log to a file store in the job and import their runs into the shared server (research R9).
 - On a machine where the default Google credentials belong to another project, DVC must use an isolated
   credentials file (see the README), never the default one.
+
+## Migration of existing runs
+
+21/11: the 11 local runs (baselines, E1-E3, window candidates) were copied to the shared server with parameters, metric history, tags and artifacts, plus the tag `migrated_from_run_id` (verified: 11 runs, all FINISHED, all with artifacts). No model was registered on the local server; E3 version 2 lives on Alex's machine and is republished from there.
 
 ## Evidence
 
