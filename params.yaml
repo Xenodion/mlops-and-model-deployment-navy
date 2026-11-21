@@ -78,5 +78,7 @@ fall_risk:                   # model 2 (ADR 001, 004): 10 s windows, logistic re
   experiment: fall-risk
   model_path: artifacts/fall_risk_model.joblib
   metrics_path: artifacts/fall_risk_metrics.json
+  scores_path: artifacts/fall_risk_heldout_scores.csv   # risk of every held-out window, both gaps
+  roc_path: artifacts/fall_risk_roc.png                 # F49: ROC curves, gap 5 s and 10 s
   gate:
     min_paired_auc: 0.55     # held-out paired AUC must beat chance (0.5) with a margin

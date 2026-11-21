@@ -45,14 +45,14 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 - [x] T057a Stage `prepare_srv`: SRV3490 converted and cleaned table (#22)
 - [x] T060 Model 2 data: 10 s windows (stride 5 s) of SRV3490 rides; positive = windows of a fall ride ending in the 60 s before the 5 s anti-leakage gap; negative = windows ending at the same moments of its comparison rides; development groups only for training (ADR 004; data-model.md "Fall group") (#29)
 - [x] T061 `models/fall_risk.py`: simplest model 2 following the model contract (e.g. logistic regression on autoencoder embeddings, or a small CNN on the 10 s window); DVC stage `train_fall_risk`, logged in MLflow, registered as `fall-risk` after its gate (better than chance on development groups) (#29)
-- [ ] T062 Model 2 evaluation on held-out groups with the 5 s gap and the 10 s sanity check; F49 in `notebooks/07_fall_risk.ipynb` (#29)
+- [~] T062 Model 2 evaluation on held-out groups with the 5 s gap and the 10 s sanity check; F49 in `notebooks/07_fall_risk.ipynb` (#29)
 - [~] T063 API serves both models from one image (ADR 010): `fall_risk` block on `/v1/predict` (retrospective), `fall_risk` / `fall_alert` on `/v1/predict/window`, degraded mode without model 2; replace the danger fields added on 21/11 (#15)
 
 ### Window lengths (#11) — closed
 
 - [x] T012-T016 Window comparison 5-60 s run and tracked in MLflow (`E4-window-*`, `artifacts/window_study.csv`); `docs/experiments/window_study.md` closed with its results (#11)
 - [x] T018 Decision: 30 s for model 1, 10 s for model 2 (ADR 002) (#11)
-- [ ] T017 F47 (AUC per window length) in `notebooks/03_live_classifier.ipynb`, with F48 (cumulative vs sliding-window scan diagram) (#11)
+- [x] T017 F47 (AUC per window length) in `notebooks/03_live_classifier.ipynb`, with F48 (cumulative vs sliding-window scan diagram) (#11)
 
 ### SRV3490 (#12)
 
@@ -80,7 +80,7 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 **Independent test**: quickstart Q1-Q6 on the production cluster, timed, every demo with a fallback.
 
 - [ ] T028 [P] [US1] Data overview notebook `notebooks/01_data_overview.ipynb`: F01-F03 (#13)
-- [~] T029 [US1] `pipeline/evaluate.py`: model 1 macro-F1 vs elapsed time and explicit Reckless / counterfactual results on golden rides, gate unchanged; F06-F11 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb` (#14)
+- [x] T029 [US1] `pipeline/evaluate.py`: model 1 macro-F1 vs elapsed time and explicit Reckless / counterfactual results on golden rides, gate unchanged; F06-F11 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb` (#14)
 - [x] T030 [US1] API per contracts/api.md: timeline in `/v1/predict`, stateless `/v1/predict/window` (data-model.md `Live window state.sum_proba`, `Live window state.n_windows`; narrowing: `n_windows` must equal `window_index`), `/v1/feedback`, `/health.drift_reference_loaded`; tests in `tests/unit/api/`; F19 screenshots (#15)
 - [ ] T031 [US1] `features/window_stats.py` + DVC stage `reference` → `artifacts/drift_reference.json` (data-model.md "Drift reference"); `drift/psi.py` with tests (#17)
 - [ ] T032 [US1] Layers 2-4 metrics in `api/metrics.py` per contracts/metrics-and-alerts.md; Prometheus + Grafana in `docker-compose.yml`, `monitoring/prometheus/{prometheus.yml,alerts.yml}`, provisioned dashboard `monitoring/grafana/dashboards/ride-api.json`; `docs/runbooks.md` (#16)

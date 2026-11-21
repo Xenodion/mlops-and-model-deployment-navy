@@ -8,22 +8,29 @@ presentations. One entry per working session; mistakes found and corrected are l
 
 This block is rewritten at each stop; the dated entries below are the history.
 
+- **Resume, notebook:** `notebooks/07_fall_risk.ipynb` now plots F49 from the existing held-out metrics; the 10 s
+  check shifts the entire 60 s segment, so the difference cannot be attributed only to its last five seconds.
+  Registering `fall-risk` remains open: the training run logs a joblib artifact, not a registered MLflow model, and
+  the shared proxy was not reachable on localhost:5001 during this session.
+- **Model 1 figures:** notebooks `03_live_classifier` and `04_evaluation` now produce F06-F11 and F47-F48 from
+  existing outputs. The golden split contains only one Reckless ride; F11 shows the actual counts. F08 compares
+  elapsed-time E3 results to whole-ride reference scores, not references recomputed at each time.
+
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
 - **Done:**
   - Shared MLflow (Cloud Run `ride-mlflow`) + shared DVC remote (`gs://albert-navy-ride-mlops/dvc`), ADR 011. 11 runs
     migrated, data and pipeline outputs pushed (`make shared-data-push`). #30 can be closed.
   - Model 2 (T060, T061): `models/fall_risk.py`, DVC stage `train_fall_risk`, logistic regression on window
-    statistics. Held-out paired AUC 0.89 with the 5 s gap, 0.76 with the 10 s check (window AUC 0.71 / 0.69): gate
+    statistics. Held-out paired AUC 0.89 with the 5 s gap, 0.76 with the 10 s check (window AUC 0.71 / 0.69, ROC curves for both gaps in `artifacts/fall_risk_roc.png`, F49): gate
     passed; the drop at 10 s means part of the signal is very close to the fall; say so when presenting.
   - API (T063, mostly): `fall_risk` on `/v1/predict` (retrospective) and `/v1/predict/window`, `/health` fields;
     model 2 optional (`FALL_RISK_MODEL_PATH`, default `artifacts/fall_risk_model.joblib`), threshold 0.6 (contract, not
     tuned). 148 tests pass.
   - Model 1 vs elapsed time (T029, code): `artifacts/golden_f1_vs_elapsed.csv` and MLflow; golden macro-F1 0.21 at
     30 s, 0.23 at 60 s, 0.51 from 120 s, 0.516 at the end.
-- **Left on those tasks:** T062 (notebook `07_fall_risk`, F49) and register `fall-risk` in MLflow; T063 (remove the
-  old `danger_*` fields, a model-2 Prometheus metric, ship `fall_risk_model.joblib` in the API image: decide with
-  Alex, PR #32); T029 notebooks 03/04 (F06-F11).
+- **Left on those tasks:** T062 register `fall-risk` in MLflow; T063 (remove the old `danger_*` fields, a model-2
+  Prometheus metric, ship `fall_risk_model.joblib` in the API image: decide with Alex, PR #32).
 - **Next, in order:** monitoring, drift job, scenarios, workflows (#16-#21, CI unit-bug test T059); AI-infrastructure
   measurements on the fixed models (#3-#8, Vertex, GPUs only in `advanced-cloud-ai-i2`); README, compliance table,
   submission (#24).

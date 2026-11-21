@@ -18,6 +18,7 @@ from sklearn.metrics import roc_auc_score
 from ride_classifier.config import ID_COLUMN, MLFLOW_TRACKING_URI, ROOT, TIME_COLUMN, load_params
 from ride_classifier.data.srv3490 import TOPPLE_COLUMN, load_srv3490
 from ride_classifier.models.fall_risk import GROUP, LABEL, FallRiskModel, window_features, window_table
+from ride_classifier.models.plots import roc_figure
 from ride_classifier.pipeline.cli import setup
 from ride_classifier.pipeline.falls import DEVELOPMENT, GROUP_SPLIT_COLUMN, HELD_OUT
 from ride_classifier.registry.tracking import check_server, flatten
@@ -39,9 +40,10 @@ def paired_auc(table: pd.DataFrame, risk: np.ndarray) -> dict[str, float]:
 
 
 def evaluate(model: FallRiskModel, readings: pd.DataFrame, held: pd.DataFrame, last, fall_ms, p: dict, gap: float):
+    """Held-out metrics and the scored windows (kept for the ROC curve)."""
     table = window_table(last, fall_ms, held, p, gap)
     risk = model.predict_risk(window_features(readings, table, p["window_s"]))
-    return paired_auc(table, risk)
+    return paired_auc(table, risk), table.assign(risk=risk, gap_s=gap)
 
 
 def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI) -> dict[str, float]:
@@ -59,8 +61,9 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
     model = FallRiskModel(p["c"], p["seed"]).fit(
         window_features(readings, train_table, p["window_s"]), train_table[LABEL]
     )
-    metrics = {f"held_out_{k}": v for k, v in evaluate(model, readings, held, last, fall_ms, p, p["gap_s"]).items()}
-    check = evaluate(model, readings, held, last, fall_ms, p, p["check_gap_s"])
+    main_metrics, main_scores = evaluate(model, readings, held, last, fall_ms, p, p["gap_s"])
+    check, check_scores = evaluate(model, readings, held, last, fall_ms, p, p["check_gap_s"])
+    metrics = {f"held_out_{k}": v for k, v in main_metrics.items()}
     metrics.update({f"held_out_gap{int(p['check_gap_s'])}s_{k}": v for k, v in check.items()})
     metrics["n_train_windows"] = float(len(train_table))
     metrics["gate_passed"] = float(metrics["held_out_paired_auc"] >= p["gate"]["min_paired_auc"])
@@ -70,6 +73,14 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
     with mlflow.start_run(run_name="fall-risk-logreg"):
         mlflow.log_params(flatten(params["fall_risk"], "fall_risk"))
         mlflow.log_metrics(metrics)
+        scores = pd.concat([main_scores, check_scores])
+        scores_path = root / p["scores_path"]
+        scores.to_csv(scores_path, index=False)
+        mlflow.log_artifact(str(scores_path))
+        curves = {f"gap {g:g} s": (s_[LABEL], s_["risk"]) for g, s_ in scores.groupby("gap_s")}
+        figure = roc_figure(curves, "Fall risk on held-out groups (10 s windows)")
+        figure.savefig(root / p["roc_path"], dpi=130)
+        mlflow.log_figure(figure, "fall_risk_roc.png")
         joblib.dump(model, root / p["model_path"])
         mlflow.log_artifact(str(root / p["model_path"]))
     (root / p["metrics_path"]).write_text(json.dumps(metrics, indent=2), encoding="utf-8")

@@ -272,3 +272,56 @@ stages:
       hash: md5
       md5: bda5f857653be37df0cf3c3e18d6c0eb
       size: 537162
+  train_fall_risk:
+    cmd: python -m ride_classifier.pipeline.train_fall_risk
+    deps:
+    - path: data/processed/fall_groups.csv
+      hash: md5
+      md5: bda5f857653be37df0cf3c3e18d6c0eb
+      size: 537162
+    - path: data/processed/srv3490.parquet
+      hash: md5
+      md5: a65eec8c3841080622adc52693c00aec
+      size: 226115704
+    - path: src/ride_classifier/models/fall_risk.py
+      hash: md5
+      md5: f59411859ddf5bba15dd3271b7044263
+      size: 4714
+    - path: src/ride_classifier/pipeline/train_fall_risk.py
+      hash: md5
+      md5: f02edb1ca6ba7f7c8e999f4823f232db
+      size: 4849
+    params:
+      params.yaml:
+        fall_risk:
+          window_s: 10
+          stride_s: 5
+          pre_fall_s: 60
+          gap_s: 5
+          check_gap_s: 10
+          c: 1.0
+          seed: 42
+          experiment: fall-risk
+          model_path: artifacts/fall_risk_model.joblib
+          metrics_path: artifacts/fall_risk_metrics.json
+          scores_path: artifacts/fall_risk_heldout_scores.csv
+          roc_path: artifacts/fall_risk_roc.png
+          gate:
+            min_paired_auc: 0.55
+    outs:
+    - path: artifacts/fall_risk_heldout_scores.csv
+      hash: md5
+      md5: 41ca17758268bc02e8f99076689a961c
+      size: 4139391
+    - path: artifacts/fall_risk_metrics.json
+      hash: md5
+      md5: 1ec92a15e15ebf8b7d3233e2a8e680dd
+      size: 323
+    - path: artifacts/fall_risk_model.joblib
+      hash: md5
+      md5: 74c6ad0fe022ffe8d1271779e67de4ca
+      size: 9283
+    - path: artifacts/fall_risk_roc.png
+      hash: md5
+      md5: d9d77091920e3e3efeb080240e57444a
+      size: 57625

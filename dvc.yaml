@@ -94,6 +94,8 @@ stages:
       - fall_risk
     outs:
       - artifacts/fall_risk_model.joblib
+      - artifacts/fall_risk_heldout_scores.csv
+      - artifacts/fall_risk_roc.png
     metrics:
       - artifacts/fall_risk_metrics.json:
           cache: false
