@@ -80,7 +80,7 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 **Independent test**: quickstart Q1-Q6 on the production cluster, timed, every demo with a fallback.
 
 - [ ] T028 [P] [US1] Data overview notebook `notebooks/01_data_overview.ipynb`: F01-F03 (#13)
-- [ ] T029 [US1] `pipeline/evaluate.py`: model 1 macro-F1 vs elapsed time and explicit Reckless / counterfactual results on golden rides, gate unchanged; F06-F11 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb` (#14)
+- [~] T029 [US1] `pipeline/evaluate.py`: model 1 macro-F1 vs elapsed time and explicit Reckless / counterfactual results on golden rides, gate unchanged; F06-F11 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb` (#14)
 - [x] T030 [US1] API per contracts/api.md: timeline in `/v1/predict`, stateless `/v1/predict/window` (data-model.md `Live window state.sum_proba`, `Live window state.n_windows`; narrowing: `n_windows` must equal `window_index`), `/v1/feedback`, `/health.drift_reference_loaded`; tests in `tests/unit/api/`; F19 screenshots (#15)
 - [ ] T031 [US1] `features/window_stats.py` + DVC stage `reference` → `artifacts/drift_reference.json` (data-model.md "Drift reference"); `drift/psi.py` with tests (#17)
 - [ ] T032 [US1] Layers 2-4 metrics in `api/metrics.py` per contracts/metrics-and-alerts.md; Prometheus + Grafana in `docker-compose.yml`, `monitoring/prometheus/{prometheus.yml,alerts.yml}`, provisioned dashboard `monitoring/grafana/dashboards/ride-api.json`; `docs/runbooks.md` (#16)

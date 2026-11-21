@@ -54,6 +54,8 @@ evaluate:
   metrics_path: artifacts/golden_metrics.json             # DVC metrics: `uv run dvc metrics show`
   predictions_path: artifacts/golden_predictions.csv      # probabilities + prediction for every golden ride
   confusion_matrix_path: artifacts/golden_confusion_matrix.png
+  elapsed_path: artifacts/golden_f1_vs_elapsed.csv        # macro-F1 of the cumulative prediction vs elapsed time
+  elapsed_times_s: [30, 60, 120, 300, 600, .inf]          # .inf = the whole ride
   gate:                       # the model passes only if every check passes; otherwise the stage fails (exit 1)
     min_macro_f1: 0.30        # floor = 1.5x random (≈ 0.20). First baseline: CV 0.37 ± 0.06, golden 0.48
     must_beat_references: true  # golden macro-F1 above "always Safe" and random guessing on the same rides

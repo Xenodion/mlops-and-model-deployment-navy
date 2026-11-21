@@ -22,6 +22,7 @@ from ride_classifier.config import ID_COLUMN, LABEL_COLUMN, LABELS, MLFLOW_TRACK
 from ride_classifier.data.split import SPLIT_COLUMN, TRAIN
 from ride_classifier.models.metrics import classification_metrics, reference_scores
 from ride_classifier.models.plots import confusion_figure
+from ride_classifier.models.timeline import f1_vs_elapsed
 from ride_classifier.pipeline.cli import setup
 from ride_classifier.registry.tracking import check_server
 
@@ -55,6 +56,15 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
     predicted = proba[LABELS].idxmax(axis=1)
     y_true = golden.groupby(ID_COLUMN)[LABEL_COLUMN].first().loc[predicted.index]
 
+    # 1b. The same rides as they unfold: macro-F1 of the cumulative prediction at each elapsed time (no future data)
+    served = model.unwrap_python_model()
+    timelines = {
+        ride_id: served.predict_timeline(ride.drop(columns=LABEL_COLUMN)) for ride_id, ride in golden.groupby(ID_COLUMN)
+    }
+    elapsed = f1_vs_elapsed(timelines, y_true, [float(t) for t in eval_params["elapsed_times_s"]])
+    elapsed_path = root / eval_params["elapsed_path"]
+    elapsed.to_csv(elapsed_path, index=False)
+
     # 2. Scores, and the two trivial references on the same rides
     splits = pd.read_csv(root / data_params["splits_path"])
     train_labels = splits.loc[splits[SPLIT_COLUMN] == TRAIN, LABEL_COLUMN]
@@ -76,6 +86,10 @@ def run(params: dict, root: Path = ROOT, tracking_uri: str = MLFLOW_TRACKING_URI
     mlflow.set_tracking_uri(tracking_uri)
     with mlflow.start_run(run_id=run_id):
         mlflow.log_metrics(metrics)
+        for row in elapsed.itertuples():
+            if row.macro_f1 == row.macro_f1:  # skip NaN: no answer yet
+                mlflow.log_metric("golden_macro_f1_vs_elapsed", row.macro_f1, step=int(min(row.t_s, 1e6)))
+        mlflow.log_artifact(str(elapsed_path))
         mlflow.log_figure(figure, "golden_confusion_matrix.png")
         mlflow.log_text(classification_report(y_true, predicted, labels=LABELS, zero_division=0), "golden_report.txt")
         mlflow.set_tag(GATE_TAG, "passed" if passed else "failed")

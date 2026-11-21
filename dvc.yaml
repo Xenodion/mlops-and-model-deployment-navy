@@ -79,6 +79,7 @@ stages:
     outs:
       - artifacts/golden_predictions.csv
       - artifacts/golden_confusion_matrix.png
+      - artifacts/golden_f1_vs_elapsed.csv
     metrics:
       - artifacts/golden_metrics.json
 
