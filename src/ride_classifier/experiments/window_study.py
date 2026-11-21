@@ -186,8 +186,10 @@ def pre_fall_scores(
     return pd.Series(fall_scores, dtype=float).reindex(table.index), table
 
 
-def evaluate_candidate(window_s: float, params: dict, data: tuple, epochs: int | None) -> dict[str, float]:
-    """Train the label-free detector for one window length (stride = half) and return one CSV row."""
+def evaluate_candidate(
+    window_s: float, params: dict, data: tuple, epochs: int | None
+) -> tuple[dict[str, float], DangerModel]:
+    """Train the label-free detector for one window length (stride = half); return its CSV row and the model."""
     gbg, labels, srv, groups, fall_times = data
     danger_params = {**params["train"]["danger"], "window_s": window_s, "stride_s": window_s / 2}
     if epochs is not None:
@@ -233,7 +235,7 @@ def evaluate_candidate(window_s: float, params: dict, data: tuple, epochs: int |
         "epoch_time_s": train_time / danger_params["epochs"],
         "rss_after_fit_mb": _rss_mb(),
         "n_windows_train": float(n_windows),
-    }
+    }, model
 
 
 def _rss_mb() -> float:
@@ -242,16 +244,28 @@ def _rss_mb() -> float:
     return getattr(info, "peak_wset", info.rss) / 2**20
 
 
-def _log_mlflow(row: dict[str, float], params: dict) -> None:
+def _log_mlflow(row: dict[str, float], params: dict, model: DangerModel, run_type: str) -> None:
+    """One MLflow run per candidate: params, metrics, code and data versions, and the trained weights."""
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
     experiment_id = f"E4-window-{row['window_s']:g}s"
-    with mlflow.start_run(run_name=experiment_id):
-        mlflow.set_tags(
-            {**run_tags({"data_md5": ROOT / f"{params['data']['raw_rides']}.dvc"}), "experiment_id": experiment_id}
+    data = params["data"]
+    pointers = {
+        "data_md5": ROOT / f"{data['raw_rides']}.dvc",
+        "srv3490_md5": ROOT / f"{data['srv3490']['raw_path']}.dvc",
+    }
+    with mlflow.start_run(run_name=experiment_id), tempfile.TemporaryDirectory() as tmp:
+        mlflow.set_tags({**run_tags(pointers), "experiment_id": experiment_id, "run_type": run_type})
+        mlflow.log_params(
+            flatten(params["train"]["danger"], "danger.")
+            | {"danger.window_s": row["window_s"], "danger.stride_s": row["stride_s"]}
+            | flatten(params["falls"], "falls.")
         )
-        mlflow.log_params(flatten(params["train"]["danger"], "danger.") | {"danger.window_s": row["window_s"]})
         mlflow.log_metrics({k: v for k, v in row.items() if not math.isnan(v)})
+        weights = Path(tmp) / "danger_autoencoder.pt"
+        torch.save(model.net_.state_dict(), weights)  # the trained candidate, kept as a trace
+        mlflow.log_artifact(str(weights), artifact_path="model")
+        mlflow.log_artifact(str(ROOT / params["falls"]["groups_path"]), artifact_path="data")
 
 
 def main() -> None:
@@ -259,22 +273,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--candidates", default="5,10,15,30,60")
     parser.add_argument("--out", type=Path, default=ROOT / "artifacts/window_study.csv")
-    parser.add_argument("--smoke", action="store_true", help="2 candidates, few rides, 1 epoch, temp output, no MLflow")
+    parser.add_argument("--smoke", action="store_true", help="2 candidates, few rides, 1 epoch, temp output")
     args = parser.parse_args()
 
     params = load_params()
     candidates = [float(c) for c in args.candidates.split(",")]
-    out, epochs, use_mlflow = args.out, None, True
+    out, epochs, run_type = args.out, None, "study"
     if args.smoke:
-        candidates, epochs, use_mlflow = SMOKE_CANDIDATES, SMOKE_EPOCHS, False
+        candidates, epochs, run_type = SMOKE_CANDIDATES, SMOKE_EPOCHS, "smoke"
         out = Path(tempfile.gettempdir()) / "window_study_smoke.csv"
         out.unlink(missing_ok=True)  # a smoke run never resumes
-    if use_mlflow:
-        try:
-            check_server(MLFLOW_TRACKING_URI)
-        except SystemExit as exc:
-            logger.warning("MLflow skipped: %s", exc)
-            use_mlflow = False
+    check_server(MLFLOW_TRACKING_URI)  # every run is tracked: no MLflow, no run (start it with `make dev-up`)
 
     torch.set_num_threads(max(1, torch.get_num_threads() // 2))  # RAM and CPU are shared on this laptop
     done = pd.read_csv(out) if out.exists() and not args.smoke else pd.DataFrame(columns=["window_s"])
@@ -284,9 +293,9 @@ def main() -> None:
     data = load_data(params, args.smoke, params["data"]["seed"])
     out.parent.mkdir(parents=True, exist_ok=True)
     for window_s in todo:
-        row = evaluate_candidate(window_s, params, data, epochs)
-        if use_mlflow:
-            _log_mlflow(row, params)
+        row, model = evaluate_candidate(window_s, params, data, epochs)
+        _log_mlflow(row, params, model, run_type)
+        del model
         pd.DataFrame([row]).to_csv(out, mode="a", header=not out.exists() or out.stat().st_size == 0, index=False)
     results = pd.read_csv(out)
     results = results[results["window_s"].isin(candidates)]
