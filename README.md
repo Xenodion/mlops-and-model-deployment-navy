@@ -88,6 +88,31 @@ did not change. `uv run dvc dag` draws it.
 Commit **before** training: every MLflow run records the git commit and whether the code had uncommitted changes
 (`git_dirty`). Only runs from committed code can be rebuilt, so only those get registered.
 
+## Working as a team: shared MLflow and data
+
+Each laptop has its own dev stack (`make dev-up`: MLflow, Postgres, S3-compatible storage), which is enough to
+work alone. To **see the team's runs and share the versioned data**, use the shared services on GCP (private,
+see [ADR 011](docs/decisions/011-shared-mlflow-and-dvc-on-gcp.md)). One-time setup with your school account:
+
+```bash
+gcloud auth login                         # your school account
+gcloud auth application-default login     # same account: used by DVC to read the shared bucket
+make shared-mlflow                        # shared MLflow on http://localhost:5001 (keep it running)
+MLFLOW_TRACKING_URI=http://localhost:5001 uv run python -m ride_classifier.pipeline.train   # log to the shared server
+make shared-data-pull                     # data from the shared bucket (instead of `make data`)
+```
+
+If your machine already has Google credentials for another project (`gcloud auth application-default
+print-access-token` shows a service account that is not yours), keep them: log in with an isolated config and point
+DVC at it, in the git-ignored local DVC config:
+
+```bash
+CLOUDSDK_CONFIG=~/.gcloud-school gcloud auth application-default login
+uv run dvc remote modify --local shared credentialpath ~/.gcloud-school/application_default_credentials.json
+```
+
+Rule: **every run is tracked in MLflow**; data, models and credentials are never committed.
+
 ## AI infrastructure
 
 Second course on the same project (Advanced Cloud AI Infrastructure): explain what the model needs to run, measure

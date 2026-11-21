@@ -16,5 +16,6 @@ The day-by-day log of what was done is in [../JOURNAL.md](../JOURNAL.md).
 | [008](008-hybrid-retraining-with-human-approval.md) | Hybrid retraining policy with a human approval before production | accepted | 20/11 |
 | [009](009-visual-charter.md) | One visual charter for every figure, screenshot and slide | accepted | 20/11 |
 | [010](010-one-service-two-models.md) | One inference service serving both models | accepted | 21/11 |
+| [011](011-shared-mlflow-and-dvc-on-gcp.md) | Shared MLflow (Cloud Run, private) and DVC (GCS bucket) for the team; local dev stack kept | accepted | 21/11 |
 
 Template: copy any record; keep it under one page; link the evidence (commit, notebook, CSV, issue).

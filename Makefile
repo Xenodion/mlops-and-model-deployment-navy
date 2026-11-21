@@ -36,6 +36,15 @@ data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the
 data: ## Download the versioned data from S3 into data/raw/ (start the storage first: make dev-up)
 	uv run dvc pull
 
+shared-data-pull: ## Team: download the versioned data from the shared GCS bucket (needs: gcloud auth application-default login)
+	uv run dvc pull -r shared
+
+shared-data-push: ## Team: upload the versioned data to the shared GCS bucket
+	uv run dvc push -r shared
+
+shared-mlflow: ## Team: open the shared MLflow (Cloud Run, private) on http://localhost:5001 (needs: gcloud auth login with your school account)
+	gcloud run services proxy ride-mlflow --project advanced-cloud-ai-i2 --region europe-west1 --port 5001
+
 pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
 	uv run dvc repro
 

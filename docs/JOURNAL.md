@@ -12,9 +12,10 @@ This block is rewritten at each stop; the dated entries below are the history.
   cumulatively (done, registered). Model 2 = fall risk on 10 s sliding windows, trained on SRV3490 falls with a 5 s
   anti-leakage gap (10 s check), evaluated on held-out fall groups (ADR 002, ADR 004): to build.
 - **Nothing is running.** The window study is closed (results in `docs/experiments/window_study.md`).
-- **Next, in order:** (1) shared MLflow + DVC on GCP (#30: bucket `gs://albert-navy-ride-mlops` and service account
-  `ride-mlflow` already created; remaining: MLflow image with the GCS driver, Cloud Run service, DVC remote, access
-  for the 4 team members, migration of the local runs, ADR 011); (2) model 2 (T060-T062) and the API serving both
+- **Shared MLflow + DVC (#30, ADR 011): deployed and tested** (Cloud Run `ride-mlflow`, bucket
+  `gs://albert-navy-ride-mlops`, teammates' access granted). Remaining: Vincent's isolated Google login for DVC
+  (README "Working as a team"), then `make shared-data-push` and the migration of the local MLflow runs.
+- **Next, in order:** (1) finish #30 as above; (2) model 2 (T060-T062) and the API serving both
   (T063, replaces the danger fields added on 21/11); (3) model 1 evaluation additions (T029); (4) monitoring, drift
   job, scenarios, workflows (#16-#21, CI unit-bug test T059); (5) AI-infrastructure measurements on the fixed
   models (#3-#8); (6) README, compliance table, submission (#24).
@@ -22,6 +23,17 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **To-do list:** `specs/001-final-deliverable/tasks.md` and GitHub issues (P0-P3, milestones 23/11, 24/11, 25/11).
 - **Rules:** MLflow always on (`make dev-up`, scripts stop without it); no data, weights or secrets in the repo;
   English in everything committed; work on `dev_vincent`, PR to `main`.
+
+## 21/11/2026 (night)
+
+**Shared MLflow deployed** (ADR 011). Image from `docker/mlflow-gcp/` pushed to the private Artifact Registry,
+Cloud Run service `ride-mlflow` (private, one instance, scale to zero). First attempt failed as feared: SQLite on a
+Cloud Storage volume cannot work (out-of-order journal writes, 429 rate limits, container never healthy); fixed by
+keeping the database on the container disk with a snapshot copied to the bucket after each change and at shutdown.
+Smoke test through `gcloud run services proxy`: run, artifact in the bucket, database backup, anonymous call refused
+(403). Teammates' school accounts granted on the bucket (object admin) and on the service (invoker, viewer).
+DVC remote `shared` added; the first push was refused because this laptop's default Google credentials belong to
+another project (OSPRI): no course data left for it. The README documents an isolated credentials file for that case.
 
 ## 21/11/2026 (evening)
 
