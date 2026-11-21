@@ -81,3 +81,18 @@ stages:
       - artifacts/golden_confusion_matrix.png
     metrics:
       - artifacts/golden_metrics.json
+
+  train_fall_risk:
+    cmd: python -m ride_classifier.pipeline.train_fall_risk  # model 2; needs MLflow running: make dev-up
+    deps:
+      - data/processed/srv3490.parquet
+      - data/processed/fall_groups.csv
+      - src/ride_classifier/models/fall_risk.py
+      - src/ride_classifier/pipeline/train_fall_risk.py
+    params:
+      - fall_risk
+    outs:
+      - artifacts/fall_risk_model.joblib
+    metrics:
+      - artifacts/fall_risk_metrics.json:
+          cache: false

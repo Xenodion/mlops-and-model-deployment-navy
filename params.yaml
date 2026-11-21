@@ -64,3 +64,17 @@ falls:
   seed: 42
   pre_fall_s: 60             # pre-fall segment: smallest length giving every window candidate (up to 60 s, stride 30 s) >= 2 window ends
   margin_s: 2                # excluded just before the first topple (impact); = the spec's minimum warning time
+
+fall_risk:                   # model 2 (ADR 001, 004): 10 s windows, logistic regression on their statistics
+  window_s: 10
+  stride_s: 5
+  pre_fall_s: 60             # positives end in the 60 s before the gap
+  gap_s: 5                   # anti-leakage gap before the first topple
+  check_gap_s: 10            # sanity check: the held-out result must not collapse with a larger gap
+  c: 1.0                     # logistic regression regularisation (default, not tuned)
+  seed: 42
+  experiment: fall-risk
+  model_path: artifacts/fall_risk_model.joblib
+  metrics_path: artifacts/fall_risk_metrics.json
+  gate:
+    min_paired_auc: 0.55     # held-out paired AUC must beat chance (0.5) with a margin
