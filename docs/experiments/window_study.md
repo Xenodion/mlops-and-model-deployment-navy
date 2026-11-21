@@ -1,4 +1,26 @@
-# E4 - Window length study (pre-registration)
+# E4 - Window length study (closed 21/11)
+
+**Closed.** This study was set up for the superseded single "danger score" design. Its runs are kept as the
+measurement behind ADR 002 (30 s for model 1, 10 s for model 2); no further search is planned (ADR 001: model
+quality is not graded). Original pre-registration below, unchanged.
+
+## Results (measured, laptop CPU, 10 epochs, 2 s margin, development fall groups; MLflow `E4-window-*`)
+
+| Window | Pre-fall vs comparison AUC (95 % CI) | Reckless vs counterfactual AUC | Training time | Peak memory |
+|---|---|---|---|---|
+| 5 s | 0.957 (0.945-0.968) | 0.83 | 21 min | 3.9 GB |
+| 10 s | 0.878 (0.856-0.896) | 0.83 | 16 min | 3.6 GB |
+| 15 s | 0.835 (0.813-0.858) | 0.82 | 14 min | 3.6 GB |
+| 30 s | 0.752 (0.725-0.781) | 0.84 | 13 min | 6.7 GB (before the memory fix) |
+| 60 s | 0.717 (0.689-0.746) | 0.82 | 11 min | 3.6 GB |
+
+Reading: shorter windows separate pre-fall riding better; the 5 s value is suspected to include the start of the
+fall (flat Reckless separation, last window ending 2 s before `topple`), hence 10 s with a 5 s anti-leakage gap for
+model 2 (ADR 004).
+
+---
+
+# Original pre-registration
 
 Written before any run. Rule source: `specs/001-final-deliverable/research.md` R15 (model: R1, evaluation: R16).
 Tracked by GitHub issue #11. Results go in `artifacts/window_study.csv`, figure F47.
@@ -100,6 +122,3 @@ danger score, golden rides for the 5-class head, held-out fall groups for the pr
   of training windows is reported, so the confound can be read, not removed.
 - One seed per candidate: seed-to-seed variance is not measured.
 
-## Results
-
-To be filled after the run.

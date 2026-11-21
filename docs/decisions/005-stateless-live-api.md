@@ -9,8 +9,8 @@ seen so far, so something must remember the sums between two requests.
 
 ## Decision
 
-`POST /v1/predict/window` receives one window plus the client's state (sum of the category probabilities, sum of
-the danger scores, number of windows) and returns the window's values, the updated cumulative values and the new
+`POST /v1/predict/window` receives one window plus the client's state (sum of model 1's category probabilities, number of
+windows) and returns model 1's updated cumulative category, model 2's fall risk for the latest 10 s, and the new
 state. The server keeps nothing per ride.
 
 ## Alternatives rejected
@@ -23,7 +23,7 @@ state. The server keeps nothing per ride.
 - Any replica can answer any window: horizontal scaling and the load test need no session affinity, which is what
   the AI-infrastructure scaling plan relies on.
 - The capacity of one pod in live rides is measured directly: requests per second x window stride.
-- The state is 7 numbers; a client could send a wrong state, which only affects its own ride.
+- The state is 6 numbers; a client could send a wrong state, which only affects its own ride.
 
 ## Evidence
 

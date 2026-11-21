@@ -26,7 +26,7 @@ Storage: `data/raw/*.parquet` (DVC), `data/processed/*` (DVC outputs).
 | `ride_id`, `window_index` | str, int | window `k` covers `[k·stride_s, k·stride_s + window_s)`; `window_s` = 30, `stride_s` = 15 (`params.yaml`) |
 | `end_s` | float | elapsed ride time when the window is complete; used for "label after t seconds" |
 | `probabilities` | 5 floats, sum 1 | per-window category probabilities from the 5-class head: a **hint**, never compared with a label |
-| `danger` | float | per-window danger score: reconstruction error of the label-free autoencoder, z-scored on train windows |
+| `fall_risk` | float | model 2 only, 10 s windows: probability-like risk that the period precedes a fall |
 | `stats` | 8 floats | monitored features (`features/window_stats.py`): std of 6 channels, norm of acc and rot |
 
 ## Timeline
@@ -36,7 +36,6 @@ Storage: `data/raw/*.parquet` (DVC), `data/processed/*` (DVC outputs).
 | `ride_id` | str | |
 | `windows` | list of Window (probabilities, end_s) | ordered by `window_index` |
 | `cumulative` | list of 5-float vectors | `cumulative[k]` = mean of `windows[0..k].probabilities` (R1); uses only data up to `end_s[k]` |
-| `cumulative_danger` | list of floats or null | running mean of `windows[0..k].danger`; null for E3 |
 | `label`, `confidence` | category, float | argmax and max of `cumulative[-1]`; equals the whole-ride prediction |
 
 Invariants (tested): `cumulative[-1] == predict_proba(ride)` within 1e-6; before the first window ends there is no
@@ -47,7 +46,6 @@ answer (no future data).
 | Field | Type | Rule |
 |---|---|---|
 | `sum_proba` | 5 floats ≥ 0 | sum of the per-window probabilities so far |
-| `sum_danger` | float | sum of the per-window danger scores so far (0 for E3) |
 | `n_windows` | int ≥ 0 | windows seen so far; `0` with zero sums at the first window |
 
 Held by the client; the server is stateless (R4). Transition: `(sum, n) + window p → (sum + p, n + 1)`,
@@ -55,25 +53,21 @@ cumulative = `(sum + p) / (n + 1)`.
 
 ## Evaluation records (R16, SC-003)
 
-- **Danger on labelled rides**: one row per GBG500 ride (all 500): `ride_id`, `label`, `split`, whole-ride
-  `danger_score`, `is_dangerous`; summary: Reckless detected k / 6, false-alarm rate per category, ROC-AUC Reckless
-  vs counterfactuals, bootstrap CIs. Threshold from train rides only.
-- **Pre-fall comparison**: one row per held-out fall group: pre-fall danger of the fall ride, danger of each of the
-  4 comparison rides at the same elapsed time, `exceeds_all`, `exceeds_median`; summary: shares and paired AUC.
-- **5-class head on golden**: macro-F1 and confusion matrix (as today).
-- **Vs elapsed time**: one row per (model, metric, `t_s`), `t_s` in {30, 60, 90, 120, 180, 240, end}; NaN before
-  the first window ends.
+- **Model 1 on golden rides**: macro-F1, confusion matrix, Reckless and counterfactual categories, vs majority and
+  random; vs elapsed time, one row per `t_s` in {30, 60, 90, 120, 180, 240, end} (no answer before the first window).
+- **Model 2 on held-out fall groups**: one row per group: risk of the fall ride's pre-fall windows, risk at the same
+  moments of each comparison ride, for the 5 s gap and the 10 s check; summary: paired AUC and share of falls above
+  their comparisons.
 
 ## Golden ride
 
-A GBG500 ride with `split = golden` (100 rides, frozen, **1 Reckless**). Scores the 5-class head only (and the
-read-only quality check of the optimization, R11). The label-free danger score is evaluated on all labelled
-rides. Replaying golden rides to the API for a demo is allowed; calibrating a threshold on them is not.
+A GBG500 ride with `split = golden` (100 rides, frozen, **1 Reckless**). Scores model 1 (and the read-only
+quality check of the optimization, R11). Replaying golden rides to the API for a demo is allowed; calibrating a threshold on them is not.
 
 ## Fall group
 
 A fall ride + its 4 comparison rides, same city (`fall_group_id`). Split once, seeded, saved in
-`data/processed/fall_groups.csv`: `development` (70 %, may be in the encoder training data and used for choices)
+`data/processed/fall_groups.csv`: `development` (70 %, model 2 training and threshold)
 or `held_out` (30 %, never trained on nor used to choose). All 5 rides of a group share the same side.
 
 ## Drift reference

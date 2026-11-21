@@ -1,31 +1,33 @@
 # Contract: ride API (FastAPI, Swagger at `/docs`)
 
 Existing routes keep their behaviour: `GET /health`, `GET /metrics`, `POST /v1/predict/file`. Changes are
-additive (no field removed), so the web app and the smoke test keep working. Model (research R1): a danger score
-learned without labels + a 5-class head. When the served model is E3 (fallback), the danger fields are `null`.
+additive (no field removed), so the web app and the smoke test keep working. One image serves two models (ADR 010): model 1
+(ride type, cumulative, E3) and model 2 (fall risk, 10 s windows). If model 2 is not loaded, its fields are `null`
+and model 1 still answers.
 
 ## `POST /v1/predict` - whole ride, with its timeline
 
 Request: `Ride` (unchanged: columnar `time_index`, `ax..rz`, 300 to 20,000 readings).
 
-Response: `Prediction` (unchanged fields: `label` and `probabilities` from the 5-class head, `reckless_score` =
-P(Reckless)) **plus**
+Response: `Prediction` (unchanged fields: `label`, `probabilities`, `reckless_score` from model 1) **plus**
 
 ```json
-"danger_score": 1.8,
-"is_dangerous": true,
-"danger_threshold": 1.5,
 "timeline": {
   "window_s": 30, "stride_s": 15,
-  "windows": [ {"end_s": 30.0, "danger": 2.4, "probabilities": {"Safe": 0.7, "...": 0.0}} ],
-  "cumulative": [ {"end_s": 30.0, "danger": 2.4, "probabilities": {"Safe": 0.7, "...": 0.0}} ],
-  "note": "per-window values are hints: only whole rides are labelled"
+  "windows": [ {"end_s": 30.0, "probabilities": {"Safe": 0.7, "...": 0.0}} ],
+  "cumulative": [ {"end_s": 30.0, "probabilities": {"Safe": 0.7, "...": 0.0}} ],
+  "note": "per-window probabilities are hints: only whole rides are labelled"
+},
+"fall_risk": {
+  "window_s": 10, "stride_s": 5,
+  "windows": [ {"end_s": 10.0, "risk": 0.12, "alert": false} ],
+  "threshold": 0.6,
+  "retrospective": true,
+  "note": "computed on a recorded ride: for analysis, not a forecast"
 }
 ```
 
-- `danger_score`: whole-ride cumulative danger (reconstruction error z-scored on train windows), learned without
-  labels; `is_dangerous` = above `danger_threshold` (chosen on train rides, also in `/health`).
-- Rule: the last `cumulative` entry equals `danger_score` and `probabilities`.
+- Rule: the last `cumulative` entry of `timeline` equals `probabilities`.
 
 ## `POST /v1/predict/window` - one live window (stateless)
 
@@ -36,12 +38,12 @@ Request:
   "ride_id": "r-123",
   "window_index": 4,
   "readings": { "time_index": [...300], "ax": [...], "ay": [...], "az": [...], "rx": [...], "ry": [...], "rz": [...] },
-  "state": { "sum_proba": {"Safe": 2.9, "Safe overall": 0.4, "Bad weather": 0.3, "Tandem": 0.2, "Reckless": 0.2}, "sum_danger": 3.1, "n_windows": 4 }
+  "state": { "sum_proba": {"Safe": 2.9, "Safe overall": 0.4, "Bad weather": 0.3, "Tandem": 0.2, "Reckless": 0.2}, "n_windows": 4 }
 }
 ```
 
-- `readings`: exactly `window_s × 10` readings, same validation as `Ride`. `window_s` comes from the served
-  model's metadata (provisional 30 s → 300 readings until the window study R15 decides).
+- `readings`: the last 30 s (300 readings), same validation as `Ride`: model 1 scores the whole 30 s window, model
+  2 the last 10 s of it (ADR 002).
 - `state`: optional; absent = first window (zeros). `n_windows` must equal `window_index`.
 
 Response:
@@ -51,9 +53,9 @@ Response:
   "ride_id": "r-123", "window_index": 4, "end_s": 90.0,
   "window_probabilities": {"...": 0.0},
   "cumulative_probabilities": {"...": 0.0},
-  "window_danger": 2.4, "cumulative_danger": 1.1, "is_dangerous": false,
+  "fall_risk": 0.12, "fall_alert": false,
   "label": "Safe", "confidence": 0.62,
-  "state": { "sum_proba": {"...": 0.0}, "sum_danger": 5.5, "n_windows": 5 },
+  "state": { "sum_proba": {"...": 0.0}, "n_windows": 5 },
   "model_version": "2"
 }
 ```
@@ -74,5 +76,5 @@ README: the caller sends the predicted label (no server-side join, R6).
 
 ## `GET /health`
 
-Unchanged fields, plus `drift_reference_loaded: bool` (layer-2 histograms need it) and `danger_threshold: float |
-null`.
+Unchanged fields, plus `drift_reference_loaded: bool` (layer-2 histograms need it), `fall_risk_loaded: bool` and
+`fall_risk_threshold: float | null`.

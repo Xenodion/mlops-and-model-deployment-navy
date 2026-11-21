@@ -36,22 +36,23 @@ US1 = MLOps jury, US2 = AI infra jury, US3 = live replay (bonus), US4 = fall war
 - [x] T010 [P] Test `tests/unit/models/test_timeline.py`: running mean on a 3-window example, last row equals the mean of all windows, `f1_vs_elapsed` on a 4-ride toy set (#14)
 - [x] T011 Add `CNNModel.predict_timeline(inputs) -> dict[str, Timeline]` in `src/ride_classifier/models/cnn.py` returning per-window probabilities with `end_s` (data-model.md `Window.window_index`, `Window.end_s`) and cumulative values; test in `tests/unit/models/test_cnn.py` that the last cumulative equals `predict_proba` within 1e-6 (data-model.md Timeline invariant) (#14)
 
-### Danger detector (R1, #14) — reframed 21/11 after the course `data.txt`
+### Two models (ADR 001, final 21/11 evening)
 
-- [x] T055 Write `src/ride_classifier/pipeline/falls.py`: seeded split of fall groups into development (70 %) and held-out (30 %) (data-model.md `Ride.fall_group_id`: a group never split), saved to `data/processed/fall_groups.csv` (committed, like `splits.csv`); `pre_fall_segment(ride, window_s, length_s, margin_s)` ending `margin_s` before the first topple (impact excluded), and the matching elapsed time on comparison rides; tests in `tests/unit/pipeline/test_falls.py` (#29)
-- [x] T056 Write `src/ride_classifier/models/autoencoder.py`: `RideAutoencoder` (encoder = E3's 3 conv blocks, decoder = mirror with upsampling, input windows standardised per channel on train windows) and `DangerModel` following the model contract (`prepare` / `fit(inputs, labels=None)` / `predict_proba` / `predict_timeline`): `fit` trains the autoencoder on all given windows WITHOUT labels, then the 5-class head (logistic regression on the mean embedding per ride, class weights as E3) on the labelled rides only; danger score per window = reconstruction error z-scored on train windows; timeline carries both the danger score and the category probabilities (extend `models/timeline.Timeline` with an optional `danger` array); tests in `tests/unit/models/test_autoencoder.py` (shapes, no label used by the encoder, last cumulative danger = whole-ride danger) (#14)
-- [ ] T057 (partly done: stage `prepare_srv` writes the clean SRV3490 table) Training data for the encoder in `pipeline/prepare.py` or a new stage: GBG500 rides + SRV3490 rides harmonised with `data.srv3490.harmonise_rotation`, cleaned like GBG500, minus held-out fall groups; params `train.model: danger`, `train.danger.*` in `params.yaml`; RAM check (17 M readings: build windows per ride, float32) (#14, #22)
-- [ ] T058 Smoke-train `DangerModel` at 30 s on a subset, log to MLflow, check the danger score distribution of Safe train rides and the time per epoch; report before the full study (#14)
+Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall risk) = 10 s sliding windows.
 
-### A1b - Window-length study (#11), runs on the danger detector
+- [x] T055 `pipeline/falls.py`: fall-group split 70/30 by city, pre-fall windows, DVC stage `falls` (#29)
+- [x] T056 `models/autoencoder.py`: label-free window encoder (built 21/11 for the superseded "danger score"; kept as a candidate feature extractor for model 2) (#29)
+- [x] T057a Stage `prepare_srv`: SRV3490 converted and cleaned table (#22)
+- [ ] T060 Model 2 data: 10 s windows (stride 5 s) of SRV3490 rides; positive = windows of a fall ride ending in the 60 s before the 5 s anti-leakage gap; negative = windows ending at the same moments of its comparison rides; development groups only for training (ADR 004; data-model.md "Fall group") (#29)
+- [ ] T061 `models/fall_risk.py`: simplest model 2 following the model contract (e.g. logistic regression on autoencoder embeddings, or a small CNN on the 10 s window); DVC stage `train_fall_risk`, logged in MLflow, registered as `fall-risk` after its gate (better than chance on development groups) (#29)
+- [ ] T062 Model 2 evaluation on held-out groups with the 5 s gap and the 10 s sanity check; F49 in `notebooks/07_fall_risk.ipynb` (#29)
+- [ ] T063 API serves both models from one image (ADR 010): `fall_risk` block on `/v1/predict` (retrospective), `fall_risk` / `fall_alert` on `/v1/predict/window`, degraded mode without model 2; replace the danger fields added on 21/11 (#15)
 
-- [x] T012 Pre-registration `docs/experiments/window_study.md` (revised 21/11 before any run for the danger detector) (#11)
-- [x] T013 Time steps after pooling: 6 at 5 s, no adaptation (#11)
-- [x] T014 Rewrite `src/ride_classifier/experiments/window_study.py` for the R15 rule: per candidate train `DangerModel` (T056) on the development data, compute (a) paired AUC pre-fall vs comparison on development fall groups with bootstrap CI, (b) ROC-AUC Reckless vs counterfactuals on GBG500 train rides, (c) false-alarm rate per counterfactual category at the train threshold, (d)-(f) as pre-registered; golden and held-out groups never read; one CSV row per candidate (#11)
-- [x] T015 Rewrite `choose_window` and its tests in `tests/unit/experiments/test_window_study.py` for the new rule ((a) within the best's CI, then max (b), tie -> shorter) (#11)
-- [ ] T016 Run the study on the laptop with MLflow on, `artifacts/window_study.csv` (#11) — IN PROGRESS: 30 s done (MLflow run 35c834ee), 60/15/10 s launched 21/11, 5 s after (may need Vertex if RAM is short); resume with the same command, finished candidates are skipped
-- [ ] T017 F47 in `notebooks/03_live_classifier.ipynb` with `save_fig` (#11)
-- [ ] T018 Apply the decision: `params.yaml` window, results in `docs/experiments/window_study.md` and `docs/PLAN.md` §6.5, R15 marked decided (#11)
+### Window lengths (#11) — closed
+
+- [x] T012-T016 Window comparison 5-60 s run and tracked in MLflow (`E4-window-*`, `artifacts/window_study.csv`); `docs/experiments/window_study.md` closed with its results (#11)
+- [x] T018 Decision: 30 s for model 1, 10 s for model 2 (ADR 002) (#11)
+- [ ] T017 F47 (AUC per window length) in `notebooks/03_live_classifier.ipynb`, with F48 (cumulative vs sliding-window scan diagram) (#11)
 
 ### SRV3490 (#12)
 
@@ -79,7 +80,7 @@ US1 = MLOps jury, US2 = AI infra jury, US3 = live replay (bonus), US4 = fall war
 **Independent test**: quickstart Q1-Q6 on the production cluster, timed, every demo with a fallback.
 
 - [ ] T028 [P] [US1] Data overview notebook `notebooks/01_data_overview.ipynb`: F01-F03 (#13)
-- [ ] T029 [US1] `pipeline/evaluate.py` per research R16: danger score on all labelled rides (Reckless k / 6, false alarms per counterfactual category, ROC-AUC with bootstrap CIs, threshold from train rides), pre-fall vs comparison on held-out fall groups, 5-class head on golden, each vs E3 and random, and vs elapsed time; gate = better than random on Reckless detection and on the 5 categories; F06-F11, F48 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb`, F49 in `07_falls_analysis.ipynb` (#14, #29)
+- [ ] T029 [US1] `pipeline/evaluate.py`: model 1 macro-F1 vs elapsed time and explicit Reckless / counterfactual results on golden rides, gate unchanged; F06-F11 in `notebooks/03_live_classifier.ipynb` and `04_evaluation.ipynb` (#14)
 - [x] T030 [US1] API per contracts/api.md: timeline in `/v1/predict`, stateless `/v1/predict/window` (data-model.md `Live window state.sum_proba`, `Live window state.n_windows`; narrowing: `n_windows` must equal `window_index`), `/v1/feedback`, `/health.drift_reference_loaded`; tests in `tests/unit/api/`; F19 screenshots (#15)
 - [ ] T031 [US1] `features/window_stats.py` + DVC stage `reference` → `artifacts/drift_reference.json` (data-model.md "Drift reference"); `drift/psi.py` with tests (#17)
 - [ ] T032 [US1] Layers 2-4 metrics in `api/metrics.py` per contracts/metrics-and-alerts.md; Prometheus + Grafana in `docker-compose.yml`, `monitoring/prometheus/{prometheus.yml,alerts.yml}`, provisioned dashboard `monitoring/grafana/dashboards/ride-api.json`; `docs/runbooks.md` (#16)
@@ -136,7 +137,7 @@ US1 = MLOps jury, US2 = AI infra jury, US3 = live replay (bonus), US4 = fall war
 
 ## Dependencies
 
-- Phase 1 → Phase 2. Inside Phase 2: T005-T008 (charter) before any figure task; T055-T058 (danger detector) before T014; T012 committed **before** T016 runs; T018 fixes the window length used by T029, T030, T031, T046; T019-T021 gate T038 and the SRV3490 scenarios of T034; T022-T024 before T041-T045.
+- Phase 1 → Phase 2. Inside Phase 2: T005-T008 (charter) before any figure task; T060-T062 (model 2) before T063; T012 committed **before** T016 runs; T018 fixes the window length used by T029, T030, T031, T046; T019-T021 gate T038 and the SRV3490 scenarios of T034; T022-T024 before T041-T045.
 - US1 and US2 run in parallel after Phase 2; T046 needs T030 and T037.
 - US3, US4, T054 only after checkpoints A and B.
 

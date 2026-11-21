@@ -11,15 +11,14 @@ time** (compose or kind), Docker closed otherwise.
 
 ## Q1 - Live classifier and evaluation (Phase A2)
 
-`make pipeline` → the evaluation records of data-model.md: Reckless k / 6 and false alarms per counterfactual
-category (all labelled rides), pre-fall vs comparison (held-out fall groups), 5-class macro-F1 on golden, each vs
-E3 and random, and vs elapsed time; gate result. `uv run pytest tests/unit/models` passes the invariants "last
-cumulative = whole-ride prediction" and "no answer before the first window ends".
-Expected: gate passes, or the failure is reported and E3 stays in production; F07, F08, F11, F48, F49 saved.
+`make pipeline` → the evaluation records of data-model.md: model 1 on golden rides (gate, vs elapsed time) and
+model 2 on held-out fall groups (5 s gap, 10 s check). `uv run pytest tests/unit/models` passes the invariants
+"last cumulative = whole-ride prediction" and "no answer before the first window ends".
+Expected: both gates reported; F07, F08, F11, F48, F49 saved.
 
 ## Q2 - API timeline and streaming (A3)
 
-`make api`, open `/docs`: `POST /v1/predict` with an example ride returns `danger_score`, `is_dangerous` and `timeline` (contracts/api.md);
+`make api`, open `/docs`: `POST /v1/predict` with an example ride returns model 1's `timeline` and model 2's `fall_risk` marked retrospective (contracts/api.md);
 `POST /v1/predict/window` twice, feeding the returned `state`, gives `n_windows = 2`; `POST /v1/feedback` returns
 204. Expected: `/metrics` shows `input_window_feature_bucket`, `prediction_confidence`, `feedback_total`.
 

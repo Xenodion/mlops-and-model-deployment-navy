@@ -8,12 +8,9 @@ monitoring, drift job, simulator, runbooks) and `05-kubernetes` (Locust, capacit
 
 ## Summary
 
-Build a **live danger detector** (reframed 21/11 after the course `data.txt`, see PROJECT_FRAMING §3): a
-convolutional autoencoder learned **without labels** on the windows of all ~4,000 rides gives a per-window danger
-score, cumulated as the ride goes; a small head on the encoder gives the 5 categories the brief asks for; E3 (the
-supervised CNN) stays as reference and fallback. Labels evaluate: Reckless k / 6 and false alarms per
-counterfactual category on all 500 labelled rides, the 5-class head on golden, and the score before falls vs
-comparison rides on SRV3490. Around it,
+Serve **two distinct models** in one live service (ADR 001, ADR 010): model 1 = E3 read cumulatively, the ride's
+category so far (the brief's 5-class task, gate on golden rides); model 2 = a fall risk on 10 s sliding windows,
+trained on SRV3490 falls with a 5 s anti-leakage gap and evaluated on held-out fall groups. Around them,
 build what both juries must see: a stateless window-by-window API, four-layer monitoring with Prometheus and
 Grafana, a drift monitor and a drift job fed by real resampled rides (unseen city, real unit bug, riskier mix),
 GitHub Actions workflows for training, deployment with human approval and drift flags, a live load test (one
@@ -60,11 +57,8 @@ memory: one heavy service set at a time (compose **or** kind, not both).
 **Scale/Scope**: GBG500 500 rides / 1.5 M readings; SRV3490 3,490 rides / 16.9 M readings; model 45 k parameters,
 2.5 MB; 46 catalogue figures (40 core); 5 people, deadline 25/11/2026 20:00.
 
-One choice is deliberately **open**: the window length (R15). 30 s / 15 s is E3's untested choice, not the data's
-granularity (10 Hz); every number derived from it (300-reading minimum, window payload, update every 15 s, load
-rate) is provisional until the study A1b decides. The model itself was reframed on 21/11 (R1, R16). Other open points are resolved in [research.md](research.md)
-(R1-R14). The one external
-blocker is getting SRV3490 (R3): everything that needs it has a GBG500-only fallback.
+Window lengths are decided (ADR 002: 30 s for model 1, 10 s for model 2) and the model split is final (ADR 001,
+ADR 010). Other decisions are in [research.md](research.md).
 
 ## Constitution Check
 
@@ -75,7 +69,7 @@ blocker is getting SRV3490 (R3): everything that needs it has a GBG500-only fall
 | I. Teachers' requirements | Every MLOps objective and format item and every AI infra step 1-5 maps to a phase item below and to the README compliance table (SC-012). All taught tools used: DVC, MLflow, SeaweedFS, FastAPI, Docker Hub, kind, GitHub Actions + self-hosted runner, Prometheus + Grafana, Locust, PSI/KS/chi², PyTorch profiler, ONNX Runtime, DDP, Vertex AI. Stated gaps: image input, GCP instead of AWS, feature store (FR-008) | pass |
 | II. Presentation first | Each work item names its figure IDs (F01-F46); theme module + `save_fig` in Phase A0, before any figure; bonus isolated in Phase D | pass |
 | III. Measure, do not claim | One `bench.py`, raw CSVs with environment columns, `status` column = measured/estimated (contract `benchmark-results.md`) | pass |
-| IV. Honest ML | danger score never trained on labels, 5-class head named supervised, E3 as reference; golden untouched (thresholds calibrated on training rides); fall groups never split; per-window scores labelled "hint" in API and UI | pass |
+| IV. Honest ML | model 1 = E3 supervised and named so; model 2 trained on falls with an anti-leakage gap, held-out groups; golden untouched (thresholds calibrated on training rides); fall groups never split; per-window scores labelled "hint" in API and UI | pass |
 | V. Reuse | Model contract kept (`predict_timeline` added next to `predict_proba`, research R1); same pipeline, registry, images, kind manifests; E3 stays the production fallback | pass |
 | VI. Real data only | Scenarios = resampled real rides; replication x2-x8 labelled; unit factor verified before conversion (R2) | pass |
 | VII. Cost and data safety | SPOT Vertex jobs only, teardown checklist and credit log per session (SC-009); data stays in private stores | pass |
@@ -115,8 +109,9 @@ src/ride_classifier/
 ├── data/srv3490.py          # NEW load + unit harmonisation + fall groups (R2, R3)
 ├── pipeline/prepare.py      # + SRV3490 stage outputs; + drift reference (window feature deciles)
 ├── pipeline/evaluate.py     # + macro-F1 vs elapsed time (golden), saved as metrics + CSV
-├── models/autoencoder.py     # NEW: label-free encoder, danger score, 5-class head (R1)
-├── pipeline/falls.py        # NEW: fall-group split, pre-fall segments, pre-fall vs comparison metrics (R16, F49)
+├── models/autoencoder.py     # label-free window encoder (21/11), candidate feature extractor for model 2
+├── models/fall_risk.py      # NEW: model 2 on 10 s windows (R1)
+├── pipeline/falls.py        # fall-group split, pre-fall windows with the anti-leakage gap (R16)
 ├── features/window_stats.py # NEW: per-window monitored features (shared by API, drift job, reference)
 ├── api/main.py, schemas.py  # + /v1/predict timeline, /v1/predict/window, /v1/feedback (contracts/api.md)
 ├── api/metrics.py           # + layer 2 (input deciles) and layer 4 (feedback) metrics
@@ -160,9 +155,10 @@ Each item lists: what it delivers → figures/demos → requirement. Owners are 
 |---|---|---|---|
 | A0 | Visual charter: `viz/palette.py`, `viz/theme.py`, `save_fig`, notebook `00_visual_charter` (Mako vs alternatives, Heat), freeze the palette | F36 | FR-003 |
 | A1 | Data overview notebook on GBG500 (SRV3490 parts added when available) | F01-F03 | FR-002 |
-| A2 | Danger detector (R1) at the provisional 30 s window: autoencoder + danger score + 5-class head in the model contract, `predict_timeline` (done: `timeline.py`), fall-group split (R16) | F06, F07 | FR-010 |
-| A1b | **Window-length study (R15)** on the A2 model: 5/10/15/30/60 s, rule pre-registered, golden and held-out fall groups untouched; decision in `docs/PLAN.md` §6.5 | F47 | FR-010 |
-| A2b | Evaluation (R16): danger score on all labelled rides (k / 6, false alarms per counterfactual), pre-fall vs comparison on held-out fall groups, 5-class head on golden, vs E3 and random, vs elapsed time; gate on both | F08-F11, F48, F49 | FR-011, FR-011b, SC-003 |
+| A2 | Model 1: E3 cumulative timeline (done), `evaluate` adds macro-F1 vs elapsed time and explicit Reckless / counterfactual results | F06-F11, F48 | FR-010, FR-011, SC-003 |
+| A1b | Window lengths: closed (ADR 002: 30 s model 1, 10 s model 2) | F47 | FR-010, FR-011b |
+| A2b | Model 2: 10 s windows with 5 s gap (R1, R16), training stage, registration as `fall-risk`, held-out evaluation with the 10 s check | F49 | FR-011b |
+| A3b | API serves both models from one image (ADR 010) | F19 | FR-013 |
 | A3 | API: timeline in `/v1/predict`, stateless `/v1/predict/window`, `/v1/feedback`; schemas and Swagger examples; unit tests | F19 | FR-013, FR-019 |
 | A4 | Monitoring stack in compose: Prometheus + Grafana provisioned, four-layer dashboard, 5 alerts (contracts/metrics-and-alerts.md), runbooks | F20, F41, F42 | FR-015 |
 | A5 | Drift: `window_stats`, drift reference stage, `drift/psi.py`, offline `drift/job.py` (report + exit 3), live `drift/monitor.py` exporter | F45 | FR-018 |

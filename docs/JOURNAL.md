@@ -4,25 +4,51 @@ What was done, why, and where the evidence is, newest first. Decisions are detai
 [decisions/](decisions/README.md); this log is the story behind them, written to be reread when preparing the
 presentations. One entry per working session; mistakes found and corrected are logged too.
 
-## Where we are (resume here) - updated 21/11 evening
+## Where we are (resume here) - updated 21/11 night
 
 This block is rewritten at each stop; the dated entries below are the history.
 
-- **Model:** label-free danger detector + 5-class head (ADR 001), code and tests done. Window length not chosen
-  yet (ADR 002).
-- **Running / to resume:** window study, `uv run python -m ride_classifier.experiments.window_study --candidates
-  60,15,10` then `--candidates 5`. Needs `make dev-up` (MLflow) first and a clean git tree. Finished candidates are
-  in `artifacts/window_study.csv` and MLflow (experiment `ride-classifier`, runs `E4-window-*`) and are skipped on
-  rerun. Done: 30 s. If 5 s does not fit in the laptop's RAM, run it on Vertex AI (research R9-R11).
-- **Next, in order:** (1) finish the study, fill its Results, F47, decide the window (T016-T018); (2) final
-  training at that window, `evaluate` stage per R16 and gate, register (T029, T057, T058); (3) fall analysis on
-  held-out groups, F49 (#29); (4) monitoring, drift job, scenarios, workflows (#16-#21, CI unit-bug test T059);
-  (5) AI-infrastructure measurements on the fixed model: sizing, Vertex CPU / 1 GPU / 2 GPUs with MLflow logged in
-  the job and imported (#3-#8); (6) team sharing of MLflow runs and DVC data (#30).
-- **To-do list:** `specs/001-final-deliverable/tasks.md` (checkboxes) and GitHub issues (labels P0-P3, milestones
-  23/11, 24/11, 25/11 20:00).
-- **Rules:** MLflow always on; no data, weights or secrets in the repo; English in everything committed; work on
-  `dev_vincent`, PR to `main`.
+- **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
+  cumulatively (done, registered). Model 2 = fall risk on 10 s sliding windows, trained on SRV3490 falls with a 5 s
+  anti-leakage gap (10 s check), evaluated on held-out fall groups (ADR 002, ADR 004): to build.
+- **Nothing is running.** The window study is closed (results in `docs/experiments/window_study.md`).
+- **Next, in order:** (1) shared MLflow + DVC on GCP (#30: bucket `gs://albert-navy-ride-mlops` and service account
+  `ride-mlflow` already created; remaining: MLflow image with the GCS driver, Cloud Run service, DVC remote, access
+  for the 4 team members, migration of the local runs, ADR 011); (2) model 2 (T060-T062) and the API serving both
+  (T063, replaces the danger fields added on 21/11); (3) model 1 evaluation additions (T029); (4) monitoring, drift
+  job, scenarios, workflows (#16-#21, CI unit-bug test T059); (5) AI-infrastructure measurements on the fixed
+  models (#3-#8); (6) README, compliance table, submission (#24).
+- **PR #9** (dev_vincent -> main) is a draft: mark it ready and ask @Xenodion for review once (1) is done.
+- **To-do list:** `specs/001-final-deliverable/tasks.md` and GitHub issues (P0-P3, milestones 23/11, 24/11, 25/11).
+- **Rules:** MLflow always on (`make dev-up`, scripts stop without it); no data, weights or secrets in the repo;
+  English in everything committed; work on `dev_vincent`, PR to `main`.
+
+## 21/11/2026 (evening)
+
+**Debrief: two use cases had been mixed** (ADR 001). Rereading the results with Vincent showed that the "danger
+score" design answered two different questions with one score: the ride's type (a whole-ride label, so
+cumulative) and the risk of a fall (a property of a moment, so a short sliding window). The window had been tuned
+on the fall metric to be applied to the ride type, and the study grew into a grid search out of scope for a course
+graded on the system. Final design: model 1 = E3 cumulative (ride type, the brief's task); model 2 = fall risk on
+10 s windows, may use model 1 as a feature; one service serves both. PR #9 put back to draft until the docs and the
+shared infrastructure are clean.
+
+**Window study closed** (ADR 002). Results of the 5 candidates, all tracked in MLflow: shorter windows separate
+pre-fall riding from comparison riding better (AUC 0.72 at 60 s to 0.88 at 10 s and 0.96 at 5 s), while the
+Reckless-vs-counterfactual separation stays flat (0.82-0.84). The 5 s value is suspected to include the start of the
+fall, hence 10 s for model 2 with a 5 s anti-leakage gap and a 10 s sanity check (ADR 004). Model 1 keeps E3's 30 s.
+
+**Vocabulary fixed:** "false alarms" measured on GBG500 were alarms on rides labelled non-reckless, not alarms
+without a fall (GBG500 has no fall information). Model 2's alarms are measured on SRV3490, where an alarm before a
+fall is a good alarm and an alarm on a comparison ride is a false one.
+
+**Shared infrastructure started** (#30): private bucket `gs://albert-navy-ride-mlops` (europe-west1, project
+`agentics-workflows-2`) and service account `ride-mlflow` (project `advanced-cloud-ai-i2`) with write access to it.
+Cloud SQL is disabled in the course project, so the shared MLflow server will use SQLite on the bucket, a stated
+limit. Access will be granted to the four team members' school accounts (not committed).
+
+**Learned:** the "S3" of the brief is the storage protocol, served locally by SeaweedFS (as MinIO in the labs); no
+AWS account is used. GCP is our cloud (ADR 006); the local S3-compatible storage stays for the dev stack.
 
 ## 21/11/2026 (afternoon)
 

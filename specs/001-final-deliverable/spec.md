@@ -9,8 +9,8 @@
 **Input**: User description: "The final deliverable of the project, planned top-down from the two oral
 presentations: the story each presentation tells, the catalogue of figures and demos, the features that produce
 them (core or bonus), and a visual charter." Decisions it builds on: `docs/PROJECT_FRAMING.md`; rules:
-`.specify/memory/constitution.md` v1.3.0. Reframed on 21/11 after the course `data.txt` (labels for evaluation
-only, Reckless = the class to detect, the 3 other categories = counterfactuals not to flag): see PROJECT_FRAMING §3.
+`.specify/memory/constitution.md` v1.4.0. Final framing (21/11 evening): two distinct models, ride type
+(cumulative) and fall risk (10 s sliding window), served together: see PROJECT_FRAMING §3 and ADR 001.
 
 ## Overview
 
@@ -23,9 +23,9 @@ The project is judged twice, on one shared system:
 | Graded on | code quality, CI/CD automation, MLflow tracking and management, API usability (Swagger), consistency of the overall architecture, GitHub collaboration; model better than random | resource sizing, baseline benchmark, one optimization, distributed-training decision, scaling / cost / resilience; every choice justified by measurements |
 
 **Shared base (the one sentence both stories start from):** e-scooter rides stream their motion-sensor data to
-our deployed model, which raises, live, a danger score when the riding becomes reckless (without alarming on two
-riders, bad weather or a few rough moments) and tells what kind of ride it is (Safe, Safe overall, Bad weather,
-Tandem, Reckless).
+our deployed service, which tells, live, what kind of ride it is so far (Safe, Safe overall, Bad weather, Tandem,
+Reckless; at the end, the ride's category) and raises a fall-risk alert when the last seconds of riding look like
+those that precede a fall.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -53,9 +53,9 @@ from a clean start and every screenshot exists in the assets folder.
    and cumulative), and the jury sees the request on the monitoring dashboard within a minute.
 2. **Given** a code change is pushed, **When** the pipeline runs, **Then** the jury can follow on GitHub the
    tests, the image build and push, the approval step and the deployment, and see the new version answering.
-3. **Given** the experiment tracker is open, **When** the presenter compares the danger detector and its 5-class
-   head with the supervised reference (E3) and the random baseline, **Then** Reckless detection (k / 6), false
-   alarms per counterfactual category, the 5-class score on golden rides and the gate result are visible for each.
+3. **Given** the experiment tracker is open, **When** the presenter shows the two registered models, **Then** model
+   1 (ride type) shows its golden macro-F1 vs random and the gate result, and model 2 (fall risk) its held-out
+   pre-fall vs comparison score with the 5 s and 10 s gaps.
 4. **Given** a drift scenario is replayed (new city, changed sensor, riskier mix), **When** the dashboard is
    shown, **Then** the drift indicator moves past its alert threshold for that scenario and stays calm for
    normal traffic.
@@ -181,23 +181,20 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
 
 **Core system (MLOps)**
 
-- **FR-010**: The model MUST read a ride window by window (window length decided by a pre-registered study) and
-  give, at every window, a danger score cumulated over the ride so far and the ride's category so far; at the end
-  of the ride, the whole-ride values. The danger score comes from an encoder learned **without labels** on the
-  windows of all rides of both datasets; the category comes from a small head trained on the GBG500 train labels.
-- **FR-011**: The danger score MUST be evaluated on all 500 labelled rides (never trained on them): Reckless rides
-  detected (k / 6) and false-alarm rate per counterfactual category (Safe overall, Bad weather, Tandem), with the
-  alert threshold chosen on train rides only and uncertainty shown. The 5-class head MUST be evaluated on the
-  frozen golden rides. Gate: better than random on Reckless detection and on the 5 categories. Both are also
-  reported as a function of elapsed ride time.
-- **FR-011b**: The danger score MUST be measured on SRV3490 in the 30-60 s before each fall (impact excluded, with
-  a margin) against the same moment of the 4 comparison rides of the same city, answering "before a fall, is the
-  rider in a dangerous state?" with a measured share, whatever the result.
+- **FR-010**: Model 1 (ride type) MUST read a ride window by window (30 s, ADR 002) and give, at every window, the
+  ride's category so far, cumulated since the start of the ride; at the end, the whole-ride category. It is E3.
+- **FR-011**: Model 1 MUST be evaluated on the frozen golden rides (quality gate: better than random and above the
+  floor), with Reckless and the counterfactual categories reported explicitly, and on macro-F1 as a function of
+  elapsed ride time.
+- **FR-011b**: Model 2 (fall risk) MUST score short sliding windows (10 s, ADR 002), not cumulated, trained on
+  SRV3490 pre-fall windows vs the same moments of comparison rides, never seeing the last 5 s before a fall
+  (anti-leakage gap, 10 s as sanity check, ADR 004), and MUST be evaluated on held-out fall groups.
 - **FR-012**: The second dataset (3,490 rides) MUST enter the versioned pipeline with its rotation units
-  harmonised with the first after the conversion factor is verified on the data; it is training data for the
-  encoder (no labels needed) and the evaluation set of FR-011b.
-- **FR-013**: The API MUST return, for a ride, its danger score, category, confidence and timeline (per-window and
-  cumulative), and accept a ride streamed window by window.
+  harmonised with the first after the conversion factor is verified on the data; it is the training and
+  evaluation data of model 2.
+- **FR-013**: One API image MUST serve both models (ADR 010): for a ride, model 1's category, confidence and
+  timeline, and model 2's fall risk per window (marked retrospective on a recorded ride); for a live window, model
+  1's cumulative category and model 2's current fall risk.
 - **FR-014**: Training MUST run through the pipeline, register a version only when the gate passes, and deploy
   through CI/CD (build, test, push to the image registry, manual approval, rollout, automatic rollback on a
   failed smoke test) on the local cluster, with a self-hosted runner.
@@ -223,7 +220,7 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
   and the CI/CD flags MUST still exist, and the presentation MUST state the recommended policy and what is
   missing.
 - **FR-017**: The reference supervised model (E3) MUST stay registered and serve as production fallback until the
-  danger detector passes the gate; "learned without labels vs supervised" is reported as a result.
+  stays model 1; model 2 is registered separately under its own name and gate.
 
 **Core measurements (AI infrastructure)**
 
@@ -250,9 +247,7 @@ forecast, gives a score and an alert trade-off that are reported as measured, ev
 - **FR-031** (bonus): Fall forecast (probability of a fall in the next X seconds, X chosen by measurement among
   5 / 10 / 30 s, with a minimum warning time of 1-2 s, a fall and its comparison rides always on the same side of
   the split, held-out evaluation).
-- **FR-032** (experiment, only if FR-011b shows a signal): falls as weak supervision: pre-fall segments as extra
-  "danger" examples and comparison rides as negatives, fall groups never split, held-out groups, checked that the
-  model does not learn "other city"; reported as with vs without falls on the same evaluation rides.
+- **FR-032** (bonus): a richer model 2 (model 1's output as a feature, lags, longer context).
 - **FR-033** (bonus): Fully automatic retraining on a drift alert, end to end without a manual start (the core
   loop of FR-034 may start the workflow by hand from the alert).
 
@@ -282,9 +277,9 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F08 | Macro-F1 vs elapsed ride time (cumulative classifier vs reference vs random) | MLOps | core | `03_live_classifier` |
 | F09 | Golden confusion matrix of the whole-ride label | MLOps | core | `04_evaluation` |
 | F10 | Gate: golden macro-F1 of candidates vs floor, majority and random references | MLOps | core | `04_evaluation` |
-| F11 | Reckless rides detected k / 6 and false-alarm rate per counterfactual category, danger score vs E3 vs random | both | core | `04_evaluation` |
-| F12 | Predicted category mix and danger-alert rate on SRV3490 by city vs GBG500 | MLOps | core | `05_srv3490_by_city` |
-| F13 | Danger score and category confidence on GBG500 vs SRV3490 | MLOps | core | `05_srv3490_by_city` |
+| F11 | Model 1 on golden rides: Reckless and counterfactual categories, vs majority and random | MLOps | core | `04_evaluation` |
+| F12 | Model 1 category mix and model 2 alert rate on SRV3490 by city vs GBG500 | MLOps | core | `05_srv3490_by_city` |
+| F13 | Model 1 confidence on GBG500 vs SRV3490 | MLOps | core | `05_srv3490_by_city` |
 | F14 | Current system architecture diagram | both | core | `ai-infrastructure/architecture` |
 | F15 | Proposed (target) architecture diagram | infra | core | `ai-infrastructure/architecture` |
 | F16 | Pipeline graph (prepare, train, evaluate) | MLOps | core | pipeline tool output |
@@ -310,7 +305,7 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F36 | Palette test (categories, heatmap, risk scales) | none (charter) | core | `00_visual_charter` |
 | F37 | Live replay of a ride (recording) | both | bonus | web app |
 | F38 | Fall forecast: probability before the fall vs comparison rides, alert trade-off | both | bonus | `09_fall_forecast` |
-| F39 | Falls as weak supervision: with vs without, same evaluation rides (only if F49 shows a signal) | MLOps | bonus | `08_falls_weak_supervision` |
+| F39 | Richer model 2 vs minimal model 2 (bonus) | MLOps | bonus | `08_fall_risk_features` |
 | F40 | Drift alert triggering retraining end to end (screenshot of the run) | MLOps | bonus | screenshots |
 | F41 | Four-layer monitoring dashboard: baseline and each incident (screenshots) | MLOps | core | screenshots |
 | F42 | Alerts going inactive → pending → firing during an incident (screenshot) | MLOps | core | screenshots |
@@ -318,9 +313,9 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 | F44 | Outcome layer: performance on labels received later, before and after a drift scenario | MLOps | core | `06_drift_scenarios` |
 | F45 | Drift report (per-feature PSI and test) for each scenario | MLOps | core | drift job output |
 | F46 | Where to retrain: options vs measured training cost (local, CI runner, inference machine, Vertex AI) | both | core | `ai-infrastructure/distributed-training` |
-| F48 | Danger score distribution: Safe vs each counterfactual category vs Reckless (all labelled rides) | both | core | `04_evaluation` |
-| F49 | Danger score before a fall vs the same moment of comparison rides (SRV3490), share of falls preceded by danger | both | core | `07_falls_analysis` |
-| F47 | Window-length study: Reckless detection and counterfactual false alarms (train rides, CV) per window length (5-60 s), with the decision rule | both | core | `03_live_classifier` |
+| F48 | Cumulative (model 1) vs sliding-window (model 2) scan of one ride: the pedagogical diagram | both | core | `03_live_classifier` |
+| F49 | Model 2 fall risk before a fall vs the same moment of comparison rides, 5 s and 10 s gaps (held-out groups) | both | core | `07_fall_risk` |
+| F47 | Window comparison behind ADR 002: pre-fall vs comparison AUC per window length (5-60 s) | both | core | `03_live_classifier` |
 
 ### Visual Charter
 
@@ -342,10 +337,10 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
 - **Window**: a 30 s slice of a ride; carries a per-window score (a hint, never a validated label).
 - **Timeline**: for one ride, the sequence of per-window scores and cumulative probabilities; its last cumulative
   value is the ride's predicted category.
-- **Golden ride**: one of the 100 frozen GBG500 rides used only for final evaluation of the 5-class head (it holds
-  1 Reckless ride: Reckless detection is therefore measured on all labelled rides with the label-free score).
-- **Danger score**: per-window value from the label-free encoder, cumulated over the ride; alert above a threshold
-  chosen on train rides.
+- **Golden ride**: one of the 100 frozen GBG500 rides used only for the final evaluation of model 1 (it holds 1
+  Reckless ride, stated wherever Reckless results are shown).
+- **Fall risk**: model 2's value for one 10 s window, not cumulated; an alert when it passes a threshold chosen on
+  development fall groups.
 - **Fall group**: a SRV3490 ride with a fall and its 4 comparison rides from the same city; never split.
 - **Measurement**: one benchmark result with its conditions (hardware, batch size, concurrency, repetitions,
   warm-up, versions) and its status (measured or estimated).
@@ -361,9 +356,8 @@ Exhaustive on purpose; the decks pick from it. Notebook names are proposals for 
   criterion of each brief is covered by at least one slide, demo or figure.
 - **SC-002**: 100 % of core catalogue items (F01-F36, F41-F49) exist in the assets folder before 25/11 20:00, with a
   fallback for each demo.
-- **SC-003**: The deployed model beats random guessing on Reckless detection (all labelled rides) and on the 5
-  categories (golden rides) and passes the gate; false alarms per counterfactual category, the pre-fall
-  comparison and the scores vs elapsed time (at least 6 time points) are reported with their uncertainty.
+- **SC-003**: Model 1 beats random on the golden rides and passes the gate, with macro-F1 vs elapsed time for at
+  least 6 time points; model 2's held-out pre-fall score is reported with the 5 s gap and the 10 s check.
 - **SC-004**: A ride sent to the deployed service gets its category and timeline in under 1 second for a whole
   ride, and each live window is answered in under 200 ms at p95 up to the measured capacity.
 - **SC-005**: The capacity of one CPU instance in live rides is measured, and the proposed architecture's instance
