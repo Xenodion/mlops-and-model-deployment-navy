@@ -67,38 +67,15 @@ def main() -> None:
     reference_path = ROOT / "artifacts/drift_reference.json"
     reference_bytes = reference_path.read_bytes()
     reference = json.loads(reference_bytes)
-    training = pd.read_parquet(ROOT / params["data"]["train_path"])
     cnn = params["train"]["cnn"]
-    rides = training_features(training, cnn["window_s"], cnn["stride_s"])
-    seeds = list(range(args.first_seed, args.first_seed + args.samples))
-    result = pd.concat([sample_psi(rides, reference, count, seeds) for count in args.rides], ignore_index=True)
-    args.out.mkdir(parents=True, exist_ok=True)
-    raw_path = args.out / "normal_psi_samples.csv"
-    result.to_csv(raw_path, index=False)
-    summary = {
-        "samples": args.samples,
-        "first_seed": args.first_seed,
-        "ride_counts": args.rides,
-        "reference_sha256": hashlib.sha256(reference_bytes).hexdigest(),
-        "by_ride_count": {},
-    }
-    for count, group in result.groupby("n_rides", sort=True):
-        summary["by_ride_count"][str(count)] = {
-            "max_psi_p95": float(group["max_psi"].quantile(0.95)),
-            "max_psi_p99": float(group["max_psi"].quantile(0.99)),
-            "max_psi_max": float(group["max_psi"].max()),
-            "existing_alert_fraction": float((group["max_psi"] >= params["drift"]["psi_alert"]).mean()),
-            "existing_retrain_fraction": float((group["max_psi"] >= params["drift"]["psi_retrain"]).mean()),
-        }
-    summary_path = args.out / "summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    reference_sha256 = hashlib.sha256(reference_bytes).hexdigest()
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment("drift-calibration")
     with mlflow.start_run(run_name="normal-ride-resampling"):
         mlflow.set_tags(
             {
                 **run_tags({"gbg500_md5": ROOT / "data/raw/GBG500.parquet.dvc"}),
-                "reference_sha256": summary["reference_sha256"],
+                "reference_sha256": reference_sha256,
                 "population": "GBG500 training; shared with reference",
             }
         )
@@ -111,6 +88,30 @@ def main() -> None:
                 "stride_s": cnn["stride_s"],
             }
         )
+        training = pd.read_parquet(ROOT / params["data"]["train_path"])
+        rides = training_features(training, cnn["window_s"], cnn["stride_s"])
+        seeds = list(range(args.first_seed, args.first_seed + args.samples))
+        result = pd.concat([sample_psi(rides, reference, count, seeds) for count in args.rides], ignore_index=True)
+        args.out.mkdir(parents=True, exist_ok=True)
+        raw_path = args.out / "normal_psi_samples.csv"
+        result.to_csv(raw_path, index=False)
+        summary = {
+            "samples": args.samples,
+            "first_seed": args.first_seed,
+            "ride_counts": args.rides,
+            "reference_sha256": reference_sha256,
+            "by_ride_count": {},
+        }
+        for count, group in result.groupby("n_rides", sort=True):
+            summary["by_ride_count"][str(count)] = {
+                "max_psi_p95": float(group["max_psi"].quantile(0.95)),
+                "max_psi_p99": float(group["max_psi"].quantile(0.99)),
+                "max_psi_max": float(group["max_psi"].max()),
+                "existing_alert_fraction": float((group["max_psi"] >= params["drift"]["psi_alert"]).mean()),
+                "existing_retrain_fraction": float((group["max_psi"] >= params["drift"]["psi_retrain"]).mean()),
+            }
+        summary_path = args.out / "summary.json"
+        summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
         mlflow.log_metrics(
             {
                 f"rides_{count}_{key}": value
