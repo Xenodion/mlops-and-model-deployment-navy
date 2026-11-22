@@ -46,6 +46,7 @@ from ride_classifier.api.schemas import (
 )
 from ride_classifier.config import ID_COLUMN, LABELS, SAMPLING_HZ, SENSOR_COLUMNS, TIME_COLUMN
 from ride_classifier.data.clean import clean_rides
+from ride_classifier.features.window_stats import window_stats
 from ride_classifier.models.fall_risk import score_windows
 from ride_classifier.models.timeline import Timeline, window_end_times
 from ride_classifier.registry.export_model import META_FILE
@@ -140,6 +141,15 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             app.state.meta.get("version", os.getenv("MODEL_VERSION", "unregistered" if loaded else "none"))
         )
         app.state.threshold = float(os.getenv("RECKLESS_THRESHOLD", DEFAULT_THRESHOLD))
+        app.state.drift_reference_loaded = False
+        m.INPUT_FEATURES.clear()
+        reference_path = Path(os.getenv("DRIFT_REFERENCE_PATH", "artifacts/drift_reference.json"))
+        if reference_path.is_file():
+            try:
+                m.INPUT_FEATURES.configure(json.loads(reference_path.read_text(encoding="utf-8")))
+                app.state.drift_reference_loaded = True
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                logger.error(json.dumps({"event": "drift_reference_load_failed", "error": str(exc)}))
         if loaded:
             m.MODEL_INFO.labels(version=app.state.version).set(1)
         yield
@@ -203,7 +213,7 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             danger_threshold=state.model.unwrap_python_model().danger_threshold if loaded else None,
             fall_risk_loaded=state.fall_model is not None,
             fall_risk_threshold=state.fall_threshold,
-            drift_reference_loaded=False,  # ponytail: no drift reference stage yet, issue #17 loads it
+            drift_reference_loaded=state.drift_reference_loaded,
         )
         return body if loaded else JSONResponse(status_code=503, content=body.model_dump())
 
@@ -348,6 +358,10 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             request, body.readings.to_frame().tail(round(FALL_WINDOW_S * SAMPLING_HZ)).reset_index(drop=True)
         )
         fall_risk = fall.windows[-1].risk if fall and fall.windows else None
+        clean_window = clean_rides(body.readings.to_frame().assign(**{ID_COLUMN: body.ride_id}))
+        input_features = window_stats(clean_window)
+        if request.app.state.drift_reference_loaded:
+            m.INPUT_FEATURES.observe(input_features)
         if fall_risk is not None:
             m.FALL_RISK.labels(endpoint="/v1/predict/window").observe(fall_risk)
             if fall_risk >= request.app.state.fall_threshold:
@@ -360,6 +374,8 @@ def create_app(model_uri: str | None = None) -> FastAPI:
                 "ride_id": body.ride_id,
                 "window_index": body.window_index,
                 "label": label,
+                "predicted_label": label,
+                **input_features,
                 "inference_ms": round(inference_ms, 1),
             }
         )

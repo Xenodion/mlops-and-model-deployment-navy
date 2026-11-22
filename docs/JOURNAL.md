@@ -26,8 +26,12 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **Offline drift job (T033, in progress):** PSI, prediction-mix and delayed-label checks produce JSON/Markdown
   reports and exit 0 / 3 / 1. The job accepts feature rows or grouped sensor windows. A tiny integration test
   detects the skipped rotation conversion, while the same converted windows stay normal. KS, live monitor,
-  production log/scenario inputs and normal-scenario threshold calibration remain open; the prediction reference is
-  per ride, so current prediction sampling must be comparable.
+  scenario inputs and normal-scenario threshold calibration remain open; the prediction reference is per ride,
+  so current prediction sampling must be comparable.
+- **API input monitoring:** `/health` reports whether the drift reference loaded; the live window endpoint logs
+  the eight cleaned input features and exposes reference-bucket histograms. The offline job filters mixed API
+  logs to window predictions. The API and drift tests pass together (35 tests). Histograms restart with the API;
+  the Prometheus-backed live drift monitor is not yet implemented.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

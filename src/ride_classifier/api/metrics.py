@@ -4,7 +4,13 @@ Layers 1 (requests, latency), 3 (predictions) and 4 (feedback). Input distributi
 the drift reference (issue #17).
 """
 
-from prometheus_client import Counter, Gauge, Histogram
+import math
+from threading import Lock
+
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram
+from prometheus_client.core import HistogramMetricFamily
+
+from ride_classifier.features.window_stats import FEATURES
 
 # Layer 1: the service
 REQUESTS = Counter("api_requests_total", "HTTP requests", ["endpoint", "status"])
@@ -39,3 +45,62 @@ MODEL_INFO = Gauge("model_info", "Model being served (value 1, version as label)
 
 # Layer 4: outcome (labels received later through /v1/feedback)
 FEEDBACK = Counter("feedback_total", "Labels received after the prediction", ["true_label", "correct"])
+
+
+class InputHistograms:
+    """One histogram per feature, each with the reference's own bucket boundaries."""
+
+    def __init__(self):
+        self.lock = Lock()
+        self.bins = {}
+        self.counts = {}
+        self.sums = {}
+
+    def configure(self, reference: dict) -> None:
+        bins = {}
+        for name in FEATURES:
+            feature = reference["features"][name]
+            edges = [float(edge) for edge in feature["edges"]]
+            shares = [float(share) for share in feature["shares"]]
+            if (
+                len(shares) != len(edges) + 1
+                or any(not math.isfinite(x) for x in edges + shares)
+                or any(a >= b for a, b in zip(edges, edges[1:], strict=False))
+                or any(share < 0 for share in shares)
+                or sum(shares) <= 0
+            ):
+                raise ValueError(f"Invalid reference bins for {name}")
+            # PSI bins use value < edge; Prometheus buckets use value <= le.
+            bins[name] = [math.nextafter(edge, -math.inf) for edge in edges]
+        with self.lock:
+            self.bins = bins
+            self.counts = {name: [0] * (len(edges) + 1) for name, edges in bins.items()}
+            self.sums = dict.fromkeys(bins, 0.0)
+
+    def clear(self) -> None:
+        with self.lock:
+            self.bins, self.counts, self.sums = {}, {}, {}
+
+    def observe(self, features: dict[str, float]) -> None:
+        with self.lock:
+            for name, edges in self.bins.items():
+                value = features[name]
+                for i, edge in enumerate(edges):
+                    if value <= edge:
+                        self.counts[name][i] += 1
+                self.counts[name][-1] += 1
+                self.sums[name] += value
+
+    def collect(self):
+        metric = HistogramMetricFamily(
+            "input_window_feature", "Input feature distribution per window", labels=["feature"]
+        )
+        with self.lock:
+            for name, edges in self.bins.items():
+                buckets = list(zip([str(edge) for edge in edges] + ["+Inf"], self.counts[name], strict=True))
+                metric.add_metric([name], buckets, self.sums[name])
+        yield metric
+
+
+INPUT_FEATURES = InputHistograms()
+REGISTRY.register(INPUT_FEATURES)

@@ -39,5 +39,5 @@ prediction reference is the out-of-fold **ride** mix, so the current prediction 
 repeated live windows from the same ride are not an independent ride sample. Chi-square p-values are approximate
 with small expected counts. KS is reported as null until individual reference values are retained; a histogram
 alone does not support an exact two-sample KS test. Thresholds have not yet been calibrated on the normal scenario.
-The API prediction logs and scenario exporter still need to produce this format. Optional Evidently output is not
-implemented.
+The API prediction log contains these features on `window_prediction` events; other events are ignored. The
+scenario exporter still needs to produce this format. Optional Evidently output is not implemented.

@@ -24,6 +24,7 @@ def model_dir(tmp_path_factory, ride_model):
 @pytest.fixture(scope="module")
 def client(model_dir, tmp_path_factory):
     os.environ["FALL_RISK_MODEL_PATH"] = str(tmp_path_factory.mktemp("none") / "absent.joblib")  # model 2 not loaded
+    os.environ["DRIFT_REFERENCE_PATH"] = str(tmp_path_factory.mktemp("none") / "absent.json")
     with TestClient(create_app(model_uri=str(model_dir))) as c:  # `with` runs the startup: the model gets loaded
         yield c
 
@@ -241,6 +242,27 @@ def test_fall_risk_is_null_without_model_2(client, ride):
     body = client.post("/v1/predict", json=ride).json()
     assert body["fall_risk"] is None
     assert client.get("/health").json()["fall_risk_loaded"] is False
+
+
+def test_live_input_reference_histograms_and_prediction_log(model_dir, ride, tmp_path, monkeypatch):
+    from ride_classifier.drift.job import feature_records
+    from ride_classifier.features.window_stats import FEATURES
+
+    reference = {"features": {name: {"edges": [0.5, 1.0], "shares": [0.3, 0.3, 0.4]} for name in FEATURES}}
+    path = tmp_path / "reference.json"
+    path.write_text(json.dumps(reference), encoding="utf-8")
+    log = tmp_path / "predictions.jsonl"
+    monkeypatch.setenv("DRIFT_REFERENCE_PATH", str(path))
+    monkeypatch.setenv("PREDICTION_LOG_PATH", str(log))
+    with TestClient(create_app(model_uri=str(model_dir))) as c:
+        assert c.get("/health").json()["drift_reference_loaded"] is True
+        response = c.post("/v1/predict/window", json={"ride_id": "r", "window_index": 0, "readings": _window(ride)})
+        assert response.status_code == 200
+        output = c.get("/metrics").text
+        assert 'input_window_feature_count{feature="rx_std"} 1.0' in output
+    rows = feature_records(pd.read_json(log, lines=True))
+    assert len(rows) == 1 and set(FEATURES).issubset(rows.columns)
+    assert rows.iloc[0]["predicted_label"] == response.json()["label"]
 
 
 def test_fall_risk_scores_windows_when_model_2_is_loaded(model_dir, ride, tmp_path, monkeypatch):

@@ -17,6 +17,8 @@ from ride_classifier.features.window_stats import FEATURES, window_stats
 
 def feature_records(current: pd.DataFrame) -> pd.DataFrame:
     """Accept feature rows or raw sensor rows grouped by a unique window_id."""
+    if "event" in current:
+        current = current[current["event"] == "window_prediction"].copy()
     if set(FEATURES).issubset(current.columns):
         return current
     required = {"window_id", TIME_COLUMN, *SENSOR_COLUMNS}
