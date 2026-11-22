@@ -66,6 +66,9 @@ This block is rewritten at each stop; the dated entries below are the history.
   may still be from an unfinished ride; prediction monitoring in the live exporter remains open. Feedback now
   goes into the same JSONL log and is joined by ride ID for offline performance; replay prefixes IDs with a unique
   run identifier so separate runs cannot accidentally share a label. Missing feedback remains unlabelled.
+- **Drift figure:** `notebooks/06_drift_scenarios.ipynb` produces F22 from the four existing offline reports;
+  thresholds are labelled provisional, and F44 remains pending labelled live replay. The figure compares the
+  matched SRV3490 rides and preserves the riskier mix's non-alert result.
 - **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
   all six evaluation tests pass, including both quality-gate cases.

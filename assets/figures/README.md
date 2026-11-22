@@ -26,7 +26,7 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F19 |  | API documentation page and one answer with timeline (screenshots) | MLOps | core | screenshots | planned |
 | F20 |  | Monitoring dashboards: service metrics during normal traffic (screenshot) | MLOps | core | screenshots | planned |
 | F21 |  | Drift dashboard during each of the three scenarios (screenshots) | MLOps | core | `06_drift_scenarios` + screenshots | planned |
-| F22 |  | Drift indicator per feature and scenario vs alert thresholds | MLOps | core | `06_drift_scenarios` | planned |
+| F22 | `drift_scenario_psi` | Drift indicator per feature and scenario vs alert thresholds | MLOps | core | `06_drift_scenarios` | generated (thresholds provisional) |
 | F23 |  | Resource sizing table: data, model size, memory, training time | infra | core | `ai-infrastructure/benchmarks` | planned |
 | F24 |  | Theoretical training memory vs available memory (log scale) | infra | core | `ai-infrastructure/benchmarks` | planned |
 | F25 |  | Latency (mean, p95) by stage: cleaning, windows, network | infra | core | `ai-infrastructure/benchmarks` | planned |
