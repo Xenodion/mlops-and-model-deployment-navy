@@ -66,9 +66,16 @@ This block is rewritten at each stop; the dated entries below are the history.
   may still be from an unfinished ride; prediction monitoring in the live exporter remains open. Feedback now
   goes into the same JSONL log and is joined by ride ID for offline performance; replay prefixes IDs with a unique
   run identifier so separate runs cannot accidentally share a label. Missing feedback remains unlabelled.
-- **Drift figure:** `notebooks/06_drift_scenarios.ipynb` produces F22 from the four existing offline reports;
-  thresholds are labelled provisional, and F44 remains pending labelled live replay. The figure compares the
-  matched SRV3490 rides and preserves the riskier mix's non-alert result.
+- **Drift figure:** `notebooks/06_drift_scenarios.ipynb` produces F22 as an annotated table from the four existing
+  offline reports. It makes the unit-error rotation pattern visible without unequal logarithmic axes, retains
+  exact displayed PSI values and provisional thresholds, and preserves the riskier mix's non-alert result.
+  F44 remains pending labelled live replay. The figure is still a draft pending presentation review.
+- **Figure audit:** `docs/FIGURE_REVIEW.md` reviews all 13 currently exported figures and their notebook outputs
+  against their intended message. F09 contrast was corrected, F10 now uses directly labelled points for the
+  quality gate, and F11 shows actual counts and the single-Reckless-ride limitation instead of a 100% bar.
+  F08 now identifies completed rides and whole-ride references; F47 identifies the prior score and bootstrap band.
+  F04 now compares median ratios before and after unit conversion; F05 shows the city counts and matched-data
+  design. Those remain drafts for the oral, and figures not yet produced must be reviewed when created.
 - **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
   all six evaluation tests pass, including both quality-gate cases.

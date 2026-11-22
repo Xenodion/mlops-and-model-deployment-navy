@@ -8,7 +8,7 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F01 |  | The two datasets side by side (rides, readings, cities, labels) | MLOps, infra | core | `01_data_overview` | planned |
 | F02 |  | Category counts (500 rides) and imbalance | MLOps | core | `01_data_overview` | planned |
 | F03 |  | One ride per category: the 6 sensor channels over time | MLOps | core | `01_data_overview` | planned |
-| F04 | rotation_units | Rotation units: GBG500 vs SRV3490 distributions before and after conversion | MLOps | core | `02_units_and_cities` | draft |
+| F04 | rotation_units | Rotation variability: ratio of GBG500/SRV3490 medians before and after conversion | MLOps | core | `02_units_and_cities` | draft |
 | F05 | rides_falls_per_city | Rides and falls per city (SRV3490) | MLOps | core | `02_units_and_cities` | draft |
 | F06 | ride_windows | A ride cut into 30 s windows (diagram) | both | core | `03_live_classifier` | draft |
 | F07 | window_vs_cumulative | Per-window and cumulative probabilities along one golden ride | both | core | `03_live_classifier` | draft |
@@ -26,7 +26,7 @@ written by `ride_classifier.viz.theme.save_fig`. Status: planned / draft / final
 | F19 |  | API documentation page and one answer with timeline (screenshots) | MLOps | core | screenshots | planned |
 | F20 |  | Monitoring dashboards: service metrics during normal traffic (screenshot) | MLOps | core | screenshots | planned |
 | F21 |  | Drift dashboard during each of the three scenarios (screenshots) | MLOps | core | `06_drift_scenarios` + screenshots | planned |
-| F22 | `drift_scenario_psi` | Drift indicator per feature and scenario vs alert thresholds | MLOps | core | `06_drift_scenarios` | generated (thresholds provisional) |
+| F22 | `drift_scenario_psi` | Drift indicator per feature and scenario vs alert thresholds | MLOps | core | `06_drift_scenarios` | draft (thresholds provisional) |
 | F23 |  | Resource sizing table: data, model size, memory, training time | infra | core | `ai-infrastructure/benchmarks` | planned |
 | F24 |  | Theoretical training memory vs available memory (log scale) | infra | core | `ai-infrastructure/benchmarks` | planned |
 | F25 |  | Latency (mean, p95) by stage: cleaning, windows, network | infra | core | `ai-infrastructure/benchmarks` | planned |
