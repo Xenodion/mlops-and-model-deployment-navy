@@ -51,6 +51,10 @@ This block is rewritten at each stop; the dated entries below are the history.
   Both offline reports recommend investigation/retraining under provisional thresholds; the unit bug requires
   an upstream fix, not retraining. City 1 is unseen by the GBG500 classifier, not necessarily by model 2.
   Normal calibration and the live end-to-end demonstration remain open.
+- **Drift workflow (T035, in progress):** a self-hosted workflow runs the report and publishes its JSON/Markdown,
+  treating exit 3 as a warning for human investigation. A manual dispatch with no path replays the offline
+  `unit_bug` scenario; the daily schedule instead expects a runner-local current log, so it does not simulate a
+  fault every day. It requires data/reference and `uv` on the runner and has not yet been exercised on GitHub.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

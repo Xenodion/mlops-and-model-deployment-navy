@@ -40,6 +40,12 @@ windows and posts one feedback label per sampled ride. `--speed 1` waits one str
 ride; the default `--speed 0` sends without waiting. Rides are sequential, not a multi-user load test. The replay
 is intended for a demo API: it changes its metrics and feedback counters.
 
+The `drift report` GitHub workflow needs a self-hosted runner with `uv`, the local DVC data and drift reference.
+A manual run with no input generates the offline `unit_bug` scenario; supplying a runner-local JSONL or parquet
+path runs the report on that input. Its daily schedule expects `reports/drift/current.jsonl` to be populated by
+an external process; absent input fails the job. Exit 3 produces a warning and report artifact, not automatic
+retraining. The workflow has not yet been exercised on GitHub.
+
 ---
 
 ## 1. One-time set-up on your laptop
