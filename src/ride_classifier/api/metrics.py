@@ -1,7 +1,6 @@
 """Prometheus metrics, exposed on /metrics (docs/PLAN.md §12, lab 5).
 
-Layers 1 (requests, latency), 3 (predictions) and 4 (feedback). Input distribution (layer 2) comes with
-the drift reference (issue #17).
+Layers 1 (requests, latency), 2 (input distribution), 3 (predictions) and 4 (feedback).
 """
 
 import math
@@ -22,7 +21,7 @@ LATENCY = Histogram(
 )
 
 # Layer 3: what the model answers
-PREDICTIONS = Counter("predictions_total", "Predictions per category", ["label"])
+PREDICTIONS = Counter("predictions_total", "Predictions per category", ["label", "endpoint"])
 RECKLESS_FLAGS = Counter("reckless_flags_total", "Rides flagged as reckless")
 CONFIDENCE = Histogram(
     "prediction_confidence",

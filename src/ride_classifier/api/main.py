@@ -224,7 +224,7 @@ def create_app(model_uri: str | None = None) -> FastAPI:
         return request.app.state.model.unwrap_python_model()
 
     def _observe(endpoint: str, label: str, confidence: float, danger: float | None, dangerous: bool | None) -> None:
-        m.PREDICTIONS.labels(label=label).inc()
+        m.PREDICTIONS.labels(label=label, endpoint=endpoint).inc()
         m.CONFIDENCE.labels(endpoint=endpoint).observe(confidence)
         if danger is not None:
             m.DANGER_SCORE.labels(endpoint=endpoint).observe(danger)

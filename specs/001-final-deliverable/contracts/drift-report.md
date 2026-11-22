@@ -41,3 +41,8 @@ with small expected counts. KS is reported as null until individual reference va
 alone does not support an exact two-sample KS test. Thresholds have not yet been calibrated on the normal scenario.
 The API prediction log contains these features on `window_prediction` events; other events are ignored. The
 scenario exporter still needs to produce this format. Optional Evidently output is not implemented.
+
+The live exporter queries Prometheus histogram increases over a rolling 15-minute window. It exports PSI only
+for complete reference-compatible buckets with at least 20 windows; `drift_monitor_up` is zero if any feature is
+unavailable, and the retraining gauge is omitted until all features are available. It does not calculate the
+prediction-mix p-value: the current API counter is per window, not an independent per-ride sample.
