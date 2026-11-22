@@ -32,6 +32,9 @@ This block is rewritten at each stop; the dated entries below are the history.
   the eight cleaned input features and exposes reference-bucket histograms. The offline job filters mixed API
   logs to window predictions. The API and drift tests pass together (35 tests). Histograms restart with the API;
   the Prometheus-backed live drift monitor is not yet implemented.
+- **Unit-bug CI coverage:** the synthetic converted and unconverted sensor windows now also run through the
+  drift CLI using parquet inputs, checking exit codes 0 and 3 and the saved report. The existing CI test step
+  discovers this integration test automatically. The real-data replay in `drift.yml` remains to be built.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
