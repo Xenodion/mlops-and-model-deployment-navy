@@ -40,8 +40,12 @@ prediction by `window_index` per ride for prediction and outcome checks; a log s
 Without `ride_id`, the caller must provide one comparable prediction per ride. Chi-square p-values are approximate
 with small expected counts. KS is reported as null until individual reference values are retained; a histogram
 alone does not support an exact two-sample KS test. Thresholds have not yet been calibrated on the normal scenario.
-The API prediction log contains these features on `window_prediction` events; other events are ignored. The
-scenario exporter still needs to produce this format. Optional Evidently output is not implemented.
+The API prediction log contains these features on `window_prediction` events. The scenario exporter produces
+raw sensor windows in the accepted parquet format. Optional Evidently output is not implemented.
+
+When feedback events and window predictions share the API JSONL log, the job joins the latest feedback true label
+by `ride_id`. Ride IDs must uniquely identify a ride across that log; a missing or delayed feedback event leaves
+the ride unlabelled, and logs split across files are not joined automatically.
 
 The live exporter queries Prometheus histogram increases over a rolling 15-minute window. It exports PSI only
 for complete reference-compatible buckets with at least 20 windows; `drift_monitor_up` is zero if any feature is

@@ -2,6 +2,7 @@
 
 import argparse
 import time
+import uuid
 from pathlib import Path
 
 import httpx2 as httpx
@@ -25,7 +26,9 @@ def replay(windows: pd.DataFrame, client: httpx.Client, stride_s: float, speed: 
             raise ValueError("Expected scenario window_id in draw:start format")
         ride_windows.setdefault(parts[0], []).append((str(window_id), frame))
     window_count = feedback_count = 0
-    for ride_id, ride in ride_windows.items():
+    replay_id = uuid.uuid4().hex[:16]
+    for draw, ride in ride_windows.items():
+        ride_id = f"replay-{replay_id}-{draw}"
         state = None
         label = None
         true_label = None

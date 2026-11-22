@@ -404,7 +404,7 @@ def create_app(model_uri: str | None = None) -> FastAPI:
                 raise HTTPException(422, f"{field} must be one of {LABELS}")
         correct = str(body.predicted_label == body.true_label).lower()
         m.FEEDBACK.labels(true_label=body.true_label, correct=correct).inc()
-        logger.info(json.dumps({"event": "feedback", **body.model_dump()}))
+        log_event({"event": "feedback", **body.model_dump()})
         return Response(status_code=204)
 
     app.include_router(v1)

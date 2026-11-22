@@ -18,7 +18,13 @@ from ride_classifier.features.window_stats import FEATURES, window_stats
 def feature_records(current: pd.DataFrame) -> pd.DataFrame:
     """Accept feature rows or raw sensor rows grouped by a unique window_id."""
     if "event" in current:
+        feedback = current[current["event"] == "feedback"]
         current = current[current["event"] == "window_prediction"].copy()
+        if not feedback.empty and {ID_COLUMN, "true_label"}.issubset(feedback.columns):
+            labels = feedback.dropna(subset=[ID_COLUMN, "true_label"]).drop_duplicates(ID_COLUMN, keep="last")
+            if not labels.empty:
+                mapping = labels.set_index(ID_COLUMN)["true_label"]
+                current["true_label"] = current[ID_COLUMN].map(mapping)
     if set(FEATURES).issubset(current.columns):
         return current
     required = {"window_id", TIME_COLUMN, *SENSOR_COLUMNS}

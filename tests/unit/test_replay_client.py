@@ -38,3 +38,9 @@ def test_replay_passes_state_and_sends_one_feedback_per_ride():
         "/v1/predict/window",
         "/v1/feedback",
     ]
+    first_ride_id = received[0][1]["ride_id"]
+    assert received[1][1]["ride_id"] == received[2][1]["ride_id"] == first_ride_id
+    assert received[3][1]["ride_id"] != first_ride_id
+    with httpx.Client(transport=httpx.MockTransport(handle), base_url="http://test") as client:
+        replay(pd.DataFrame(rows), client, stride_s=15, speed=0)
+    assert received[5][1]["ride_id"] != first_ride_id

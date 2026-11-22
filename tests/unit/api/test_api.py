@@ -270,11 +270,14 @@ def test_live_input_reference_histograms_and_prediction_log(model_dir, ride, tmp
         assert c.get("/health").json()["drift_reference_loaded"] is True
         response = c.post("/v1/predict/window", json={"ride_id": "r", "window_index": 0, "readings": _window(ride)})
         assert response.status_code == 200
+        feedback = {"ride_id": "r", "predicted_label": response.json()["label"], "true_label": "Tandem"}
+        assert c.post("/v1/feedback", json=feedback).status_code == 204
         output = c.get("/metrics").text
         assert 'input_window_feature_count{feature="rx_std"} 1.0' in output
     rows = feature_records(pd.read_json(log, lines=True))
     assert len(rows) == 1 and set(FEATURES).issubset(rows.columns)
     assert rows.iloc[0]["predicted_label"] == response.json()["label"]
+    assert rows.iloc[0]["true_label"] == "Tandem"
 
 
 def test_fall_risk_scores_windows_when_model_2_is_loaded(model_dir, ride, tmp_path, monkeypatch):

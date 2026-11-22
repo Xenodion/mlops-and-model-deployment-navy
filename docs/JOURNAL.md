@@ -63,7 +63,9 @@ This block is rewritten at each stop; the dated entries below are the history.
   the shared MLflow proxy could not start because the school account's token expired.
 - **Prediction sampling:** offline reports now take the latest observed prediction per `ride_id` (by
   `window_index`) rather than treating overlapping windows as independent rides. The latest observed prediction
-  may still be from an unfinished ride; prediction monitoring in the live exporter remains open.
+  may still be from an unfinished ride; prediction monitoring in the live exporter remains open. Feedback now
+  goes into the same JSONL log and is joined by ride ID for offline performance; replay prefixes IDs with a unique
+  run identifier so separate runs cannot accidentally share a label. Missing feedback remains unlabelled.
 - **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
   all six evaluation tests pass, including both quality-gate cases.
