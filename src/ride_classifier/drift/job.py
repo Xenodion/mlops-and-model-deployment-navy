@@ -55,7 +55,16 @@ def make_report(reference: dict, current: pd.DataFrame, config: dict, floor: flo
     prediction_mix = None
     performance = None
     if "predicted_label" in current:
-        predicted = current["predicted_label"].dropna()
+        # Live window logs can contain many correlated predictions from the same ride. Use its latest
+        # observed cumulative prediction once; a log slice may still contain incomplete rides.
+        prediction_rows = current
+        if ID_COLUMN in current:
+            if current[ID_COLUMN].isna().any():
+                raise ValueError("Prediction rows must have a non-null ride_id")
+            if "window_index" in current:
+                prediction_rows = current.sort_values("window_index", kind="stable")
+            prediction_rows = prediction_rows.drop_duplicates(subset=[ID_COLUMN], keep="last")
+        predicted = prediction_rows["predicted_label"].dropna()
         if not predicted.isin(LABELS).all():
             raise ValueError("Unknown predicted category")
         if not predicted.empty:
@@ -76,7 +85,7 @@ def make_report(reference: dict, current: pd.DataFrame, config: dict, floor: flo
             if pvalue < config["chi2_pvalue"]:
                 reasons.append("prediction_drift")
         if "true_label" in current:
-            labelled = current.dropna(subset=["predicted_label", "true_label"])
+            labelled = prediction_rows.dropna(subset=["predicted_label", "true_label"])
             if not labelled["true_label"].isin(LABELS).all():
                 raise ValueError("Unknown true category")
             score = None
@@ -110,7 +119,8 @@ def make_report(reference: dict, current: pd.DataFrame, config: dict, floor: flo
         "notes": [
             "KS unavailable: the reference stores binned counts rather than individual values.",
             "Chi-square is approximate when expected category counts are small.",
-            "The reference prediction mix is per ride; current predictions must have a comparable sampling unit.",
+            "The reference prediction mix is per ride. With ride_id, only the latest observed prediction per ride "
+            "is used; rides may be incomplete. Without ride_id, supply one comparable prediction per ride.",
         ],
     }
 

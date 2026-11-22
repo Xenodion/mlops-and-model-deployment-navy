@@ -56,6 +56,14 @@ This block is rewritten at each stop; the dated entries below are the history.
   treating exit 3 as a warning for human investigation. A manual dispatch with no path replays the offline
   `unit_bug` scenario; the daily schedule instead expects a runner-local current log, so it does not simulate a
   fault every day. It requires data/reference and `uv` on the runner and has not yet been exercised on GitHub.
+- **Normal drift calibration (T034):** `drift/calibrate.py` now resamples 1, 5, 20 and 100 complete training rides
+  per sample, computes max-feature PSI on 100 seeds per size and logs aggregate results and raw PSI samples to
+  MLflow. It does not change thresholds automatically; its population overlaps the training reference and is
+  not an independent production false-alarm estimate. The measurement awaits Google account reauthentication:
+  the shared MLflow proxy could not start because the school account's token expired.
+- **Prediction sampling:** offline reports now take the latest observed prediction per `ride_id` (by
+  `window_index`) rather than treating overlapping windows as independent rides. The latest observed prediction
+  may still be from an unfinished ride; prediction monitoring in the live exporter remains open.
 - **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
   all six evaluation tests pass, including both quality-gate cases.

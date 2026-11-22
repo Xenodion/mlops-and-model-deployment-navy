@@ -38,6 +38,20 @@ def test_delayed_labels_and_prediction_shift():
     assert report["performance"]["macro_f1"] == 0
 
 
+def test_prediction_mix_uses_one_latest_prediction_per_ride():
+    data = pd.DataFrame({feature: [0.0, 1.0, 0.0, 1.0] for feature in FEATURES})
+    data["ride_id"] = ["a", "b", "a", "b"]
+    data["window_index"] = [1, 0, 0, 1]
+    data["predicted_label"] = ["Safe", "Safe", "Reckless", "Tandem"]
+    data["true_label"] = ["Safe", "Tandem", "Safe", "Tandem"]
+    report = make_report(reference(), data, {**CONFIG, "min_labels": 2}, 0.3, "reference.json")
+    assert report["n_windows"] == 4
+    assert report["prediction_mix"]["n_predictions"] == 2
+    assert report["prediction_mix"]["current"]["Safe"] == 0.5
+    assert report["prediction_mix"]["current"]["Tandem"] == 0.5
+    assert report["performance"]["n_labels"] == 2
+
+
 def test_raw_sensor_windows_are_converted_to_features():
     data = pd.DataFrame(
         {

@@ -35,8 +35,9 @@ serves `drift/monitor.py`.
 Current implementation: JSONL or parquet holds one row per window with the eight `*_std` feature columns, or
 sensor rows with `window_id`, `time_index` and the six sensor columns. Optional `predicted_label` and `true_label`
 columns provide prediction and outcome checks; on raw sensor rows each must be constant within a window. The
-prediction reference is the out-of-fold **ride** mix, so the current prediction sample must use a comparable unit;
-repeated live windows from the same ride are not an independent ride sample. Chi-square p-values are approximate
+prediction reference is the out-of-fold **ride** mix. If `ride_id` is present, the job takes the latest observed
+prediction by `window_index` per ride for prediction and outcome checks; a log slice can contain incomplete rides.
+Without `ride_id`, the caller must provide one comparable prediction per ride. Chi-square p-values are approximate
 with small expected counts. KS is reported as null until individual reference values are retained; a histogram
 alone does not support an exact two-sample KS test. Thresholds have not yet been calibrated on the normal scenario.
 The API prediction log contains these features on `window_prediction` events; other events are ignored. The
