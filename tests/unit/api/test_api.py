@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from ride_classifier.api.main import create_app
 from ride_classifier.config import LABELS, SENSOR_COLUMNS
 from ride_classifier.pipeline.train import PACKAGE_DIR
+from ride_classifier.replay.client import replay
 
 
 @pytest.fixture(scope="module")
@@ -54,6 +55,17 @@ def test_health_reports_the_model_and_the_threshold(client):
         "fall_risk_loaded": False,
         "fall_risk_threshold": 0.6,
     }
+
+
+def test_scenario_replay_uses_live_window_and_feedback_contract(client, ride):
+    frame = pd.DataFrame({k: v for k, v in ride.items() if k != "ride_id"})
+    windows = []
+    for start in (0, 150):
+        window = frame.iloc[start : start + 300].copy()
+        window["window_id"] = f"0:{start}"
+        window["true_label"] = "Tandem"
+        windows.append(window)
+    assert replay(pd.concat(windows), client, stride_s=15, speed=0) == (2, 1)
 
 
 def test_predict_returns_one_probability_per_category(client, ride):

@@ -71,6 +71,11 @@ falls:
   pre_fall_s: 60             # pre-fall segment: smallest length giving every window candidate (up to 60 s, stride 30 s) >= 2 window ends
   margin_s: 2                # excluded just before the first topple (impact); = the spec's minimum warning time
 
+drift_scenarios:
+  seed: 42
+  n_rides: 100
+  riskier_weights: {Safe: 1, Safe overall: 1, Bad weather: 1, Tandem: 1, Reckless: 6}
+
 fall_risk:                   # model 2 (ADR 001, 004): 10 s windows, logistic regression on their statistics
   window_s: 10
   stride_s: 5

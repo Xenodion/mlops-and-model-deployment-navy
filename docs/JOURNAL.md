@@ -19,22 +19,34 @@ This block is rewritten at each stop; the dated entries below are the history.
   elapsed-time E3 results to whole-ride reference scores, not references recomputed at each time.
 - **Drift reference (T031):** eight window standard deviations, PSI and the reference DVC stage are implemented
   and tested. DVC reproduced the reference from 7,568 training windows and OOF predictions. Repeated quantiles are
-  collapsed and actual reference bin shares retained. Integration with the API and drift job remains; the model
+  collapsed and actual reference bin shares retained. The API, offline job and live exporter use it; the model
   field currently identifies the MLflow model URI rather than a registry version.
 - **API metrics:** live model-2 scores now increment `fall_risk` and `fall_alerts_total` Prometheus metrics;
   29 API tests pass. T063 remains open for removal of old danger fields and the image/model loading decision.
 - **Offline drift job (T033, in progress):** PSI, prediction-mix and delayed-label checks produce JSON/Markdown
   reports and exit 0 / 3 / 1. The job accepts feature rows or grouped sensor windows. A tiny integration test
-  detects the skipped rotation conversion, while the same converted windows stay normal. KS, live monitor,
-  scenario inputs and normal-scenario threshold calibration remain open; the prediction reference is per ride,
+  detects the skipped rotation conversion, while the same converted windows stay normal. KS, scenario inputs and
+  normal-scenario threshold calibration remain open; the prediction reference is per ride,
   so current prediction sampling must be comparable.
 - **API input monitoring:** `/health` reports whether the drift reference loaded; the live window endpoint logs
   the eight cleaned input features and exposes reference-bucket histograms. The offline job filters mixed API
-  logs to window predictions. The API and drift tests pass together (35 tests). Histograms restart with the API;
-  the Prometheus-backed live drift monitor is not yet implemented.
+  logs to window predictions. Histograms restart with the API.
 - **Unit-bug CI coverage:** the synthetic converted and unconverted sensor windows now also run through the
   drift CLI using parquet inputs, checking exit codes 0 and 3 and the saved report. The existing CI test step
   discovers this integration test automatically. The real-data replay in `drift.yml` remains to be built.
+- **Live drift and monitoring (in progress):** a separate exporter queries rolling Prometheus histogram increases
+  and exposes per-feature PSI and an input-drift flag. It drops stale gauges on errors or insufficient samples;
+  `drift_monitor_up` indicates readiness. A host-based opt-in Prometheus/Grafana profile, provisional alerts,
+  dashboard and runbooks are provided. Prediction-mix live metrics, normal-scenario calibration, kind deployment,
+  and an end-to-end run remain open. Per-window predictions cannot be compared as independent rides.
+- **GBG500 scenarios (T034, in progress):** `normal` and `riskier_mix` resample labelled training rides with a
+  fixed seed and configurable weights, writing raw windows plus sampled-ride provenance. The normal sample
+  contains 1,847 windows from 100 sampled rides and its offline input PSI values are 0.003-0.016 (status `ok`).
+  The riskier sample contains 1,915 windows and input PSI values are 0.012-0.052 (also `ok`): it does not meet
+  the planned alert demonstration with the current provisional thresholds. These are individual samples from
+  the reference population, not independent threshold calibration. The replay client sends successive windows
+  with their state and one feedback label per ride; it has not yet been run against the real model. SRV3490
+  scenarios and the live end-to-end demonstration remain open.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

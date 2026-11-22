@@ -5,6 +5,7 @@ ALIAS ?= staging
 VERSION ?= dev
 DRIFT_CURRENT ?= reports/drift/current.jsonl
 DRIFT_OUT ?= reports/drift/latest
+NAME ?= normal
 export DOCKERHUB_USER
 
 help: ## List the commands
@@ -52,6 +53,18 @@ pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc
 
 drift: ## Offline drift report: make drift DRIFT_CURRENT=path/to/windows.parquet
 	uv run python -m ride_classifier.drift.job --reference artifacts/drift_reference.json --current $(DRIFT_CURRENT) --out $(DRIFT_OUT)
+
+monitoring-up: ## Start Prometheus and Grafana for the host API and drift exporter
+	docker compose --profile monitoring up -d prometheus grafana
+
+monitoring-down: ## Stop Prometheus and Grafana
+	docker compose --profile monitoring stop prometheus grafana
+
+drift-monitor: ## Export rolling drift metrics on :8001 (start Prometheus and the API first)
+	uv run python -m ride_classifier.drift.monitor
+
+scenario: ## Build GBG500 scenario windows: make scenario NAME=normal or NAME=riskier_mix
+	uv run python -m ride_classifier.drift.scenarios $(NAME)
 
 register: ## Register the latest trained model (clean commit + gate passed) as @staging in MLflow
 	uv run python -m ride_classifier.registry.register

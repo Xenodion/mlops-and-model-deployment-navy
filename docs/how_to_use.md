@@ -7,7 +7,35 @@ MLflow, the quality gate, the model registry, tests and the git workflow. For *w
 **Status (19/11):** the pipeline goes from raw data to an evaluated model:
 `prepare` → `train` → `evaluate` (quality gate). The model is then registered in MLflow, exported, and served by
 the API and the web app. Both run as Docker images published on Docker Hub and deployed on a Kubernetes cluster.
-Automatic deployment from GitHub (CD) and monitoring come next.
+Automatic deployment from GitHub (CD) comes next.
+
+## Local monitoring (in progress)
+
+With the model exported and `artifacts/drift_reference.json` available, run `make api` on the host, then
+`make monitoring-up` and `make drift-monitor` in separate terminals. Prometheus is at `localhost:9090`, Grafana
+at `localhost:3000` (anonymous read-only access), and the drift exporter at `localhost:8001/metrics`. Stop the
+exporter with Ctrl+C and the monitoring containers with `make monitoring-down`. Prometheus scrapes the host API
+and exporter via `host.docker.internal`; this setup is distinct from the future kind deployment.
+
+The exporter calculates PSI from the last 15 minutes of histogram increases, with at least 20 windows per feature.
+`drift_monitor_up=0` means the query failed, the sample is too small, or buckets are incomplete; unavailable PSI
+is not reported as zero. A Prometheus range needs at least two scrapes. Thresholds and rules are provisional until
+calibrated on normal training rides. Prediction-mix monitoring still needs comparable ride-level sampling. See
+the [runbooks](runbooks.md) before acting on an alert.
+
+## Offline GBG500 scenarios (in progress)
+
+`make scenario NAME=normal` and `make scenario NAME=riskier_mix` sample training rides with replacement using
+the seed and weights in `params.yaml`. Each writes sensor windows to `reports/scenarios/<name>.parquet` and
+sampled ride IDs and provenance to a JSON sidecar. Compare them with
+`make drift DRIFT_CURRENT=reports/scenarios/normal.parquet DRIFT_OUT=reports/drift/normal` (substitute the
+other name as needed). The normal sample shares its training population with the reference; it is useful for
+initial checks, not independent evidence of calibration. These files contain labels but no model predictions;
+SRV3490 scenarios are still pending. With the API running, replay a generated scenario with
+`uv run python -m ride_classifier.replay.client reports/scenarios/normal.parquet`; it carries state between
+windows and posts one feedback label per sampled ride. `--speed 1` waits one stride between windows of each
+ride; the default `--speed 0` sends without waiting. Rides are sequential, not a multi-user load test. The replay
+is intended for a demo API: it changes its metrics and feedback counters.
 
 ---
 
