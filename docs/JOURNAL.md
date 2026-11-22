@@ -42,7 +42,8 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **GBG500 scenarios (T034, in progress):** `normal` and `riskier_mix` resample labelled training rides with a
   fixed seed and configurable weights, writing raw windows plus sampled-ride provenance. The normal sample
   contains 1,847 windows from 100 sampled rides and its offline input PSI values are 0.003-0.016 (status `ok`).
-  The riskier sample contains 1,915 windows and input PSI values are 0.012-0.052 (also `ok`): it does not meet
+  The riskier sample (oversampling Reckless, Tandem and Bad weather) contains 1,951 windows and input PSI values
+  are 0.015-0.047 (also `ok`): it does not meet
   the planned alert demonstration with the current provisional thresholds. These are individual samples from
   the reference population, not independent threshold calibration. The replay client sends successive windows
   with their state and one feedback label per ride; it has not yet been run against the real model. The paired
@@ -55,6 +56,9 @@ This block is rewritten at each stop; the dated entries below are the history.
   treating exit 3 as a warning for human investigation. A manual dispatch with no path replays the offline
   `unit_bug` scenario; the daily schedule instead expects a runner-local current log, so it does not simulate a
   fault every day. It requires data/reference and `uv` on the runner and has not yet been exercised on GitHub.
+- **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
+  parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
+  all six evaluation tests pass, including both quality-gate cases.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
