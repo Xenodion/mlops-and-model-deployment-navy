@@ -3,6 +3,8 @@
 .DEFAULT_GOAL := help
 ALIAS ?= staging
 VERSION ?= dev
+DRIFT_CURRENT ?= reports/drift/current.jsonl
+DRIFT_OUT ?= reports/drift/latest
 export DOCKERHUB_USER
 
 help: ## List the commands
@@ -47,6 +49,9 @@ shared-mlflow: ## Team: open the shared MLflow (Cloud Run, private) on http://lo
 
 pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
 	uv run dvc repro
+
+drift: ## Offline drift report: make drift DRIFT_CURRENT=path/to/windows.parquet
+	uv run python -m ride_classifier.drift.job --reference artifacts/drift_reference.json --current $(DRIFT_CURRENT) --out $(DRIFT_OUT)
 
 register: ## Register the latest trained model (clean commit + gate passed) as @staging in MLflow
 	uv run python -m ride_classifier.registry.register

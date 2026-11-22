@@ -23,6 +23,11 @@ This block is rewritten at each stop; the dated entries below are the history.
   field currently identifies the MLflow model URI rather than a registry version.
 - **API metrics:** live model-2 scores now increment `fall_risk` and `fall_alerts_total` Prometheus metrics;
   29 API tests pass. T063 remains open for removal of old danger fields and the image/model loading decision.
+- **Offline drift job (T033, in progress):** PSI, prediction-mix and delayed-label checks produce JSON/Markdown
+  reports and exit 0 / 3 / 1. The job accepts feature rows or grouped sensor windows. A tiny integration test
+  detects the skipped rotation conversion, while the same converted windows stay normal. KS, live monitor,
+  production log/scenario inputs and normal-scenario threshold calibration remain open; the prediction reference is
+  per ride, so current prediction sampling must be comparable.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

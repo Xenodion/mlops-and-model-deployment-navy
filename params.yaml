@@ -1,5 +1,9 @@
 # Pipeline parameters: read by ride_classifier.config.load_params(), tracked by DVC, logged to MLflow.
-# Section still to add, with its task: drift (OPS-2). See docs/PLAN.md §6.1.
+drift:
+  psi_alert: 0.1
+  psi_retrain: 0.25
+  chi2_pvalue: 0.01
+  min_labels: 20
 data:
   raw_rides: data/raw/GBG500.parquet
   raw_labels: data/raw/GBG500_labels.csv
