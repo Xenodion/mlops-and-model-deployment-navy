@@ -56,6 +56,11 @@ This block is rewritten at each stop; the dated entries below are the history.
   treating exit 3 as a warning for human investigation. A manual dispatch with no path replays the offline
   `unit_bug` scenario; the daily schedule instead expects a runner-local current log, so it does not simulate a
   fault every day. It requires data/reference and `uv` on the runner and has not yet been exercised on GitHub.
+- **Retraining workflow (T035, in progress):** a draft self-hosted workflow pulls only the committed training and
+  golden outputs with an explicit isolated school credential path, forces a fresh model-1 run, records trigger
+  metadata, enforces evaluation and registers only a passing candidate in staging. Tests cover stale, dirty and
+  mismatched runs. The workflow has not been exercised on GitHub, creates no new training data, does not train
+  model 2 and does not deploy. `docs/retraining-policy.md` records the decision path and remaining CD work.
 - **Normal drift calibration (T034):** `drift/calibrate.py` now resamples 1, 5, 20 and 100 complete training rides
   per sample, computes max-feature PSI on 100 seeds per size and logs aggregate results and raw PSI samples to
   MLflow. It does not change thresholds automatically; its population overlaps the training reference and is

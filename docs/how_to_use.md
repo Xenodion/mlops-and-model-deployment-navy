@@ -46,6 +46,12 @@ path runs the report on that input. Its daily schedule expects `reports/drift/cu
 an external process; absent input fails the job. Exit 3 produces a warning and report artifact, not automatic
 retraining. The workflow has not yet been exercised on GitHub.
 
+The draft `gated retraining` workflow requires a self-hosted runner with `uv`, a reachable `MLFLOW_TRACKING_URI`,
+and `COURSE_DVC_CREDENTIALS` pointing to its isolated school-account credential file. It pulls the versioned
+training and golden sets, forces a new model-1 training run, tags the reason and evidence, evaluates its gate,
+then registers at staging only if the gate passes. It has not yet been exercised on GitHub; it does not deploy.
+See the [retraining policy](retraining-policy.md).
+
 ---
 
 ## 1. One-time set-up on your laptop
