@@ -6,6 +6,12 @@ VERSION ?= dev
 DRIFT_CURRENT ?= reports/drift/current.jsonl
 DRIFT_OUT ?= reports/drift/latest
 NAME ?= normal
+LOADTEST_HOST ?= http://localhost:8080
+LOADTEST_MODEL_VERSION ?=
+LOADTEST_CPU ?= 1
+LOADTEST_REPLICAS ?= 1
+LOADTEST_TARGET_ENV ?=
+SPEED ?= 1
 export DOCKERHUB_USER
 
 help: ## List the commands
@@ -68,6 +74,9 @@ drift-calibrate: ## Resample normal training rides and log PSI variability to ML
 
 scenario: ## Build real scenario windows: NAME=normal, riskier_mix, unseen_city or unit_bug
 	uv run python -m ride_classifier.drift.scenarios $(NAME)
+
+loadtest: ## Tracked live-ride steps: set LOADTEST_MODEL_VERSION and LOADTEST_TARGET_ENV
+	uv run python loadtest/run.py --host "$(LOADTEST_HOST)" --model-version "$(LOADTEST_MODEL_VERSION)" --target-cpu $(LOADTEST_CPU) --replicas $(LOADTEST_REPLICAS) --target-env "$(LOADTEST_TARGET_ENV)" --speed $(SPEED)
 
 register: ## Register the latest trained model (clean commit + gate passed) as @staging in MLflow
 	uv run python -m ride_classifier.registry.register

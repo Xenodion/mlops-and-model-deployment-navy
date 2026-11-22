@@ -52,6 +52,26 @@ training and golden sets, forces a new model-1 training run, tags the reason and
 then registers at staging only if the gate passes. It has not yet been exercised on GitHub; it does not deploy.
 See the [retraining policy](retraining-policy.md).
 
+## Live load test (implementation draft)
+
+The Locust workload replays real GBG500 training rides, one ride at a time per user. Each user waits for the
+first window, sends overlapping windows at the configured stride, carries the returned state and starts a fresh
+ride after completion or error. The step schedule is in `params.yaml` under `loadtest`.
+
+With the target API and MLflow running, use for example:
+
+```bash
+make loadtest LOADTEST_MODEL_VERSION=2 LOADTEST_CPU=1 LOADTEST_REPLICAS=1 \
+  LOADTEST_TARGET_ENV="kind on laptop, CPU-limited API" SPEED=1
+```
+
+The defaults target the kind API at `localhost:8080`; override `LOADTEST_HOST` for another target. Check the
+actual deployment CPU limit and replica count yourself: these arguments are **declared**, not measured by the
+client. The runner checks `/health` for the requested model version, requires MLflow, and stores Locust CSV files
+as artifacts with the speed, target declaration and step configuration. `SPEED=1` means real time; an accelerated
+test must report its speed and cannot by itself establish real-time capacity. The workload, MLflow wrapper and
+step shape are tested locally, but no load test has been run on kind and no capacity has been measured yet.
+
 ---
 
 ## 1. One-time set-up on your laptop

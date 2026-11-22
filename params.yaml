@@ -77,6 +77,15 @@ drift_scenarios:
   srv_city: 1                # unseen by the GBG500 classifier, not necessarily by the fall-risk model
   riskier_weights: {Safe: 1, Safe overall: 1, Bad weather: 2, Tandem: 2, Reckless: 6}
 
+loadtest:
+  source_path: data/processed/train.parquet  # real training rides, never the frozen golden set
+  speed: 1.0                                # 1 = real time; report any other factor
+  initial_users: 10
+  step_users: 10
+  step_duration_s: 60
+  max_users: 100
+  spawn_rate: 2
+
 fall_risk:                   # model 2 (ADR 001, 004): 10 s windows, logistic regression on their statistics
   window_s: 10
   stride_s: 5

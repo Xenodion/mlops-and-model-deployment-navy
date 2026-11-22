@@ -61,11 +61,20 @@ This block is rewritten at each stop; the dated entries below are the history.
   metadata, enforces evaluation and registers only a passing candidate in staging. Tests cover stale, dirty and
   mismatched runs. The workflow has not been exercised on GitHub, creates no new training data, does not train
   model 2 and does not deploy. `docs/retraining-policy.md` records the decision path and remaining CD work.
+- **Live load test (T046, in progress):** a Locust user replays real training rides as sequential windows, carries
+  API state, waits for window availability and moves through configured concurrency steps. A wrapper checks the
+  API model version and starts an MLflow run before launching Locust; CSVs and declared target settings are logged.
+  Unit tests cover window overlap, cadence, state and target-version rejection. This is unmeasured: the kind run,
+  capacity plot, infrastructure verification and any inference from accelerated replay remain open.
 - **Normal drift calibration (T034):** `drift/calibrate.py` now resamples 1, 5, 20 and 100 complete training rides
   per sample, computes max-feature PSI on 100 seeds per size and logs aggregate results and raw PSI samples to
   MLflow. It does not change thresholds automatically; its population overlaps the training reference and is
   not an independent production false-alarm estimate. The measurement awaits Google account reauthentication:
   the shared MLflow proxy could not start because the school account's token expired.
+- **Local services correction:** Docker was unavailable only inside the sandbox; outside it, the existing local
+  S3, Postgres and MLflow containers are running and the local MLflow health endpoint responds. The shared proxy
+  still needs school-account reauthentication. Local runs must later be made available to the team; do not confuse
+  the local and shared registries.
 - **Prediction sampling:** offline reports now take the latest observed prediction per `ride_id` (by
   `window_index`) rather than treating overlapping windows as independent rides. The latest observed prediction
   may still be from an unfinished ride; prediction monitoring in the live exporter remains open. Feedback now
@@ -83,7 +92,8 @@ This block is rewritten at each stop; the dated entries below are the history.
   design. Those remain drafts for the oral, and figures not yet produced must be reviewed when created.
 - **Full-suite regression:** the first full run found 163 passing tests and two evaluation tests with stale fixture
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
-  all six evaluation tests pass, including both quality-gate cases.
+  all six evaluation tests pass, including both quality-gate cases. After the retraining and load-test additions,
+  the complete suite passes: 179 tests.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
