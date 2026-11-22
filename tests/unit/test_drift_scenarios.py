@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from ride_classifier.drift.scenarios import scenario_windows
+from ride_classifier.drift.scenarios import scenario_windows, srv_windows
 
 
 def readings():
@@ -37,3 +37,15 @@ def test_rejects_inconsistent_labels():
     data.loc[0, "label"] = "Reckless"
     with pytest.raises(ValueError, match="one label"):
         scenario_windows(data, "normal", {"seed": 1, "n_rides": 1}, 1, 1)
+
+
+def test_city_and_unit_bug_use_identical_ride_draws_and_only_change_rotation():
+    data = readings().drop(columns="label")
+    config = {"seed": 42, "srv_city": 1, "rotation_factor": 57.2958}
+    city, city_meta = srv_windows(data, ["a", "b", "a"], "unseen_city", config, 1, 1)
+    bug, bug_meta = srv_windows(data, ["a", "b", "a"], "unit_bug", config, 1, 1)
+    assert city_meta["rides"] == bug_meta["rides"]
+    assert city_meta["has_labels"] is False
+    pd.testing.assert_series_equal(city["window_id"], bug["window_id"])
+    pd.testing.assert_series_equal(city["ax"], bug["ax"])
+    assert bug["rx"].iloc[0] == pytest.approx(city["rx"].iloc[0] / 57.2958)

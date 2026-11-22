@@ -63,7 +63,7 @@ monitoring-down: ## Stop Prometheus and Grafana
 drift-monitor: ## Export rolling drift metrics on :8001 (start Prometheus and the API first)
 	uv run python -m ride_classifier.drift.monitor
 
-scenario: ## Build GBG500 scenario windows: make scenario NAME=normal or NAME=riskier_mix
+scenario: ## Build real scenario windows: NAME=normal, riskier_mix, unseen_city or unit_bug
 	uv run python -m ride_classifier.drift.scenarios $(NAME)
 
 register: ## Register the latest trained model (clean commit + gate passed) as @staging in MLflow

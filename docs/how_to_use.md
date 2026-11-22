@@ -23,7 +23,7 @@ is not reported as zero. A Prometheus range needs at least two scrapes. Threshol
 calibrated on normal training rides. Prediction-mix monitoring still needs comparable ride-level sampling. See
 the [runbooks](runbooks.md) before acting on an alert.
 
-## Offline GBG500 scenarios (in progress)
+## Offline drift scenarios (in progress)
 
 `make scenario NAME=normal` and `make scenario NAME=riskier_mix` sample training rides with replacement using
 the seed and weights in `params.yaml`. Each writes sensor windows to `reports/scenarios/<name>.parquet` and
@@ -31,7 +31,10 @@ sampled ride IDs and provenance to a JSON sidecar. Compare them with
 `make drift DRIFT_CURRENT=reports/scenarios/normal.parquet DRIFT_OUT=reports/drift/normal` (substitute the
 other name as needed). The normal sample shares its training population with the reference; it is useful for
 initial checks, not independent evidence of calibration. These files contain labels but no model predictions;
-SRV3490 scenarios are still pending. With the API running, replay a generated scenario with
+`make scenario NAME=unseen_city` and `make scenario NAME=unit_bug` sample the same SRV3490 development rides
+from the configured city. The first uses converted rotation; the second removes the conversion to simulate a
+sender unit bug. They have no GBG500 category labels. The city is unseen by the GBG500 classifier, but is not
+necessarily unseen by the fall-risk model. With the API running, replay a generated scenario with
 `uv run python -m ride_classifier.replay.client reports/scenarios/normal.parquet`; it carries state between
 windows and posts one feedback label per sampled ride. `--speed 1` waits one stride between windows of each
 ride; the default `--speed 0` sends without waiting. Rides are sequential, not a multi-user load test. The replay

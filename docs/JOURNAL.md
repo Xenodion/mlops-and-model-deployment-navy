@@ -45,8 +45,12 @@ This block is rewritten at each stop; the dated entries below are the history.
   The riskier sample contains 1,915 windows and input PSI values are 0.012-0.052 (also `ok`): it does not meet
   the planned alert demonstration with the current provisional thresholds. These are individual samples from
   the reference population, not independent threshold calibration. The replay client sends successive windows
-  with their state and one feedback label per ride; it has not yet been run against the real model. SRV3490
-  scenarios and the live end-to-end demonstration remain open.
+  with their state and one feedback label per ride; it has not yet been run against the real model. The paired
+  SRV3490 city 1 development scenarios each have 2,832 windows from the same 100 sampled rides: converted-city
+  PSI reaches 0.928 for `az_std`, while the unit bug additionally moves all rotation PSI values to 12.433.
+  Both offline reports recommend investigation/retraining under provisional thresholds; the unit bug requires
+  an upstream fix, not retraining. City 1 is unseen by the GBG500 classifier, not necessarily by model 2.
+  Normal calibration and the live end-to-end demonstration remain open.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).
