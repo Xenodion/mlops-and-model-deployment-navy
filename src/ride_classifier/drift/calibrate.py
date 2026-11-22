@@ -57,10 +57,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=100)
     parser.add_argument("--first-seed", type=int, default=1000)
+    parser.add_argument("--rides", type=int, nargs="+", default=[1, 5, 20, 100])
     parser.add_argument("--out", type=Path, default=Path("reports/drift/calibration"))
     args = parser.parse_args()
-    if args.samples < 1:
-        parser.error("samples must be positive")
+    if args.samples < 1 or any(n < 1 for n in args.rides) or len(set(args.rides)) != len(args.rides):
+        parser.error("samples and distinct ride counts must be positive")
     check_server(MLFLOW_TRACKING_URI)
     params = load_params()
     reference_path = ROOT / "artifacts/drift_reference.json"
@@ -69,26 +70,26 @@ def main() -> None:
     training = pd.read_parquet(ROOT / params["data"]["train_path"])
     cnn = params["train"]["cnn"]
     rides = training_features(training, cnn["window_s"], cnn["stride_s"])
-    result = sample_psi(
-        rides,
-        reference,
-        params["drift_scenarios"]["n_rides"],
-        list(range(args.first_seed, args.first_seed + args.samples)),
-    )
+    seeds = list(range(args.first_seed, args.first_seed + args.samples))
+    result = pd.concat([sample_psi(rides, reference, count, seeds) for count in args.rides], ignore_index=True)
     args.out.mkdir(parents=True, exist_ok=True)
     raw_path = args.out / "normal_psi_samples.csv"
     result.to_csv(raw_path, index=False)
     summary = {
         "samples": args.samples,
         "first_seed": args.first_seed,
-        "n_rides": params["drift_scenarios"]["n_rides"],
+        "ride_counts": args.rides,
         "reference_sha256": hashlib.sha256(reference_bytes).hexdigest(),
-        "max_psi_p95": float(result["max_psi"].quantile(0.95)),
-        "max_psi_p99": float(result["max_psi"].quantile(0.99)),
-        "max_psi_max": float(result["max_psi"].max()),
-        "existing_alert_fraction": float((result["max_psi"] >= params["drift"]["psi_alert"]).mean()),
-        "existing_retrain_fraction": float((result["max_psi"] >= params["drift"]["psi_retrain"]).mean()),
+        "by_ride_count": {},
     }
+    for count, group in result.groupby("n_rides", sort=True):
+        summary["by_ride_count"][str(count)] = {
+            "max_psi_p95": float(group["max_psi"].quantile(0.95)),
+            "max_psi_p99": float(group["max_psi"].quantile(0.99)),
+            "max_psi_max": float(group["max_psi"].max()),
+            "existing_alert_fraction": float((group["max_psi"] >= params["drift"]["psi_alert"]).mean()),
+            "existing_retrain_fraction": float((group["max_psi"] >= params["drift"]["psi_retrain"]).mean()),
+        }
     summary_path = args.out / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -105,13 +106,17 @@ def main() -> None:
             {
                 "samples": args.samples,
                 "first_seed": args.first_seed,
-                "n_rides": summary["n_rides"],
+                "ride_counts": ",".join(map(str, args.rides)),
                 "window_s": cnn["window_s"],
                 "stride_s": cnn["stride_s"],
             }
         )
         mlflow.log_metrics(
-            {key: value for key, value in summary.items() if key.startswith("max_psi_") or key.endswith("_fraction")}
+            {
+                f"rides_{count}_{key}": value
+                for count, values in summary["by_ride_count"].items()
+                for key, value in values.items()
+            }
         )
         mlflow.log_artifact(str(raw_path))
         mlflow.log_artifact(str(summary_path))
