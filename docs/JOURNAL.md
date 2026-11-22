@@ -67,14 +67,21 @@ This block is rewritten at each stop; the dated entries below are the history.
   Unit tests cover window overlap, cadence, state and target-version rejection. This is unmeasured: the kind run,
   capacity plot, infrastructure verification and any inference from accelerated replay remain open.
 - **Normal drift calibration (T034):** `drift/calibrate.py` now resamples 1, 5, 20 and 100 complete training rides
-  per sample, computes max-feature PSI on 100 seeds per size and logs aggregate results and raw PSI samples to
-  MLflow. It does not change thresholds automatically; its population overlaps the training reference and is
-  not an independent production false-alarm estimate. The measurement awaits Google account reauthentication:
-  the shared MLflow proxy could not start because the school account's token expired.
+  per sample and computes maximum feature PSI on 100 seeds per size. Local MLflow run
+  `66fceadcd56a4b1ab989a1b1bf05c7cd` (clean commit `306adfb`, reference SHA-256
+  `4aaa50a4d818a3977256764c02b628a1a4672d406fa1608c60ab78b0ac0e005a`) contains the raw CSV and summary.
+  Fractions of samples with at least one PSI >= 0.25: 100/100 at one ride, 86/100 at five rides, 4/100 at 20,
+  and 0/100 at 100. Among the one-ride samples with >=20 windows, 49/49 exceeded 0.25: the current live minimum
+  of 20 windows can be highly unstable. Samples overlap the training reference and each other; this is not an
+  independent production false-alarm rate. Keep thresholds provisional and do not lower them; ride sampling and
+  realistic monitoring windows need further study. The run ended `RUNNING` due to a Windows stdout encoding error
+  after all artifacts were saved; it was verified and explicitly marked `FINISHED`. The run is local, not yet
+  imported into shared MLflow, whose school-account proxy still needs reauthentication.
 - **Local services correction:** Docker was unavailable only inside the sandbox; outside it, the existing local
   S3, Postgres and MLflow containers are running and the local MLflow health endpoint responds. The shared proxy
-  still needs school-account reauthentication. Local runs must later be made available to the team; do not confuse
-  the local and shared registries.
+  still needs school-account reauthentication. `docker compose --profile monitoring config --quiet` succeeds;
+  the monitoring containers have not yet been started or tested. Local runs must later be made available to the
+  team; do not confuse the local and shared registries.
 - **Prediction sampling:** offline reports now take the latest observed prediction per `ride_id` (by
   `window_index`) rather than treating overlapping windows as independent rides. The latest observed prediction
   may still be from an unfinished ride; prediction monitoring in the live exporter remains open. Feedback now

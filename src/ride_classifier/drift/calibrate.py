@@ -17,6 +17,7 @@ from ride_classifier.config import ID_COLUMN, MLFLOW_TRACKING_URI, ROOT, SAMPLIN
 from ride_classifier.data.clean import clean_rides
 from ride_classifier.drift.psi import psi
 from ride_classifier.features.window_stats import FEATURES, window_stats
+from ride_classifier.pipeline.cli import setup
 from ride_classifier.registry.tracking import check_server, run_tags
 
 
@@ -54,6 +55,7 @@ def sample_psi(rides: dict[str, pd.DataFrame], reference: dict, n_rides: int, se
 
 
 def main() -> None:
+    setup()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--samples", type=int, default=100)
     parser.add_argument("--first-seed", type=int, default=1000)

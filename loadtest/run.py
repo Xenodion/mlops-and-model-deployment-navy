@@ -12,6 +12,7 @@ from urllib.request import urlopen
 import mlflow
 
 from ride_classifier.config import MLFLOW_TRACKING_URI, ROOT, load_params
+from ride_classifier.pipeline.cli import setup
 from ride_classifier.registry.tracking import check_server, run_tags
 
 
@@ -24,6 +25,7 @@ def target_health(host: str, expected_version: str) -> dict:
 
 
 def main() -> None:
+    setup()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", required=True, help="API base URL")
     parser.add_argument("--model-version", required=True, help="Expected model version reported by /health")

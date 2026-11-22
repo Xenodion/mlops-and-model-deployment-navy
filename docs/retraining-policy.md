@@ -21,7 +21,10 @@ flowchart LR
 - **Schedule:** a weekly run is planned to test the process. With unchanged data and code, this reproduces a
   candidate and is not evidence of improvement. It must not automatically deploy.
 - **Input drift:** inspect the affected features, units, sampling and reference version. The thresholds are
-  provisional. A rad/s versus deg/s sender error is repaired upstream, not learned by the model.
+  provisional. In a local calibration resampling the reference's training population, 49/49 one-ride samples with
+  at least 20 windows had a maximum feature PSI >= 0.25; these overlapping samples are not an independent
+  production false-alarm estimate. The monitor's minimum of 20 windows therefore does not guarantee reliable
+  alerts. A rad/s versus deg/s sender error is repaired upstream, not learned by the model.
 - **Prediction drift:** compare one prediction per ride with a compatible reference; repeated windows from a
   ride are dependent. Check population and sample size before interpreting an approximate chi-square p-value.
 - **Performance:** assess enough delayed, representative, quality-checked labels; biased voluntary feedback is

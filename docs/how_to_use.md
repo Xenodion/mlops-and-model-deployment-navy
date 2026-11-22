@@ -20,7 +20,9 @@ and exporter via `host.docker.internal`; this setup is distinct from the future 
 The exporter calculates PSI from the last 15 minutes of histogram increases, with at least 20 windows per feature.
 `drift_monitor_up=0` means the query failed, the sample is too small, or buckets are incomplete; unavailable PSI
 is not reported as zero. A Prometheus range needs at least two scrapes. Thresholds and rules are provisional until
-calibrated on normal training rides. Prediction-mix monitoring still needs comparable ride-level sampling. See
+calibrated for realistic samples. In a training-population resampling check, all 49 one-ride samples with at
+least 20 windows exceeded PSI 0.25 on some feature; the 20-window minimum alone does not make the alert reliable.
+These samples are not an independent production false-alarm estimate. Prediction-mix monitoring still needs comparable ride-level sampling. See
 the [runbooks](runbooks.md) before acting on an alert.
 
 ## Offline drift scenarios (in progress)
