@@ -35,9 +35,10 @@ rollback() {
 }
 trap 'rollback; exit 1' ERR
 
-# 1. the tag, on the three images we build (never on ride-mlflow)
-sed -i -E "/name: ride-(api|api-canary|webapp)\$/,/newTag:/ s/(newTag: )[^ ]+/\1$tag/" k8s/kustomization.yaml
-[ "$(grep -c "newTag: $tag" k8s/kustomization.yaml)" -eq 3 ] || { echo "Tag not set on the 3 images" >&2; false; }
+# 1. the tag, on the three images we build (never on ride-mlflow). Quoted: YAML reads a tag like 7111e57 as the
+#    number 7111 x 10^57, which kustomize rejects
+sed -i -E "/name: ride-(api|api-canary|webapp)\$/,/newTag:/ s/(newTag: )[^ ]+/\1\"$tag\"/" k8s/kustomization.yaml
+[ "$(grep -c "newTag: \"$tag\"" k8s/kustomization.yaml)" -eq 3 ] || { echo "Tag not set on the 3 images" >&2; false; }
 
 # 2. apply and wait: Kubernetes replaces the pods one by one, an old pod goes only once a new one is ready
 echo "Releasing $tag (was ${before##*:})"
