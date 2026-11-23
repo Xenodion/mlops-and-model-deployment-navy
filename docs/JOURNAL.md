@@ -4,9 +4,17 @@ What was done, why, and where the evidence is, newest first. Decisions are detai
 [decisions/](decisions/README.md); this log is the story behind them, written to be reread when preparing the
 presentations. One entry per working session; mistakes found and corrected are logged too.
 
-## Where we are (resume here) - updated 21/11 end of session
+## Where we are (resume here) - updated 23/11
 
 This block is rewritten at each stop; the dated entries below are the history.
+
+- **Team integration (23/11):** Alex merged PR #32, then PR #9 at `fa6bf9c`, into `main`; CI passed tests,
+  image builds and container smoke tests. New DVC outputs still need a separate push with isolated school
+  credentials. The local calibration run still needs importing into shared MLflow.
+- **Two-model container CI:** the smoke test now builds a synthetic fall-risk model alongside the synthetic ride
+  classifier and requires the container to load it and return risk windows. A local API test loaded both models
+  and returned 11 windows; the changed image workflow still needs a GitHub CI run. Exporting the real second
+  model and reference into the production deployment remains open.
 
 - **Resume, notebook:** `notebooks/07_fall_risk.ipynb` now plots F49 from the existing held-out metrics; the 10 s
   check shifts the entire 60 s segment, so the difference cannot be attributed only to its last five seconds.
@@ -33,7 +41,8 @@ This block is rewritten at each stop; the dated entries below are the history.
   logs to window predictions. Histograms restart with the API.
 - **Unit-bug CI coverage:** the synthetic converted and unconverted sensor windows now also run through the
   drift CLI using parquet inputs, checking exit codes 0 and 3 and the saved report. The existing CI test step
-  discovers this integration test automatically. The real-data replay in `drift.yml` remains to be built.
+  discovers this integration test automatically. The real-data scenario workflow exists but has not been run on
+  the self-hosted runner.
 - **Live drift and monitoring (in progress):** a separate exporter queries rolling Prometheus histogram increases
   and exposes per-feature PSI and an input-drift flag. It drops stale gauges on errors or insufficient samples;
   `drift_monitor_up` indicates readiness. A host-based opt-in Prometheus/Grafana profile, provisional alerts,
@@ -91,7 +100,7 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **Local services correction:** Docker was unavailable only inside the sandbox; outside it, the existing local
   S3, Postgres and MLflow containers are running and the local MLflow health endpoint responds. The shared proxy
   still needs school-account reauthentication. `docker compose --profile monitoring config --quiet` succeeds;
-  the monitoring containers have not yet been started or tested. Local runs must later be made available to the
+  the local monitoring smoke test is described above. Local runs must later be made available to the
   team; do not confuse the local and shared registries.
 - **Prediction sampling:** offline reports now take the latest observed prediction per `ride_id` (by
   `window_index`) rather than treating overlapping windows as independent rides. The latest observed prediction

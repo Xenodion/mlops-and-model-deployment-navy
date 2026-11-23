@@ -57,11 +57,11 @@ jobs:
       - name: Start the containers
         run: |
           docker network create ride
-          docker run -d --name api --network ride -p 8000:8000 ride-api:ci
+          docker run -d --name api --network ride -p 8000:8000 -e FALL_RISK_MODEL_PATH=/app/model/fall_risk_ci.joblib ride-api:ci
           docker run -d --name webapp --network ride -p 8501:8501 -e API_URL=http://api:8000 ride-webapp:ci
 
       - name: Smoke test
-        run: uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501
+        run: uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501 --require-fall-risk
 
       - name: The web app reaches the API by its name
         run: >

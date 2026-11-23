@@ -10,12 +10,15 @@ import json
 import sys
 from pathlib import Path
 
+import joblib
 import mlflow
 import numpy as np
 import pandas as pd
 
 from ride_classifier.config import LABELS, SENSOR_COLUMNS
+from ride_classifier.features.stats import ride_features
 from ride_classifier.models.baseline import StatsBaseline
+from ride_classifier.models.fall_risk import FallRiskModel
 from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.train import PACKAGE_DIR, SIGNATURE
 
@@ -46,6 +49,10 @@ def main(destination: Path) -> None:
         code_paths=[str(PACKAGE_DIR)],
     )
     (destination / "model_meta.json").write_text(json.dumps({"name": "ride-classifier", "version": "ci"}, indent=2))
+    features = ride_features(readings).drop(columns=["duration_s"])
+    binary = pd.Series([int(label == "Reckless") for label in labels.reindex(features.index)])
+    fall_model = FallRiskModel(c=1.0, seed=0).fit(features.reset_index(drop=True), binary)
+    joblib.dump(fall_model, destination / "fall_risk_ci.joblib")
     print(f"test model written to {destination}/")
 
 
