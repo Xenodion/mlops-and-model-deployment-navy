@@ -1,0 +1,136 @@
+# Continuous deployment (docs/PLAN.md §10, task K8S-5). Every change of code, images or k8s/ merged into main goes
+# to the kind cluster, once a human approves it:
+#   images  (GitHub's machines): build both images (code only, ADR 007) -> container smoke test -> push to Docker Hub
+#   deploy  (self-hosted runner on the prod host, label prod-host): waits for approval in the `production`
+#           environment -> k8s/release.sh <tag> (apply, rollout, smoke test on the cluster, rollback if anything
+#           fails) -> the bot commits the released tag in k8s/kustomization.yaml, so git says what runs
+# Models are not part of it: the images carry none. A model is released with `make promote` and `make k8s-model`.
+# Safety: the self-hosted runner never runs pull_request workflows (code from forks would run on the prod host).
+name: cd
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "webapp/**"
+      - "docker/**"
+      - "k8s/**"
+      - "tests/integration/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch:  # redeploy main by hand: Actions -> cd -> Run workflow
+
+concurrency:  # one release at a time, never cancelled halfway
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    env:
+      DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Image tag = the commit
+        id: tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - name: Install (exact versions from uv.lock)
+        run: uv sync --locked
+
+      - name: Tiny test models in model/
+        run: uv run python tests/integration/make_test_model.py model
+
+      - name: Build the images
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker build -f docker/api/Dockerfile -t "$DOCKERHUB_USER/ride-api:$TAG" -t "$DOCKERHUB_USER/ride-api:latest" \
+            --label org.opencontainers.image.revision="$TAG" .
+          docker build -f docker/webapp/Dockerfile -t "$DOCKERHUB_USER/ride-webapp:$TAG" \
+            -t "$DOCKERHUB_USER/ride-webapp:latest" --label org.opencontainers.image.revision="$TAG" .
+
+      - name: Smoke test the containers before pushing (test models mounted, as in ci.yml)
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          docker network create ride
+          docker run -d --name api --network ride -p 8000:8000 -v "$PWD/model:/app/model:ro" \
+            -e MODEL_URI=/app/model -e FALL_RISK_URI= -e FALL_RISK_MODEL_PATH=/app/model/fall_risk_ci.joblib \
+            "$DOCKERHUB_USER/ride-api:$TAG"
+          docker run -d --name webapp --network ride -p 8501:8501 -e API_URL=http://api:8000 \
+            "$DOCKERHUB_USER/ride-webapp:$TAG"
+          uv run python tests/integration/smoke_test.py http://127.0.0.1:8000 http://127.0.0.1:8501 --require-fall-risk
+
+      - name: Push to Docker Hub
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+          for image in ride-api ride-webapp; do
+            docker push "$DOCKERHUB_USER/$image:$TAG"
+            docker push "$DOCKERHUB_USER/$image:latest"
+          done
+
+      - name: Container logs
+        if: failure()
+        run: |
+          docker logs api 2>&1 | tail -n 30
+          docker logs webapp 2>&1 | tail -n 30
+
+  deploy:
+    needs: images
+    runs-on: [self-hosted, prod-host]
+    timeout-minutes: 30
+    environment:  # required reviewers: the job waits here until one of them approves
+      name: production
+      url: http://127.0.0.1:8081
+    permissions:
+      contents: write  # to commit the released tag
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ needs.images.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Release on the cluster (rollback if it fails)
+        run: bash k8s/release.sh "$TAG"
+
+      - name: Record the released tag in git
+        run: |
+          git add k8s/kustomization.yaml
+          if git diff --cached --quiet; then echo "Tag already in git"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(k8s): release $TAG [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Release $TAG: ${{ job.status }}"
+            echo '```'
+            curl -s http://127.0.0.1:8080/health || echo "API unreachable"
+            echo
+            kubectl --context kind-ride-mlops -n ride-prod get deploy ride-api-v1 ride-api-v2 ride-webapp -o wide
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

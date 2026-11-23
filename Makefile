@@ -131,6 +131,9 @@ k8s-deploy: ## Deploy (or update) everything in the cluster and wait until it ru
 	kubectl -n ride-prod rollout status statefulset/s3 statefulset/postgres --timeout=5m
 	kubectl -n ride-prod rollout status deploy/mlflow deploy/ride-api-v1 deploy/ride-webapp --timeout=10m
 
+k8s-release: ## Release image tag TAG on the cluster, smoke test, automatic rollback if it fails (what CD runs): make k8s-release TAG=<tag>
+	bash k8s/release.sh $(TAG)
+
 k8s-model: ## Copy both registered models (+ drift reference) into the cluster's MLflow, where the API loads @production, then restart it. From the shared MLflow: MLFLOW_SOURCE=http://localhost:5001
 	uv run python -m ride_classifier.registry.mirror --source $(MLFLOW_SOURCE) --target http://127.0.0.1:8082
 	kubectl -n ride-prod rollout restart deploy/ride-api-v1
