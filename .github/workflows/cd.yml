@@ -106,9 +106,22 @@ jobs:
     env:
       TAG: ${{ needs.images.outputs.tag }}
     steps:
+      # On Windows, plain `bash` can resolve to WSL's C:\Windows\System32\bash.exe (it did on the prod host):
+      # put Git Bash first in the PATH of the next steps, found from where git is installed
+      - name: Use Git Bash
+        shell: powershell
+        run: |
+          $root = (Get-Command git).Source -replace '\\(cmd|bin|mingw64\\bin)\\git\.exe$', ''
+          $bash = Join-Path $root 'bin'
+          if (-not (Test-Path (Join-Path $bash 'bash.exe'))) { throw "Git Bash not found under $root" }
+          Add-Content -Path $env:GITHUB_PATH -Value $bash
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # The job's own uv (for the smoke test), as in ci.yml: no dependency on how uv is installed on the host
+      - uses: astral-sh/setup-uv@v10.3.3
 
       - name: Release on the cluster (rollback if it fails)
         run: bash k8s/release.sh "$TAG"
