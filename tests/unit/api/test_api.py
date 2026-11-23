@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from ride_classifier.api.main import create_app
-from ride_classifier.config import LABELS, SENSOR_COLUMNS
+from ride_classifier.api.main import create_app, resolve_model
+from ride_classifier.config import LABELS, MODEL_NAME, SENSOR_COLUMNS
 from ride_classifier.pipeline.train import PACKAGE_DIR
 from ride_classifier.replay.client import replay
 
@@ -313,3 +313,33 @@ def test_fall_risk_scores_windows_when_model_2_is_loaded(model_dir, ride, tmp_pa
     fall = body["fall_risk"]
     assert fall["retrospective"] and len(fall["windows"]) == (600 - 100) // 50 + 1
     assert all(0 <= w["risk"] <= 1 for w in fall["windows"])
+
+
+def test_a_model_uri_says_which_version_is_loaded(model_dir):
+    assert resolve_model("models:/ride-classifier/3") == ("models:/ride-classifier/3", {"version": "3"})
+    assert resolve_model(str(model_dir)) == (str(model_dir), {"version": "7"})  # make export's model_meta.json
+
+
+def test_the_images_load_the_production_model_from_the_registry(ride_model, ride, tmp_path, monkeypatch):
+    """Images contain no model (ADR 007): MODEL_URI=models:/<name>@production, resolved to its version first."""
+    monkeypatch.setenv("FALL_RISK_MODEL_PATH", str(tmp_path / "absent.joblib"))
+    monkeypatch.setenv("DRIFT_REFERENCE_PATH", str(tmp_path / "absent.json"))
+    previous = mlflow.get_tracking_uri()
+    mlflow.set_tracking_uri(f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}")
+    try:
+        experiment = mlflow.create_experiment("api-test", artifact_location=(tmp_path / "artifacts").as_uri())
+        with mlflow.start_run(experiment_id=experiment):
+            info = mlflow.pyfunc.log_model(
+                name="model", python_model=ride_model, code_paths=[str(PACKAGE_DIR)], pip_requirements=["pandas"]
+            )
+        for _ in range(2):  # v1 and v2: @production on v1 must load v1, not the latest
+            version = mlflow.register_model(info.model_uri, MODEL_NAME)
+        mlflow.MlflowClient().set_registered_model_alias(MODEL_NAME, "production", "1")
+
+        with TestClient(create_app(model_uri=f"models:/{MODEL_NAME}@production")) as c:
+            health = c.get("/health").json()
+            assert (health["status"], health["model_version"]) == ("ok", "1")
+            assert c.post("/v1/predict", json=ride).json()["model_version"] == "1"
+        assert str(version.version) == "2"
+    finally:
+        mlflow.set_tracking_uri(previous)

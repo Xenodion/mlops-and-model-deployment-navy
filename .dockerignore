@@ -1,5 +1,5 @@
 # Images are built from the repo root (docker build -f docker/<image>/Dockerfile .).
-# Keep the build context small and free of secrets. model/ is NOT listed: the API image copies it.
+# Keep the build context small and free of secrets, models and data: the images are public (ADR 007).
 .git
 .github
 .venv
@@ -9,6 +9,8 @@
 .env
 data/
 artifacts/
+model/
+webapp/examples/
 logs/
 notebooks/
 labs/

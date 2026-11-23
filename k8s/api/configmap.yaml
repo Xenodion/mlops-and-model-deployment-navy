@@ -4,5 +4,9 @@ kind: ConfigMap
 metadata:
   name: ride-api-config
 data:
+  # The image has no model (ADR 007): each pod loads it from the cluster's MLflow at startup. `make k8s-model` puts
+  # the registered versions there. New model = move @production, then `kubectl rollout restart deploy/ride-api-v1`.
+  MODEL_URI: models:/ride-classifier@production
+  MLFLOW_TRACKING_URI: http://mlflow:5000
   RECKLESS_THRESHOLD: "0.5"  # docs/PLAN.md §6.3
   PREDICTION_LOG_PATH: /app/logs/predictions.jsonl

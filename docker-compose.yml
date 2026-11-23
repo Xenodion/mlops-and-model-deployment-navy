@@ -71,6 +71,11 @@ services:
       <<: *s3-env
       MLFLOW_DISABLE_AGENT_HINT: "1"
       MLFLOW_SERVER_ENABLE_JOB_EXECUTION: "false"  # ~10 GenAI job processes we don't use, ~1.8 GB of memory
+    healthcheck:  # the API waits for it (depends_on: service_healthy)
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
     ports:
       - "5000:5000"
     depends_on:
@@ -88,10 +93,15 @@ services:
       dockerfile: docker/api/Dockerfile
     image: ride-api:dev
     profiles: ["app"]
-    environment:
+    environment:  # the image has no model: it loads @production from the dev MLflow at startup (ADR 007)
+      MODEL_URI: ${MODEL_URI:-models:/ride-classifier@production}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
       RECKLESS_THRESHOLD: ${RECKLESS_THRESHOLD:-0.5}
     ports:
       - "8000:8000"
+    depends_on:
+      mlflow:
+        condition: service_healthy
     restart: unless-stopped
 
   # The web app, also in the "app" profile. It reaches the API by its service name.
@@ -103,6 +113,8 @@ services:
     profiles: ["app"]
     environment:
       API_URL: http://api:8000
+    volumes:  # example rides are course data: generated locally (make webapp-examples), never in the image
+      - ./webapp/examples:/app/webapp/examples:ro
     ports:
       - "8501:8501"
     depends_on:

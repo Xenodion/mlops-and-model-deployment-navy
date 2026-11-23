@@ -133,6 +133,7 @@ shows false "package not installed" hints.
 | `make kind-up` / `make kind-down` | Create / delete the production Kubernetes cluster (§12) |
 | `make kind-load` / `make k8s-secrets` | Copy our MLflow image into the cluster / create the passwords in it |
 | `make k8s-deploy` / `make k8s-status` | Deploy everything in `k8s/` and wait until it's ready / show what runs |
+| `make k8s-model` | Copy the registered models into the cluster's MLflow and restart the API, which loads `@production` (§12) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -372,7 +373,8 @@ CV and golden scores. See it in the MLflow UI → **Models** → `ride-classifie
 make promote       # @production -> the version currently @staging
 ```
 
-**Export** the model for the API image (labs 2 and 5):
+**Export** the model for `make api` (the API run on your laptop, §9). The Docker images don't need it: they load the
+model from MLflow at startup.
 
 ```bash
 make export                    # @staging -> model/
@@ -474,19 +476,19 @@ Every response carries `X-Request-ID` (send your own to trace a call) and `X-Pro
 
 The API tests (`tests/unit/api/`) use a small model trained on fake rides: no MLflow server or real data needed.
 
-**In Docker** (what Kubernetes will run). The image contains our code plus the model exported in `model/` at build
-time, so export first:
+**In Docker** (what Kubernetes runs). The image contains **our code only, no model and no data** (the images are
+public, ADR 007). At startup the API loads `MODEL_URI` (default `models:/ride-classifier@production`) from the MLflow
+at `MLFLOW_TRACKING_URI` (default `http://mlflow:5000`, MLflow's name in compose and in the cluster):
 
 ```bash
-make export
-make image                                 # docker/api/Dockerfile -> ride-api:dev (~1.1 GB, first build ~4 min)
-docker run --rm -p 8000:8000 ride-api:dev  # http://127.0.0.1:8000/docs, Ctrl+C to stop
-# or, next to S3 + MLflow:
-make app-up                                # the "app" profile of docker-compose.yml
+make image      # docker/api/Dockerfile -> ride-api:dev (first build ~4 min)
+make app-up     # API + web app next to the dev stack: the API loads @production from your dev MLflow
 ```
 
 - **Contents:** core libraries plus the `api` dependency group at the exact `uv.lock` versions (the model's
-  training versions), our package, `model/`. No data, tests or secrets (`.dockerignore`).
+  training versions) and our package. No model, data, tests or secrets (`.dockerignore`).
+- **Which model:** `/health` shows the version loaded. `@production` is resolved to its version before loading, so
+  that number is exact. New model: move `@production` (`make promote`), then restart the container.
 - **Safety:** runs as a non-root user (`appuser`), and Docker's healthcheck calls `/health`, so `docker ps` shows
   `healthy` or `unhealthy`.
 - **Logs:** the prediction log goes to `docker logs` and to `/app/logs/predictions.jsonl` in the container.
@@ -519,14 +521,16 @@ and says so.
 |---|---|
 | `webapp/app.py` | The page |
 | `webapp/api_client.py` | Reads ride files, builds the request, calls the API (tested without a browser) |
-| `webapp/examples/*.parquet` | Example rides, committed; regenerate with `make webapp-examples` after `make pipeline` |
+| `webapp/examples/*.parquet` | Example rides: course data, so **not in git nor in the image** (ADR 007). Create them with `make webapp-examples` (needs `data/processed/golden.parquet`: `make data` then `make pipeline`) |
 
 The page calls the API at `API_URL` (default `http://127.0.0.1:8000`). Tests: `tests/unit/webapp/`, with a fake API
 for the client and Streamlit's test runner for the whole page.
 
 **In Docker:** `make app-up` builds and starts both containers. The API is on :8000, the web app on
 **http://127.0.0.1:8501**, and the web app reaches the API by its compose service name (`http://api:8000`). The web
-app image (~850 MB) installs only Streamlit and the HTTP client, not our package or the ML libraries.
+app image (~850 MB) installs only Streamlit and the HTTP client, not our package or the ML libraries. Compose mounts
+your local `webapp/examples/` into it. In the cluster there are no examples: upload a ride file instead (e.g. one of
+your local `webapp/examples/*.parquet`).
 
 ---
 
@@ -539,33 +543,31 @@ The guidelines ask for the Docker Hub URLs of our images, and Kubernetes will pu
 2. Create a token: **Account settings → Personal access tokens → Generate new token**, access **Read & Write**.
    Copy it: it's shown only once.
 3. `docker login -u <your Docker Hub name>`, then paste the token as the password.
-4. For the CD workflow (coming next): GitHub repo → **Settings → Secrets and variables → Actions → New repository
-   secret**. Add `DOCKERHUB_USERNAME` (your name) and `DOCKERHUB_TOKEN` (the token). Never put the token in a file.
+4. For the workflows: GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**. Add
+   `DOCKERHUB_USERNAME` (your name) and `DOCKERHUB_TOKEN` (a token of its own). Never put a token in a file.
+   Done for `alexwaer110302` (21/11).
 
 **Push:**
 
 ```bash
 git status                            # commit first: the push refuses uncommitted changes
-make export                           # the model the API image will contain (@staging by default)
 make push DOCKERHUB_USER=<your name>  # builds both images, tags them, pushes, prints the Docker Hub URLs
 ```
 
-| Image | Tags | Says |
+| Image | Tags | Contains |
 |---|---|---|
-| `<name>/ride-api` | `<commit>-m<model version>` (e.g. `b192aac-m1`) + `latest` | Which code **and** which model are inside |
-| `<name>/ride-webapp` | `<commit>` + `latest` | Which code is inside |
+| `<name>/ride-api` | `<commit>` (e.g. `3f2a1bc`) + `latest` | Our code. The model is loaded from MLflow at startup |
+| `<name>/ride-webapp` | `<commit>` + `latest` | The page's code. No example rides |
 
-Each image also carries labels (`org.opencontainers.image.revision`, `ride.model.version`): `docker inspect` shows them.
+The repositories are **public** (the guidelines ask for their URLs), so the images carry **no model and no course
+data** (ADR 007). The label `org.opencontainers.image.revision` gives the commit (`docker inspect`). The first tags
+(`4bfea0d-m1`, `b3fef60-m2`, `27d20c1-m2`) had the model inside: delete them on Docker Hub (**repository → Tags →
+select → Delete**) once the code-only images run in the cluster.
 
-**Public or private?** New Docker Hub repositories are public. The API image contains the trained model, and the web
-app image contains the 5 example rides from the course dataset. Decide with the team whether that may be public; if
-not, switch the repositories to private in their Docker Hub settings (the free plan allows only a few private
-repositories).
-
-**What CI does with images:** on every pull request and push to `main`, the `images` job builds both images with a
-tiny test model (GitHub's machines can't reach our MLflow), starts them, and runs the smoke test: `/health`, a
-prediction, a 422, the web app's health, and the web app reaching the API by name. It doesn't push. Run the same
-smoke test on your own containers with `make app-up` then `make smoke-test`.
+**What CI does with images:** on every pull request and push to `main`, the `images` job builds both images, starts
+them with a tiny test model mounted into the API container (GitHub's machines can't reach our MLflow), and runs the
+smoke test: `/health`, a prediction, a 422, the web app's health, and the web app reaching the API by name. It
+doesn't push. Run the same smoke test on your own containers with `make app-up` then `make smoke-test`.
 
 ---
 
@@ -594,10 +596,17 @@ Everything lives in the namespace `ride-prod`. The files are in `k8s/` (one fold
 make kind-up        # create the cluster (ports 8080-8086 on the laptop)
 make kind-load      # build our MLflow image and copy it into the cluster (not on Docker Hub)
 make k8s-secrets    # create the passwords in the cluster (S3 keys, Postgres)
-make k8s-deploy     # apply everything in k8s/ and wait until every pod is ready
+make k8s-deploy     # apply everything in k8s/ (the API pods wait for a model: next step)
+make k8s-model      # copy the registered models from your dev MLflow into the cluster's, restart the API
 make k8s-status     # pods, services, jobs
 uv run python tests/integration/smoke_test.py http://127.0.0.1:8080 http://127.0.0.1:8081
 ```
+
+**The model in the cluster.** The API image has no model: each pod loads `@production` from the cluster's MLflow
+(:8082) at startup. `make k8s-model` copies every registered version, with its run, scores, files and aliases, from
+your dev MLflow, keeping the version numbers. From the shared MLflow instead: `make shared-mlflow`, then
+`make k8s-model MLFLOW_SOURCE=http://localhost:5001`. It is safe to run again: what is already there is reused, and
+the aliases follow the source. Until it has run once, the API pods stay "not ready" (`/health` = 503).
 
 The cluster survives a Docker Desktop restart. `make kind-down` deletes it **with its data** (prod S3 and MLflow).
 
@@ -619,12 +628,13 @@ The CD workflow will do the same steps automatically.
 | Read the API logs | `kubectl -n ride-prod logs deploy/ride-api-v1` (add `-f` to follow) |
 | Understand a pod that won't start | `kubectl -n ride-prod describe pod <pod name>` (the **Events** at the bottom) |
 | Change a setting (e.g. the Reckless threshold) | Edit `k8s/api/configmap.yaml`, `make k8s-deploy`, then `kubectl -n ride-prod rollout restart deploy/ride-api-v1` |
-| Undo a bad release | `kubectl -n ride-prod rollout undo deploy/ride-api-v1` |
+| Undo a bad release (code) | `kubectl -n ride-prod rollout undo deploy/ride-api-v1` |
+| Ship a new model, or undo one | Move `@production` in your MLflow, `make k8s-model` (copies it and restarts the API pods) |
 | Scale the API | `kubectl -n ride-prod scale deploy/ride-api-v1 --replicas=3` |
 | Canary (≈ 10 % of traffic) | Set the `ride-api-canary` tag in `kustomization.yaml`, `make k8s-deploy`, then scale `ride-api-v1` to 9 and `ride-api-v2` to 1. Rollback: scale `ride-api-v2` to 0 |
 
-**The prod MLflow is empty for now.** The registered models (v1, v2) are in your dev MLflow (:5000). The API doesn't
-need MLflow: the model is inside its image. The prod MLflow becomes the registry with the training workflow (K8S-4).
+**The cluster's MLflow** holds copies of the registered models (`make k8s-model`); the API needs it at startup only.
+Training still registers in your dev MLflow or the shared one (`train.yml`).
 
 ---
 
@@ -689,7 +699,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | `Registration refused for run …` | Read the reasons: commit + `uv run dvc repro --force --downstream train`, or the gate failed, or the model is worse than production (§8) |
 | Each API call takes ~2 s on Windows | Call `http://127.0.0.1:8000`, not `localhost` (Windows tries IPv6 first) |
 | `make api`: address already in use | Another API is still running on port 8000: stop it (Ctrl+C in its terminal) |
-| `/health` says `degraded` | No model in `model/`: run `make export` (needs MLflow running and a registered model) |
+| `/health` says `degraded` | `make api`: no model in `model/`, run `make export`. Docker or cluster: the API couldn't load `@production` from MLflow at startup. Its log says why (`model_load_failed`). Check that MLflow runs and has the model (cluster: `make k8s-model`), then restart the API |
 | `make push`: "Uncommitted changes" | On purpose: commit first, so the image tag matches the code inside |
 | `make push`: "denied: requested access to the resource is denied" | Run `docker login`, and check that `DOCKERHUB_USER` is exactly your Docker Hub name |
 | CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |

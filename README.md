@@ -22,10 +22,11 @@ make api         # the API on http://127.0.0.1:8000/docs
 make webapp      # the web app on http://127.0.0.1:8501 (2nd terminal)
 ```
 
-Production on Kubernetes (kind), with the images from Docker Hub:
+Production on Kubernetes (kind), with the images from Docker Hub. The images carry code only: the API loads its
+model from the cluster's MLflow, filled by `make k8s-model` from your MLflow:
 
 ```bash
-make kind-up && make kind-load && make k8s-secrets && make k8s-deploy
+make kind-up && make kind-load && make k8s-secrets && make k8s-deploy && make k8s-model
 # API http://127.0.0.1:8080 · web app http://127.0.0.1:8081 · MLflow http://127.0.0.1:8082
 ```
 

@@ -62,7 +62,7 @@ lab 5's `params.yaml`), and S6–S8. Re-check §10–12 after each of those sess
 | DEC-2 | SRV3490 (multi-city crash data) | **Not used at all.** It answers a different question (crash detection) and has no labels for our 5 categories. The project uses GBG500 only. | **Decided** (16/11) |
 | DEC-3 | Pipeline / DAG tool | DVC pipeline (`dvc.yaml`, `dvc repro`, `dvc dag`), as in the lab 5 reference project. No Airflow. | Proposed |
 | DEC-4 | Model | Baseline first (per-ride statistics + scikit-learn), shipped end to end. Then the PyTorch 1D CNN (CPU, E3) goes to production **to meet the guidelines' "deep learning model" objective**, not because it's better: the two are tied within the noise (CV favours the baseline 0.373 vs 0.357, golden the CNN 0.511 vs 0.477), and the data (5 Reckless rides) limits both. The baseline stays registered (v1) as the reference; the presentation shows the comparison. | **Decided** (19/11) |
-| DEC-5 | Serving | Model exported from the registry into `model/` and baked into the API image (labs 2 and 5). Image tag = commit sha + model version. | Proposed |
+| DEC-5 | Serving | Images carry **code only**: the public Docker Hub images must not contain the model nor course data (ADR 007). The API loads `models:/ride-classifier@production` from MLflow at startup (`MODEL_URI`, `MLFLOW_TRACKING_URI`); the cluster's MLflow gets the registered versions with `make k8s-model`. Image tag = commit sha. A new model needs no new image: move `@production`, restart the API pods. First version (19/11) baked `model/` into the image (labs 2 and 5). | **Decided** (23/11, task INF-4) |
 | DEC-6 | Object storage | SeaweedFS (course setup, S3-compatible). Covers the "store the model on S3 / MinIO" requirement. | Proposed |
 | DEC-7 | Image registry | Docker Hub (the guidelines ask for Docker Hub URLs; lab 2 used GHCR) | Proposed |
 | DEC-8 | Production environment | **kind** cluster on one designated **prod host** laptop, as in the S5 lab (the guidelines also accept Docker Desktop Kubernetes or Minikube) | **In place** (19/11) on the laptop building the project; the self-hosted runner goes on the same machine |
@@ -300,7 +300,7 @@ the first real file.
 │
 ├── data/                     ignored: raw/ (DVC), processed/
 ├── artifacts/                ignored: trained model, metrics, plots
-├── model/                    ignored: model exported for the API image
+├── model/                    ignored: model exported for `make api` (local runs; images load from MLflow)
 │
 ├── dvc.yaml  dvc.lock  params.yaml
 ├── pyproject.toml  uv.lock  .python-version
@@ -354,8 +354,9 @@ Start each folder with one file and split it only when it gets long.
 | `make load` / `make load-kind` | Locust against the local API / the cluster |
 
 **Dockerfile pattern** (lab 5 API image):
-- `python:3.14-slim` + uv; `pyproject.toml` + `uv.lock` copied first, then the code, then `model/`.
-- Non-root `appuser`, `HEALTHCHECK` on `/health`, `MODEL_URI=/app/model`.
+- `python:3.14-slim` + uv; `pyproject.toml` + `uv.lock` copied first, then the code. **No model, no data** (DEC-5).
+- Non-root `appuser`, `HEALTHCHECK` on `/health`, `MODEL_URI=models:/ride-classifier@production`,
+  `MLFLOW_TRACKING_URI=http://mlflow:5000` (the MLflow service name in compose and in the cluster).
 - Built from the repo root so the image can copy `src/` and `pyproject.toml`: `docker build -f docker/api/Dockerfile .`
   (`make image` does it). One `.dockerignore` at the root keeps `data/`, `.venv/`, `notebooks/` and `.env` out.
 - No secrets in the image (lab 2).
@@ -405,7 +406,9 @@ Start each folder with one file and split it only when it gets long.
 ### 9.1 API (FastAPI)
 
 Patterns from labs 3 and 5:
-- **Model loading:** once, in `lifespan`, from `MODEL_URI` (the baked-in `model/` folder, or a `models:/` URI for local dev).
+- **Model loading:** once, in `lifespan`, from `MODEL_URI`: a `models:/<name>@<alias>` URI in the images (the alias is
+  resolved to its version first, so `/health` reports exactly the version loaded), or the `model/` folder of
+  `make export` for `make api`.
 - **Strict contract:** Pydantic with `extra="forbid"`, `Field` constraints and descriptions, so `/docs` documents every field.
 - **Error codes:** 422 = the caller's mistake, 500 = ours (generic body, no stack trace, request id), 503 = no model loaded.
 - **Headers:** every response carries `X-Request-ID` and `X-Process-Time-Ms`; a request slower than 200 ms logs a `SLOW` warning.
@@ -479,7 +482,7 @@ Null sensor values are accepted and interpolated, as in training. The gyroscope 
 | `ci.yml` | every PR and push | GitHub-hosted | `uv sync --locked` → ruff → unit and API tests (stub model) → build api and webapp images → **container smoke test**: start the API image with a tiny test model, call `/health` and `/v1/predict` (lab 2: "test the container, not only build it") |
 | `ci.yml`, integration job | PR to `main` | GitHub-hosted | `docker compose up` (S3, Postgres, MLflow) → train the baseline on synthetic rides → register → export → start API → `POST /v1/predict` |
 | `train.yml` | manual; push to `main` touching model code, `params.yaml` or `dvc.lock`; schedule or drift alert (bonus) | self-hosted (prod host) | `dvc pull` → `dvc repro` (**the `evaluate` stage is the gate**: below threshold, the run fails and nothing is registered) → `register.py` → `@staging` |
-| `cd.yml` | after `train.yml` succeeds; push to `main` touching API/webapp/k8s code; manual | self-hosted (prod host) | `export_model.py @staging` → build images → smoke test → push to Docker Hub as `<sha7>-m<version>` → **manual approval** (GitHub environment `production`) → set `@production` → `kubectl apply -k k8s/` with the new tag → `kubectl rollout status` → e2e smoke test → `kubectl rollout undo` if it fails |
+| `cd.yml` | after `train.yml` succeeds; push to `main` touching API/webapp/k8s code; manual | self-hosted (prod host) | build images (code only, DEC-5) → smoke test → push to Docker Hub as `<sha7>` → **manual approval** (GitHub environment `production`) → set `@production` → `kubectl apply -k k8s/` with the new tag → `kubectl rollout status` → e2e smoke test → `kubectl rollout undo` if it fails |
 
 - **Secrets:** `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as GitHub secrets. Prod MLflow, S3 and DVC credentials stay on
   the prod host (runner environment, Kubernetes Secrets), never in the repo or an image.
@@ -512,6 +515,10 @@ Plain manifests applied with Kustomize (`kubectl apply -k`), mirroring `docker-c
 - **Images:** the API and web app come from Docker Hub, their tags pinned in the `images:` block of
   `k8s/kustomization.yaml` (CD changes only those lines). Only our MLflow image is built locally and loaded with
   `kind load docker-image` (`make kind-load`).
+- **Model:** not in the image (DEC-5). The API pods load `@production` from the cluster's MLflow
+  (`http://mlflow:5000`, set in the ConfigMap) at startup. `make k8s-model` copies the registered versions, their runs
+  and aliases from a source MLflow (dev by default, or the shared one) into it, with the same version numbers.
+  A model rollback = move `@production` back, then `kubectl rollout restart deployment/ride-api-v1`.
 - **Canary (S5, S8):** scale stable to 9 and canary to 1 for ≈ 10 % of traffic. Rollback = scale canary to 0.
   A bad stable release: `kubectl rollout undo deployment/ride-api-v1`, then move `@production` back.
   **Target: rollback in under 5 minutes**, rehearsed and written up in `docs/runbook.md`.
@@ -628,6 +635,7 @@ and the baseline and CNN plug into the same contract.
 | K8S-1 | ◐ 19/11: kind cluster `ride-mlops` (kind 0.33, Kubernetes 1.37) from `kind-config.yaml`, ports 8080–8086, `make kind-up`. Still to do: self-hosted runner (with K8S-5) | WS4 | n/a |
 | K8S-2 | ✅ Done 19/11: S3 (StatefulSet + 5Gi), Postgres (StatefulSet + 1Gi), MLflow (GenAI job processes off: they took ~1.8 GB and got it OOMKilled), bucket Job, ConfigMap, Secrets from `k8s/secrets.sh`. Tested: MLflow on :8082 stores an artifact in the prod S3 and reads it back | WS4 | K8S-1 |
 | K8S-3 | ✅ Done 19/11: API `ride-api-v1` (2 replicas, startup/readiness/liveness probes, requests/limits) + canary `ride-api-v2` (0 replicas) + NodePort 30080, web app + NodePort 30081, image tags pinned in `kustomization.yaml`. Tested: smoke test passes on :8080/:8081, the web app reaches the API by its Service name (3/5 example rides right, as in Docker) | WS4 + WS3 | K8S-1 |
+| INF-4 | ◐ 23/11 (Vincent's T036, ADR 007): code-only images, built and tested. API image without `model/`: loads `MODEL_URI=models:/ride-classifier@production` from `MLFLOW_TRACKING_URI` at startup, alias resolved to its version first (`/health` exact); tags `<commit>`; web app examples out of git and of the image (compose mounts them); CI mounts the test model; `registry/mirror.py` + `make k8s-model` copy versions, runs and aliases into the cluster's MLflow (same numbers, re-runnable). Tested: 185 tests, compose (v2 loaded, smoke test, Reckless flagged), cluster (copy dev → cluster MLflow, pods load from it, smoke test). To do: push the code-only images, set their tag in `kustomization.yaml`, delete the old `-m` tags on Docker Hub. Model 2 from MLflow stays in T063 | WS4 | K8S-3 |
 | K8S-4 | `train.yml` on the prod host: `dvc repro` → gate → `@staging` | WS2 + WS4 | K8S-2, MOD-2 |
 | K8S-5 | `cd.yml`: export → build → smoke test → push → approval → deploy → e2e test → automatic undo | WS4 | K8S-3, K8S-4 |
 | MOD-5 | ✅ Done 19/11: CNN E3 retrained from a clean commit (scores reproduced exactly), registered as v2 (golden 0.511 ≥ v1's 0.477), `@staging` and `@production` → v2, exported, images pushed (`ride-api:b3fef60-m2`). Reckless flag fixed: a ride predicted Reckless is always flagged | WS2 | MOD-4 |
