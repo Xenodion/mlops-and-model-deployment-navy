@@ -66,8 +66,11 @@ def calculate(reference: dict, series: list[dict], min_windows: int) -> dict[str
 
 
 class Exporter:
-    def __init__(self, reference: dict, threshold: float, min_windows: int):
+    def __init__(self, reference: dict, threshold: float, min_windows: int, alerts_enabled: bool = False):
+        if not isinstance(alerts_enabled, bool):
+            raise ValueError("live_alerts_enabled must be a boolean")
         self.reference, self.threshold, self.min_windows = reference, threshold, min_windows
+        self.alerts_enabled = alerts_enabled
         self.registry = CollectorRegistry()
         self.psi = Gauge("drift_psi", "Rolling input feature PSI", ["feature"], registry=self.registry)
         self.retrain = Gauge(
@@ -81,6 +84,12 @@ class Exporter:
             "Whether the latest query and all feature calculations succeeded",
             registry=self.registry,
         )
+        self.alerts = Gauge(
+            "drift_monitor_alerts_enabled",
+            "Whether live input-drift alerts are enabled after validation",
+            registry=self.registry,
+        )
+        self.alerts.set(float(alerts_enabled))
 
     def update(self, series: list[dict]) -> None:
         values = calculate(self.reference, series, self.min_windows)
@@ -89,7 +98,8 @@ class Exporter:
         for name, value in values.items():
             self.psi.labels(feature=name).set(value)
         if len(values) == len(FEATURES):
-            self.retrain.labels(reason="input_drift").set(float(max(values.values()) >= self.threshold))
+            if self.alerts_enabled:
+                self.retrain.labels(reason="input_drift").set(float(max(values.values()) >= self.threshold))
             self.up.set(1)
         else:
             self.up.set(0)
@@ -112,8 +122,12 @@ def main() -> None:
     if args.interval < 1 or args.min_windows < 1:
         parser.error("interval and min-windows must be positive")
     logging.basicConfig(level=logging.INFO)
+    drift = load_params()["drift"]
     exporter = Exporter(
-        json.loads(args.reference.read_text(encoding="utf-8")), load_params()["drift"]["psi_retrain"], args.min_windows
+        json.loads(args.reference.read_text(encoding="utf-8")),
+        drift["psi_retrain"],
+        args.min_windows,
+        alerts_enabled=drift["live_alerts_enabled"],
     )
     start_http_server(args.port, registry=exporter.registry)
     while True:

@@ -12,7 +12,7 @@ groups:
         labels: {severity: warning}
         annotations: {summary: "More than 5% of requests return 5xx", runbook: "docs/runbooks.md#errors"}
       - alert: InputDriftHigh
-        expr: max(drift_psi) >= 0.25
+        expr: drift_retrain_recommended{reason="input_drift"} == 1
         for: 2m
         labels: {severity: warning}
         annotations: {summary: "Input feature PSI exceeds the provisional threshold", runbook: "docs/runbooks.md#input-drift"}

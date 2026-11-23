@@ -25,6 +25,11 @@ least 20 windows exceeded PSI 0.25 on some feature; the 20-window minimum alone 
 These samples are not an independent production false-alarm estimate. Prediction-mix monitoring still needs comparable ride-level sampling. See
 the [runbooks](runbooks.md) before acting on an alert.
 
+The live input-drift alert and retraining recommendation are **disabled by default** via
+`drift.live_alerts_enabled: false`; PSI remains visible and `drift_monitor_alerts_enabled` reports the setting.
+Only enable them after validating the sampling and thresholds for the deployment. Offline report flags still use
+the provisional thresholds and require human investigation.
+
 ## Offline drift scenarios (in progress)
 
 `make scenario NAME=normal` and `make scenario NAME=riskier_mix` sample training rides with replacement using

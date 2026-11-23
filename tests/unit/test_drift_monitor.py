@@ -27,7 +27,7 @@ def test_monitor_uses_same_psi_as_offline_and_handles_exact_boundary():
 
 
 def test_exporter_removes_stale_values_on_missing_data_and_failure():
-    exporter = Exporter(reference(), threshold=0.25, min_windows=20)
+    exporter = Exporter(reference(), threshold=0.25, min_windows=20, alerts_enabled=True)
     exporter.update(series(low=1))
     output = generate_latest(exporter.registry).decode()
     assert 'drift_retrain_recommended{reason="input_drift"} 1.0' in output
@@ -40,6 +40,18 @@ def test_exporter_removes_stale_values_on_missing_data_and_failure():
     exporter.update(series())
     exporter.fail()
     assert 'drift_psi{feature="rx_std"}' not in generate_latest(exporter.registry).decode()
+
+
+def test_disabled_alerts_keep_psi_visible_without_retraining_recommendation():
+    exporter = Exporter(reference(), threshold=0.25, min_windows=20)
+    exporter.update(series(low=1))
+    output = generate_latest(exporter.registry).decode()
+    assert 'drift_psi{feature="rx_std"}' in output
+    assert "drift_monitor_up 1.0" in output
+    assert "drift_monitor_alerts_enabled 0.0" in output
+    assert 'drift_retrain_recommended{reason="input_drift"}' not in output
+    with pytest.raises(ValueError, match="boolean"):
+        Exporter(reference(), threshold=0.25, min_windows=20, alerts_enabled="false")
 
 
 def test_bad_or_incomplete_buckets_are_not_treated_as_valid():

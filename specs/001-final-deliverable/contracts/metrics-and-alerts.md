@@ -27,11 +27,16 @@ Config files: `monitoring/prometheus/{prometheus.yml,alerts.yml}`, mounted as-is
 |---|---|---|---|---|
 | `LatencyP95High` | p95 of `/v1/predict/window` > 0.2 s | 1m | infra | `#latency` |
 | `ErrorRateHigh` | 5xx share > 5 % | 1m | infra | `#errors` |
-| `InputDriftHigh` | `max(drift_psi) >= 0.25` | 2m | input | `#input-drift` |
+| `InputDriftHigh` | `drift_retrain_recommended{reason="input_drift"} == 1` | 2m | input | `#input-drift` |
 | `PredictionMixShift` | `drift_prediction_chi2_pvalue < 0.01` | 2m | prediction | `#prediction-drift` |
 | `AccuracyDrop` | correct share of feedback over 15 m < floor, with ≥ 20 labels | 5m | outcome | `#performance` |
 
 Warning level (dashboard colour, no alert): PSI ≥ 0.1.
+
+Live input alerts are disabled by default (`drift.live_alerts_enabled: false`): PSI remains visible, but the
+recommendation gauge is omitted and `InputDriftHigh` cannot fire. `drift_monitor_alerts_enabled` exposes this
+configuration. Enable only after validating ride sampling and thresholds; a 20-window minimum alone produced
+large PSI on a normal two-ride smoke test. Offline flags remain provisional and require investigation.
 
 ## Grafana dashboard (`monitoring/grafana/dashboards/ride-api.json`)
 

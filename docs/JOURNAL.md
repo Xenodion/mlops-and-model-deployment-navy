@@ -39,6 +39,17 @@ This block is rewritten at each stop; the dated entries below are the history.
   `drift_monitor_up` indicates readiness. A host-based opt-in Prometheus/Grafana profile, provisional alerts,
   dashboard and runbooks are provided. Prediction-mix live metrics, normal-scenario calibration, kind deployment,
   and an end-to-end run remain open. Per-window predictions cannot be compared as independent rides.
+- **Monitoring smoke test (23/11):** local API with model 1 v2, model 2 and the reference loaded; Prometheus
+  scraped the API and exporter, loaded four rules, and Grafana loaded the 11-panel dashboard. A replay of 25
+  windows from two normal training rides and two feedback labels produced eight PSI gauges and
+  `drift_monitor_up=1`. The input retraining flag also fired on this small normal sample, confirming the sampling
+  weakness noted below; this was a connectivity smoke test, not calibrated false-alarm measurement or kind demo.
+  API, exporter, Prometheus and Grafana were stopped afterwards; the pre-existing local MLflow, S3 and Postgres
+  services remained running.
+- **Live alert safeguard:** input PSI remains visible, but the live input-drift recommendation and
+  `InputDriftHigh` are disabled by default (`drift.live_alerts_enabled: false`) until representative ride
+  sampling and thresholds are validated. The dashboard exposes the setting. Offline flags remain provisional and
+  still require human investigation; no automatic retraining is enabled.
 - **GBG500 scenarios (T034, in progress):** `normal` and `riskier_mix` resample labelled training rides with a
   fixed seed and configurable weights, writing raw windows plus sampled-ride provenance. The normal sample
   contains 1,847 windows from 100 sampled rides and its offline input PSI values are 0.003-0.016 (status `ok`).
@@ -101,6 +112,11 @@ This block is rewritten at each stop; the dated entries below are the history.
   parameters after the elapsed-time output was added. The fixture now supplies the required output and times;
   all six evaluation tests pass, including both quality-gate cases. After the retraining and load-test additions,
   the complete suite passes: 179 tests.
+- **Remote check (23/11):** fetch shows no new commits on `origin/dev_vincent`, `origin/dev_alex` or `origin/main`
+  since the last recorded state. Local `dev_vincent` is 23 commits ahead. PR #32 remains open and its last CI is
+  green. Draft PR #9's last remote CI failed on the two stale elapsed-time evaluation fixtures fixed locally in
+  `e417ce9`; the fix is not on GitHub yet. The existing approval predates the current PR head, so the planned
+  rebase and renewed review still apply. Issue #30 remains open.
 
 - **Design (final):** two distinct models served by one API (ADR 001, ADR 010). Model 1 = ride type, E3 read
   cumulatively. Model 2 = fall risk on 10 s windows (ADR 002, ADR 004).

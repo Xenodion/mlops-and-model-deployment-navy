@@ -2,6 +2,7 @@
 drift:
   psi_alert: 0.1
   psi_retrain: 0.25
+  live_alerts_enabled: false  # Disabled until realistic ride-level sampling and thresholds are validated
   chi2_pvalue: 0.01
   min_labels: 20
 data:

@@ -49,5 +49,6 @@ the ride unlabelled, and logs split across files are not joined automatically.
 
 The live exporter queries Prometheus histogram increases over a rolling 15-minute window. It exports PSI only
 for complete reference-compatible buckets with at least 20 windows; `drift_monitor_up` is zero if any feature is
-unavailable, and the retraining gauge is omitted until all features are available. It does not calculate the
+unavailable, and the retraining gauge is omitted until all features are available. Live alerting is disabled by
+default until ride sampling and thresholds are validated; PSI remains visible. It does not calculate the
 prediction-mix p-value: the current API counter is per window, not an independent per-ride sample.

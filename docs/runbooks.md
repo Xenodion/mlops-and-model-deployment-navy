@@ -21,6 +21,11 @@ by a factor near 57, inspect the sender's rad/s to deg/s conversion and fix the 
 to compensate for it. If the population genuinely changed, investigate representative labelled data and run the
 gated training process once available. Do not promote a model based on PSI alone.
 
+The live input alert is disabled by default (`drift.live_alerts_enabled: false`) after small normal samples
+produced very high PSI. Check `drift_monitor_alerts_enabled`; PSI remains visible for investigation. Enabling
+the alert requires validated thresholds and representative ride-level sampling. Offline report flags remain
+provisional and do not trigger retraining automatically.
+
 ## Prediction drift
 
 Compare prediction mix on independent rides with the out-of-fold ride reference. Repeated windows of the same
