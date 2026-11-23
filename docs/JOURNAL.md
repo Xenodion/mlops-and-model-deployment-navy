@@ -16,8 +16,10 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **Serving bundle (in progress):** after exporting model 1, `make bundle-serving` retrieves the registered
   fall-risk joblib from its source run and adds a reference only if its model URI belongs to the exported run.
   `serving_bundle.json` records the second model version/run and reference hash; the API image points to both
-  files. Local mocked tests cover matching and mismatched references. Real shared-registry export and image
-  deployment remain unverified and require access to both registered models and the matching DVC reference.
+  files. Local mocked tests cover matching and mismatched references; a temporary SQLite-backed MLflow registry
+  test also registers both synthetic models, exports the classifier and downloads the second model's artifact.
+  Real shared-registry export and image deployment remain unverified and require access to both registered
+  models and the matching DVC reference.
 
 - **Team integration (23/11):** Alex merged PR #32, then PR #9 at `fa6bf9c`, into `main`; CI passed tests,
   image builds and container smoke tests. New DVC outputs still need a separate push with isolated school
