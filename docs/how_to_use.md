@@ -523,7 +523,8 @@ and says so.
 | `webapp/api_client.py` | Reads ride files, builds the request, calls the API (tested without a browser) |
 | `webapp/examples/*.parquet` | Example rides: course data, so **not in git nor in the image** (ADR 007). Create them with `make webapp-examples` (needs `data/processed/golden.parquet`: `make data` then `make pipeline`) |
 
-The page calls the API at `API_URL` (default `http://127.0.0.1:8000`). Tests: `tests/unit/webapp/`, with a fake API
+The page calls the API at `API_URL` (default `http://127.0.0.1:8000`) and lists the example rides found in
+`EXAMPLES_DIR` (default `webapp/examples/`). Tests: `tests/unit/webapp/`, with a fake API
 for the client and Streamlit's test runner for the whole page.
 
 **In Docker:** `make app-up` builds and starts both containers. The API is on :8000, the web app on

@@ -12,7 +12,8 @@ import streamlit as st
 from api_client import CHANNELS, LABEL_COLUMN, TIME_COLUMN, ApiError, health, predict, read_ride, ride_payload
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
-EXAMPLES = Path(__file__).parent / "examples"
+# Example rides are course data: never in git nor in the image (ADR 007). `make webapp-examples` writes them locally
+EXAMPLES = Path(os.getenv("EXAMPLES_DIR", Path(__file__).parent / "examples"))
 
 st.set_page_config(page_title="Ride classifier", layout="wide")
 st.title("Ride classifier")
