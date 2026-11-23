@@ -51,3 +51,14 @@ def test_the_scaling_is_learned_from_the_training_rides_only(data):
     model = CNNModel(**{**SMALL, "epochs": 1}).fit(inputs.loc[train_ids], labels)
     expected = np.concatenate(inputs.loc[train_ids].to_list()).mean(axis=(0, 2))
     np.testing.assert_allclose(model.mean_.ravel(), expected, rtol=1e-5)
+
+
+def test_predict_timeline_final_cumulative_equals_predict_proba(data):
+    inputs, labels = data
+    model = CNNModel(**{**SMALL, "epochs": 2}).fit(inputs, labels)
+    timelines = model.predict_timeline(inputs)
+    probas = model.predict_proba(inputs)
+    assert set(timelines) == set(inputs.index)
+    for ride_id, timeline in timelines.items():
+        np.testing.assert_allclose(timeline.cumulative[-1], probas.loc[ride_id].to_numpy(), atol=1e-6)
+        assert timeline.end_s[0] == SMALL["window_s"]

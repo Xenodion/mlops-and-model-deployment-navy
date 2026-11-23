@@ -1,0 +1,87 @@
+name: gated retraining
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for retraining"
+        type: choice
+        required: true
+        default: manual
+        options: [manual, input_drift, prediction_drift, performance]
+      evidence:
+        description: "Report or alert reference (required for drift and performance)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    # The runner owns its isolated school-account DVC credentials and reachable MLflow endpoint.
+    runs-on: self-hosted
+    timeout-minutes: 180
+    concurrency:
+      group: retrain-ride-classifier
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check inputs and runner configuration
+        shell: bash
+        env:
+          INPUT_REASON: ${{ inputs.reason }}
+          INPUT_EVIDENCE: ${{ inputs.evidence }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          reason="${INPUT_REASON:-schedule}"
+          case "$reason" in
+            schedule|manual) ;;
+            input_drift|prediction_drift|performance)
+              if [[ -z "${INPUT_EVIDENCE//[[:space:]]/}" ]]; then
+                echo 'Evidence is required for this trigger.' >&2
+                exit 1
+              fi ;;
+            *) echo 'Unknown trigger reason.' >&2; exit 1 ;;
+          esac
+          if [[ -z "${MLFLOW_TRACKING_URI:-}" || -z "${COURSE_DVC_CREDENTIALS:-}" || ! -f "$COURSE_DVC_CREDENTIALS" ]]; then
+            echo 'Set MLFLOW_TRACKING_URI and COURSE_DVC_CREDENTIALS on the runner.' >&2
+            exit 1
+          fi
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo 'The checkout must be clean before training.' >&2
+            exit 1
+          fi
+
+      - name: Pull training and golden data with isolated school credentials
+        shell: bash
+        run: |
+          uv run --locked dvc remote modify --local shared credentialpath "$COURSE_DVC_CREDENTIALS"
+          uv run --locked dvc pull -r shared data/processed/train.parquet data/processed/golden.parquet
+
+      - name: Train a new model and record the trigger
+        shell: bash
+        env:
+          INPUT_REASON: ${{ inputs.reason }}
+          INPUT_EVIDENCE: ${{ inputs.evidence }}
+        run: |
+          previous=""
+          if [[ -f artifacts/train_run.json ]]; then
+            previous="$(uv run --locked python -c 'import json; print(json.load(open("artifacts/train_run.json"))["run_id"])')"
+          fi
+          uv run --locked dvc repro --single-item --force train
+          uv run --locked python -m ride_classifier.registry.retraining_trigger \
+            --previous-run "$previous" --commit "$GITHUB_SHA" --reason "${INPUT_REASON:-schedule}" \
+            --evidence "$INPUT_EVIDENCE" --workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Evaluate and enforce the gate
+        shell: bash
+        run: |
+          uv run --locked dvc repro --single-item --force evaluate
+          echo 'The quality gate passed. See the linked MLflow run for metrics and elapsed-time results.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Register the passing model in staging
+        run: uv run --locked python -m ride_classifier.registry.register

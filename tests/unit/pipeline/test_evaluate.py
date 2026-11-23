@@ -52,6 +52,8 @@ def project(tmp_path_factory, labelled_rides, ride_model):
             "metrics_path": "artifacts/golden_metrics.json",
             "predictions_path": "artifacts/golden_predictions.csv",
             "confusion_matrix_path": "artifacts/golden_confusion_matrix.png",
+            "elapsed_path": "artifacts/golden_f1_vs_elapsed.csv",
+            "elapsed_times_s": [30, 60, float("inf")],
             "gate": GATE,
         },
     }
@@ -64,6 +66,7 @@ def test_a_good_model_passes_and_its_scores_join_the_training_run(project):
 
     assert metrics["golden_macro_f1"] > metrics["golden_ref_random_macro_f1"]
     assert (root / "artifacts" / "golden_confusion_matrix.png").exists()
+    assert (root / "artifacts" / "golden_f1_vs_elapsed.csv").exists()
     logged = mlflow.get_run(run_id)
     assert logged.data.tags["gate"] == "passed"
     assert logged.data.metrics["golden_macro_f1"] == pytest.approx(metrics["golden_macro_f1"])

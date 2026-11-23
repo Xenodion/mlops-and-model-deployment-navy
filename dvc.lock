@@ -17,13 +17,13 @@ stages:
       size: 1485
     - path: src/ride_classifier/data
       hash: md5
-      md5: a62fb2123a04a80d6f9ef3063519204c.dir
-      size: 5880
-      nfiles: 4
+      md5: bbbc64dee6d2fb2f552e94c88e69b160.dir
+      size: 9311
+      nfiles: 5
     - path: src/ride_classifier/pipeline/prepare.py
       hash: md5
-      md5: ff309e99b3bc3eddcd782f6da44b7149
-      size: 2076
+      md5: 10239b18029db90f52c456b79dcc8bf2
+      size: 2214
     params:
       params.yaml:
         data:
@@ -35,6 +35,10 @@ stages:
           golden_share: 0.2
           cv_folds: 5
           seed: 42
+          srv3490:
+            raw_path: data/raw/SRV3490.parquet
+            clean_path: data/processed/srv3490.parquet
+            rotation_factor: 57.2958
     outs:
     - path: data/processed/golden.parquet
       hash: md5
@@ -42,8 +46,8 @@ stages:
       size: 6592372
     - path: data/processed/splits.csv
       hash: md5
-      md5: 350c3a8fd3498e3898bd66fbe3375da5
-      size: 42755
+      md5: d8a049fc9553c72cc67ff5341b1f4e77
+      size: 42254
     - path: data/processed/train.parquet
       hash: md5
       md5: c203e4c111ed4e58c808eba79ce245c3
@@ -53,8 +57,8 @@ stages:
     deps:
     - path: data/processed/splits.csv
       hash: md5
-      md5: 350c3a8fd3498e3898bd66fbe3375da5
-      size: 42755
+      md5: d8a049fc9553c72cc67ff5341b1f4e77
+      size: 42254
     - path: data/processed/train.parquet
       hash: md5
       md5: c203e4c111ed4e58c808eba79ce245c3
@@ -65,9 +69,9 @@ stages:
       size: 1485
     - path: src/ride_classifier/data
       hash: md5
-      md5: a62fb2123a04a80d6f9ef3063519204c.dir
-      size: 5880
-      nfiles: 4
+      md5: bbbc64dee6d2fb2f552e94c88e69b160.dir
+      size: 9311
+      nfiles: 5
     - path: src/ride_classifier/features
       hash: md5
       md5: b4a46caac5173def6e80ec9301b9d4de.dir
@@ -75,9 +79,9 @@ stages:
       nfiles: 3
     - path: src/ride_classifier/models
       hash: md5
-      md5: de5511645df53b0e0a6d81e14d4e5ec8.dir
-      size: 12911
-      nfiles: 6
+      md5: f157fa89c69a0e4296b40a017cccbf45.dir
+      size: 33682
+      nfiles: 9
     - path: src/ride_classifier/pipeline/train.py
       hash: md5
       md5: 6ca4d0d4a904e5da6d7c1146b291edc5
@@ -110,6 +114,20 @@ stages:
             weight_decay: 0.0001
             augment: true
             class_weight: sqrt
+          danger:
+            window_s: 30
+            stride_s: 15
+            filters:
+            - 32
+            - 64
+            - 64
+            kernel: 7
+            epochs: 10
+            batch_size: 64
+            learning_rate: 0.001
+            weight_decay: 0.0001
+            head_C: 0.05
+            class_weight: sqrt
           model_path: artifacts/model
           oof_path: artifacts/oof_predictions.csv
           metrics_path: artifacts/cv_metrics.json
@@ -117,32 +135,32 @@ stages:
     outs:
     - path: artifacts/cv_metrics.json
       hash: md5
-      md5: 1e7ec51ae390c91ebccd0643dd3b4b5a
-      size: 452
+      md5: 668106988a4f955dafa716548ede186e
+      size: 450
     - path: artifacts/model
       hash: md5
-      md5: 10a15cbddaa790ab9e666df85d3b82d6.dir
-      size: 1219642
-      nfiles: 40
+      md5: 78670fa43de99eddf0238db56d2f1bb1.dir
+      size: 1405358
+      nfiles: 52
     - path: artifacts/oof_predictions.csv
       hash: md5
-      md5: 92aead9f32c56787a085955964fad5fe
-      size: 55059
+      md5: 978b34205f458763310c878bf65bfc4e
+      size: 54980
     - path: artifacts/train_run.json
       hash: md5
-      md5: f836a974498fb5fda745bbc026c069c0
+      md5: 43b52169989eb8d0ab1a8c40fafd45c5
       size: 114
   evaluate:
     cmd: python -m ride_classifier.pipeline.evaluate
     deps:
     - path: artifacts/model
       hash: md5
-      md5: 10a15cbddaa790ab9e666df85d3b82d6.dir
-      size: 1219642
-      nfiles: 40
+      md5: 78670fa43de99eddf0238db56d2f1bb1.dir
+      size: 1405358
+      nfiles: 52
     - path: artifacts/train_run.json
       hash: md5
-      md5: f836a974498fb5fda745bbc026c069c0
+      md5: 43b52169989eb8d0ab1a8c40fafd45c5
       size: 114
     - path: data/processed/golden.parquet
       hash: md5
@@ -150,21 +168,21 @@ stages:
       size: 6592372
     - path: data/processed/splits.csv
       hash: md5
-      md5: 350c3a8fd3498e3898bd66fbe3375da5
-      size: 42755
+      md5: d8a049fc9553c72cc67ff5341b1f4e77
+      size: 42254
     - path: src/ride_classifier/config.py
       hash: md5
       md5: 4c2bc796ae529d9ad75bb74fc2aad08f
       size: 1485
     - path: src/ride_classifier/models
       hash: md5
-      md5: de5511645df53b0e0a6d81e14d4e5ec8.dir
-      size: 12911
-      nfiles: 6
+      md5: f157fa89c69a0e4296b40a017cccbf45.dir
+      size: 33682
+      nfiles: 9
     - path: src/ride_classifier/pipeline/evaluate.py
       hash: md5
-      md5: 57c67ee2ae8d75ede58683621a58d943
-      size: 4903
+      md5: 670341cfae407c9dcc7cbfc5f245f31c
+      size: 5849
     params:
       params.yaml:
         data.seed: 42
@@ -172,19 +190,187 @@ stages:
           metrics_path: artifacts/golden_metrics.json
           predictions_path: artifacts/golden_predictions.csv
           confusion_matrix_path: artifacts/golden_confusion_matrix.png
+          elapsed_path: artifacts/golden_f1_vs_elapsed.csv
+          elapsed_times_s:
+          - 30
+          - 60
+          - 120
+          - 300
+          - 600
+          - .inf
           gate:
             min_macro_f1: 0.3
             must_beat_references: true
     outs:
     - path: artifacts/golden_confusion_matrix.png
       hash: md5
-      md5: d8519f95cecf192c5d69c5a0c3b4be7c
-      size: 35909
+      md5: 7c37766427dd3bcf8af874125358f416
+      size: 35677
+    - path: artifacts/golden_f1_vs_elapsed.csv
+      hash: md5
+      md5: de98862b6d40824e9afbd5a5c8d89355
+      size: 268
     - path: artifacts/golden_metrics.json
       hash: md5
-      md5: 56ab698256ceac3824bc7d5156186f75
-      size: 422
+      md5: 2479b09696f23a1d2b3eec2499948e43
+      size: 421
     - path: artifacts/golden_predictions.csv
       hash: md5
-      md5: 2dd43e502e1a34a97d163028a0b035d7
-      size: 13617
+      md5: 0881bea94615bf0b69e73cd317e6fa15
+      size: 13601
+  prepare_srv:
+    cmd: python -m ride_classifier.pipeline.prepare_srv
+    deps:
+    - path: data/raw/SRV3490.parquet
+      hash: md5
+      md5: dc3537544c57a6500203db714e0e857a
+      size: 268229940
+    - path: src/ride_classifier/data/clean.py
+      hash: md5
+      md5: ddf33a2872ce3b78b85f51c5a2671806
+      size: 1537
+    - path: src/ride_classifier/data/srv3490.py
+      hash: md5
+      md5: f3cda92ccc97d0da4ef3161f5e2a097f
+      size: 3431
+    - path: src/ride_classifier/pipeline/prepare_srv.py
+      hash: md5
+      md5: 58166b29dbe8704424415fa98deda150
+      size: 1615
+    params:
+      params.yaml:
+        data.srv3490:
+          raw_path: data/raw/SRV3490.parquet
+          clean_path: data/processed/srv3490.parquet
+          rotation_factor: 57.2958
+    outs:
+    - path: data/processed/srv3490.parquet
+      hash: md5
+      md5: a65eec8c3841080622adc52693c00aec
+      size: 226115704
+  falls:
+    cmd: python -m ride_classifier.pipeline.falls
+    deps:
+    - path: data/raw/SRV3490.parquet
+      hash: md5
+      md5: dc3537544c57a6500203db714e0e857a
+      size: 268229940
+    - path: src/ride_classifier/data/srv3490.py
+      hash: md5
+      md5: f3cda92ccc97d0da4ef3161f5e2a097f
+      size: 3431
+    - path: src/ride_classifier/pipeline/falls.py
+      hash: md5
+      md5: d9afea785ec7b6f7b4feb64e5abc5940
+      size: 3902
+    params:
+      params.yaml:
+        falls.held_out_share: 0.3
+        falls.seed: 42
+    outs:
+    - path: data/processed/fall_groups.csv
+      hash: md5
+      md5: bda5f857653be37df0cf3c3e18d6c0eb
+      size: 537162
+  train_fall_risk:
+    cmd: python -m ride_classifier.pipeline.train_fall_risk
+    deps:
+    - path: data/processed/fall_groups.csv
+      hash: md5
+      md5: bda5f857653be37df0cf3c3e18d6c0eb
+      size: 537162
+    - path: data/processed/srv3490.parquet
+      hash: md5
+      md5: a65eec8c3841080622adc52693c00aec
+      size: 226115704
+    - path: src/ride_classifier/models/fall_risk.py
+      hash: md5
+      md5: f59411859ddf5bba15dd3271b7044263
+      size: 4714
+    - path: src/ride_classifier/models/fall_risk_pyfunc.py
+      hash: md5
+      md5: fcdecfca575dac8b8b0d62907b7677ed
+      size: 477
+    - path: src/ride_classifier/models/plots.py
+      hash: md5
+      md5: 0f18c01f71aba1a410b69afc7c2f3af8
+      size: 1510
+    - path: src/ride_classifier/pipeline/train_fall_risk.py
+      hash: md5
+      md5: 50f5e5213c3f8c6bba1e3e0a5a70db3b
+      size: 5566
+    params:
+      params.yaml:
+        fall_risk:
+          window_s: 10
+          stride_s: 5
+          pre_fall_s: 60
+          gap_s: 5
+          check_gap_s: 10
+          c: 1.0
+          seed: 42
+          experiment: fall-risk
+          model_path: artifacts/fall_risk_model.joblib
+          run_path: artifacts/fall_risk_run.json
+          metrics_path: artifacts/fall_risk_metrics.json
+          scores_path: artifacts/fall_risk_heldout_scores.csv
+          roc_path: artifacts/fall_risk_roc.png
+          gate:
+            min_paired_auc: 0.55
+    outs:
+    - path: artifacts/fall_risk_heldout_scores.csv
+      hash: md5
+      md5: 41ca17758268bc02e8f99076689a961c
+      size: 4139391
+    - path: artifacts/fall_risk_metrics.json
+      hash: md5
+      md5: 1ec92a15e15ebf8b7d3233e2a8e680dd
+      size: 323
+    - path: artifacts/fall_risk_model.joblib
+      hash: md5
+      md5: 74c6ad0fe022ffe8d1271779e67de4ca
+      size: 9283
+    - path: artifacts/fall_risk_roc.png
+      hash: md5
+      md5: d9d77091920e3e3efeb080240e57444a
+      size: 57625
+    - path: artifacts/fall_risk_run.json
+      hash: md5
+      md5: 7616f5626981fb99c1a9f9cea4990faa
+      size: 114
+  reference:
+    cmd: python -m ride_classifier.pipeline.reference
+    deps:
+    - path: artifacts/oof_predictions.csv
+      hash: md5
+      md5: 978b34205f458763310c878bf65bfc4e
+      size: 54980
+    - path: artifacts/train_run.json
+      hash: md5
+      md5: 43b52169989eb8d0ab1a8c40fafd45c5
+      size: 114
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: c203e4c111ed4e58c808eba79ce245c3
+      size: 24908635
+    - path: src/ride_classifier/data/clean.py
+      hash: md5
+      md5: ddf33a2872ce3b78b85f51c5a2671806
+      size: 1537
+    - path: src/ride_classifier/features/window_stats.py
+      hash: md5
+      md5: c3d3827a3cf3fd1137eedd94a95787e6
+      size: 991
+    - path: src/ride_classifier/pipeline/reference.py
+      hash: md5
+      md5: f332904fb74499ddbd7e0f9a6dd16d55
+      size: 2689
+    params:
+      params.yaml:
+        train.cnn.stride_s: 15
+        train.cnn.window_s: 30
+    outs:
+    - path: artifacts/drift_reference.json
+      hash: md5
+      md5: 3208e2101d24d91552d8c225a85ec4a5
+      size: 5373

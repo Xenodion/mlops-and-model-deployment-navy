@@ -1,0 +1,23 @@
+groups:
+  - name: ride-api
+    rules:
+      - alert: LatencyP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(api_request_duration_seconds_bucket{endpoint="/v1/predict/window"}[5m]))) > 0.2
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "Window prediction p95 latency exceeds 200 ms", runbook: "docs/runbooks.md#latency"}
+      - alert: ErrorRateHigh
+        expr: sum(rate(api_requests_total{status=~"5.."}[5m])) / sum(rate(api_requests_total[5m])) > 0.05
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "More than 5% of requests return 5xx", runbook: "docs/runbooks.md#errors"}
+      - alert: InputDriftHigh
+        expr: drift_retrain_recommended{reason="input_drift"} == 1
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "Input feature PSI exceeds the provisional threshold", runbook: "docs/runbooks.md#input-drift"}
+      - alert: AccuracyDrop
+        expr: (sum(increase(feedback_total{correct="true"}[15m])) or vector(0)) / sum(increase(feedback_total[15m])) < 0.3 and sum(increase(feedback_total[15m])) >= 20
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Feedback accuracy is below the provisional floor", runbook: "docs/runbooks.md#performance"}

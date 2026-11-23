@@ -17,6 +17,31 @@ stages:
       - data/processed/splits.csv:
           cache: false  # small and committed to git: the frozen golden list is readable on GitHub
 
+  prepare_srv:
+    cmd: python -m ride_classifier.pipeline.prepare_srv  # SRV3490: rad/s -> deg/s, cleaned (same clean_rides)
+    deps:
+      - data/raw/SRV3490.parquet
+      - src/ride_classifier/data/clean.py
+      - src/ride_classifier/data/srv3490.py
+      - src/ride_classifier/pipeline/prepare_srv.py
+    params:
+      - data.srv3490
+    outs:
+      - data/processed/srv3490.parquet
+
+  falls:
+    cmd: python -m ride_classifier.pipeline.falls  # fall groups split once (development / held_out)
+    deps:
+      - data/raw/SRV3490.parquet
+      - src/ride_classifier/data/srv3490.py
+      - src/ride_classifier/pipeline/falls.py
+    params:
+      - falls.held_out_share
+      - falls.seed
+    outs:
+      - data/processed/fall_groups.csv:
+          cache: false  # small and committed to git, like splits.csv
+
   train:
     cmd: python -m ride_classifier.pipeline.train  # needs MLflow running: make dev-up
     deps:
@@ -38,6 +63,21 @@ stages:
     metrics:
       - artifacts/cv_metrics.json  # `uv run dvc metrics show`
 
+  reference:
+    cmd: python -m ride_classifier.pipeline.reference
+    deps:
+      - data/processed/train.parquet
+      - artifacts/oof_predictions.csv
+      - artifacts/train_run.json
+      - src/ride_classifier/data/clean.py
+      - src/ride_classifier/features/window_stats.py
+      - src/ride_classifier/pipeline/reference.py
+    params:
+      - train.cnn.window_s
+      - train.cnn.stride_s
+    outs:
+      - artifacts/drift_reference.json
+
   evaluate:
     cmd: python -m ride_classifier.pipeline.evaluate  # exit 1 = quality gate failed: the pipeline stops here
     deps:
@@ -54,5 +94,26 @@ stages:
     outs:
       - artifacts/golden_predictions.csv
       - artifacts/golden_confusion_matrix.png
+      - artifacts/golden_f1_vs_elapsed.csv
     metrics:
       - artifacts/golden_metrics.json
+
+  train_fall_risk:
+    cmd: python -m ride_classifier.pipeline.train_fall_risk  # model 2; needs MLflow running: make dev-up
+    deps:
+      - data/processed/srv3490.parquet
+      - data/processed/fall_groups.csv
+      - src/ride_classifier/models/fall_risk.py
+      - src/ride_classifier/models/fall_risk_pyfunc.py
+      - src/ride_classifier/models/plots.py
+      - src/ride_classifier/pipeline/train_fall_risk.py
+    params:
+      - fall_risk
+    outs:
+      - artifacts/fall_risk_model.joblib
+      - artifacts/fall_risk_run.json
+      - artifacts/fall_risk_heldout_scores.csv
+      - artifacts/fall_risk_roc.png
+    metrics:
+      - artifacts/fall_risk_metrics.json:
+          cache: false

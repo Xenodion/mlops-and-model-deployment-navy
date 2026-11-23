@@ -1,0 +1,6 @@
+experiment,status,assumptions,target,cpu,gpu,n_gpus,ram_gb,vram_gb,python,torch,onnxruntime,cuda,runtime,batch_size,concurrency,warmup,repeats,latency_mean_ms,latency_p95_ms,throughput_windows_s,peak_ram_mb,peak_vram_mb,quality_agreement,quality_macro_f1,timestamp,git_sha
+B2-laptop-cpu,measured,,laptop,"AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",,0,11.7,,3.14.0,2.15.0,1.32.0,,torch,1,1,20,100,0.8628,1.5967,1159.02,249.4,,1.0,,2026-11-20T23:05:41+00:00,85819c1
+B2-laptop-cpu,measured,,laptop,"AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",,0,11.7,,3.14.0,2.15.0,1.32.0,,torch,8,1,20,100,2.2061,3.4371,3626.23,254.3,,1.0,,2026-11-20T23:05:41+00:00,85819c1
+B2-laptop-cpu,measured,,laptop,"AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",,0,11.7,,3.14.0,2.15.0,1.32.0,,torch,32,1,20,100,4.177,5.4222,7660.97,259.4,,1.0,,2026-11-20T23:05:41+00:00,85819c1
+B2-laptop-cpu,measured,,laptop,"AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",,0,11.7,,3.14.0,2.15.0,1.32.0,,torch,128,1,20,100,19.423,41.7631,6590.12,271.1,,1.0,,2026-11-20T23:05:41+00:00,85819c1
+B2-laptop-cpu,measured,,laptop,"AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",,0,11.7,,3.14.0,2.15.0,1.32.0,,torch,512,1,20,100,54.9607,68.6038,9315.75,314.7,,1.0,,2026-11-20T23:05:41+00:00,85819c1

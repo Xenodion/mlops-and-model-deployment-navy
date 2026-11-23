@@ -1,0 +1,64 @@
+name: drift report
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      current:
+        description: "Runner-local JSONL or parquet (empty: generate unit_bug scenario)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    # The runner must already have the project environment and DVC data, including the reference.
+    runs-on: self-hosted
+    timeout-minutes: 30
+    env:
+      REPORT_DIR: reports/drift/workflow-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Generate scenario when no input was supplied
+        if: ${{ github.event_name == 'workflow_dispatch' && (inputs.current == '' || inputs.current == null) }}
+        run: uv run --locked python -m ride_classifier.drift.scenarios unit_bug
+
+      - name: Run drift report
+        id: report
+        shell: bash
+        env:
+          CURRENT: ${{ inputs.current }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ -n "$CURRENT" ]; then
+            current="$CURRENT"
+          elif [ "$EVENT_NAME" = workflow_dispatch ]; then
+            current=reports/scenarios/unit_bug.parquet
+          else
+            current=reports/drift/current.jsonl
+          fi
+          set +e
+          uv run --locked python -m ride_classifier.drift.job --reference artifacts/drift_reference.json --current "$current" --out "$REPORT_DIR"
+          code=$?
+          set -e
+          if [ -f "$REPORT_DIR/drift_report.md" ]; then
+            cat "$REPORT_DIR/drift_report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$code" -eq 3 ]; then
+            echo '::warning::Retraining recommended by the report; investigate the cause before dispatching training.'
+            echo 'Inspect the report and, if appropriate, dispatch train.yml with the applicable reason and evidence.' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$code" -ne 0 ]; then
+            exit "$code"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: warn

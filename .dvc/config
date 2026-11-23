@@ -3,3 +3,6 @@
 ['remote "storage"']
     url = s3://dvc
     endpointurl = http://localhost:8333
+['remote "shared"']
+    url = gs://albert-navy-ride-mlops/dvc
+    version_aware = false

@@ -1,0 +1,25 @@
+{
+  "uid": "ride-api",
+  "title": "Ride API monitoring",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "tags": ["ride-api"],
+  "panels": [
+    {"id": 1, "title": "Infrastructure: requests per second", "type": "timeseries", "gridPos": {"x": 0, "y": 0, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "sum by (endpoint) (rate(api_requests_total[5m]))", "legendFormat": "{{endpoint}}", "refId": "A"}]},
+    {"id": 2, "title": "Infrastructure: window latency p95 (seconds)", "type": "timeseries", "gridPos": {"x": 8, "y": 0, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(api_request_duration_seconds_bucket{endpoint=\"/v1/predict/window\"}[5m])))", "refId": "A"}, {"expr": "vector(0.2)", "legendFormat": "200 ms budget", "refId": "B"}]},
+    {"id": 3, "title": "Infrastructure: 5xx share", "type": "timeseries", "gridPos": {"x": 16, "y": 0, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "(sum(rate(api_requests_total{status=~\"5..\"}[5m])) or vector(0)) / sum(rate(api_requests_total[5m]))", "refId": "A"}]},
+    {"id": 4, "title": "Input: PSI by feature", "type": "timeseries", "gridPos": {"x": 0, "y": 8, "w": 16, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "drift_psi", "legendFormat": "{{feature}}", "refId": "A"}, {"expr": "vector(0.1)", "legendFormat": "warning (provisional)", "refId": "B"}, {"expr": "vector(0.25)", "legendFormat": "retrain (provisional)", "refId": "C"}]},
+    {"id": 5, "title": "Input: monitor ready", "description": "Zero means query failure, incomplete buckets, or fewer than 20 windows; PSI is then unavailable.", "type": "stat", "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "drift_monitor_up", "refId": "A"}]},
+    {"id": 6, "title": "Prediction: category rate", "type": "timeseries", "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "sum by (label) (rate(predictions_total[5m]))", "legendFormat": "{{label}}", "refId": "A"}]},
+    {"id": 7, "title": "Prediction: confidence and fall risk p95", "type": "timeseries", "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(prediction_confidence_bucket[5m])))", "legendFormat": "confidence p95", "refId": "A"}, {"expr": "histogram_quantile(0.95, sum by (le) (rate(fall_risk_bucket[5m])))", "legendFormat": "fall risk p95", "refId": "B"}]},
+    {"id": 8, "title": "Prediction: fall alerts per second", "type": "timeseries", "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "sum by (endpoint) (rate(fall_alerts_total[5m]))", "legendFormat": "{{endpoint}}", "refId": "A"}]},
+    {"id": 9, "title": "Outcome: feedback accuracy (15 minutes)", "type": "timeseries", "gridPos": {"x": 0, "y": 24, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "(sum(increase(feedback_total{correct=\"true\"}[15m])) or vector(0)) / sum(increase(feedback_total[15m]))", "refId": "A"}]},
+    {"id": 10, "title": "Outcome: labels received (15 minutes)", "type": "timeseries", "gridPos": {"x": 8, "y": 24, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "sum(increase(feedback_total[15m]))", "refId": "A"}]},
+    {"id": 11, "title": "Model version", "type": "stat", "gridPos": {"x": 16, "y": 24, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "model_info", "legendFormat": "{{version}}", "refId": "A"}]},
+    {"id": 12, "title": "Input drift alerts enabled (0 = disabled)", "description": "Disabled until realistic ride-level sampling and thresholds are validated. PSI remains visible.", "type": "stat", "gridPos": {"x": 16, "y": 32, "w": 8, "h": 8}, "datasource": {"type": "prometheus", "uid": "prometheus"}, "targets": [{"expr": "drift_monitor_alerts_enabled", "refId": "A"}]}
+  ]
+}

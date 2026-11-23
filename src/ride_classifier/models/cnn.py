@@ -13,6 +13,7 @@ from torch import nn
 
 from ride_classifier.config import ID_COLUMN, LABELS
 from ride_classifier.features.windows import windows_by_ride
+from ride_classifier.models.timeline import Timeline, cumulative_mean, window_end_times
 
 
 class RideCNN(nn.Module):
@@ -108,13 +109,24 @@ class CNNModel:
         self.net_.eval()
         return self
 
-    def predict_proba(self, inputs: pd.Series) -> pd.DataFrame:
-        rows = {}
+    def _window_probas(self, windows: np.ndarray) -> np.ndarray:
+        """(n_windows, channels, time) -> (n_windows, n_labels): softmax of the network on normalised windows."""
         with torch.no_grad():
-            for ride_id, windows in inputs.items():
-                x = torch.from_numpy(((windows - self.mean_) / self.std_).astype(np.float32))
-                rows[ride_id] = torch.softmax(self.net_(x), dim=1).mean(dim=0).numpy()
+            x = torch.from_numpy(((windows - self.mean_) / self.std_).astype(np.float32))
+            return torch.softmax(self.net_(x), dim=1).numpy()
+
+    def predict_proba(self, inputs: pd.Series) -> pd.DataFrame:
+        rows = {ride_id: self._window_probas(windows).mean(axis=0) for ride_id, windows in inputs.items()}
         return pd.DataFrame.from_dict(rows, orient="index", columns=LABELS).rename_axis(ID_COLUMN)
+
+    def predict_timeline(self, inputs: pd.Series) -> dict[str, Timeline]:
+        """One Timeline per ride: window probabilities, their running mean, and when each window is complete."""
+        timelines = {}
+        for ride_id, windows in inputs.items():
+            probas = self._window_probas(windows)
+            end_s = window_end_times(len(probas), self.window_s, self.stride_s)
+            timelines[ride_id] = Timeline(ride_id, end_s, probas, cumulative_mean(probas))
+        return timelines
 
 
 def class_weights(y: np.ndarray, mode: str) -> np.ndarray:

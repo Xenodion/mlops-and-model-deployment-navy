@@ -7,7 +7,77 @@ MLflow, the quality gate, the model registry, tests and the git workflow. For *w
 **Status (19/11):** the pipeline goes from raw data to an evaluated model:
 `prepare` → `train` → `evaluate` (quality gate). The model is then registered in MLflow, exported, and served by
 the API and the web app. Both run as Docker images published on Docker Hub and deployed on a Kubernetes cluster.
-Automatic deployment from GitHub (CD) and monitoring come next.
+Automatic deployment from GitHub (CD) comes next.
+
+## Local monitoring (in progress)
+
+With the model exported and `artifacts/drift_reference.json` available, run `make api` on the host, then
+`make monitoring-up` and `make drift-monitor` in separate terminals. Prometheus is at `localhost:9090`, Grafana
+at `localhost:3000` (anonymous read-only access), and the drift exporter at `localhost:8001/metrics`. Stop the
+exporter with Ctrl+C and the monitoring containers with `make monitoring-down`. Prometheus scrapes the host API
+and exporter via `host.docker.internal`; this setup is distinct from the future kind deployment.
+
+The exporter calculates PSI from the last 15 minutes of histogram increases, with at least 20 windows per feature.
+`drift_monitor_up=0` means the query failed, the sample is too small, or buckets are incomplete; unavailable PSI
+is not reported as zero. A Prometheus range needs at least two scrapes. Thresholds and rules are provisional until
+calibrated for realistic samples. In a training-population resampling check, all 49 one-ride samples with at
+least 20 windows exceeded PSI 0.25 on some feature; the 20-window minimum alone does not make the alert reliable.
+These samples are not an independent production false-alarm estimate. Prediction-mix monitoring still needs comparable ride-level sampling. See
+the [runbooks](runbooks.md) before acting on an alert.
+
+The live input-drift alert and retraining recommendation are **disabled by default** via
+`drift.live_alerts_enabled: false`; PSI remains visible and `drift_monitor_alerts_enabled` reports the setting.
+Only enable them after validating the sampling and thresholds for the deployment. Offline report flags still use
+the provisional thresholds and require human investigation.
+
+## Offline drift scenarios (in progress)
+
+`make scenario NAME=normal` and `make scenario NAME=riskier_mix` sample training rides with replacement using
+the seed and weights in `params.yaml`. Each writes sensor windows to `reports/scenarios/<name>.parquet` and
+sampled ride IDs and provenance to a JSON sidecar. Compare them with
+`make drift DRIFT_CURRENT=reports/scenarios/normal.parquet DRIFT_OUT=reports/drift/normal` (substitute the
+other name as needed). The normal sample shares its training population with the reference; it is useful for
+initial checks, not independent evidence of calibration. These files contain labels but no model predictions;
+`make scenario NAME=unseen_city` and `make scenario NAME=unit_bug` sample the same SRV3490 development rides
+from the configured city. The first uses converted rotation; the second removes the conversion to simulate a
+sender unit bug. They have no GBG500 category labels. The city is unseen by the GBG500 classifier, but is not
+necessarily unseen by the fall-risk model. With the API running, replay a generated scenario with
+`uv run python -m ride_classifier.replay.client reports/scenarios/normal.parquet`; it carries state between
+windows and posts one feedback label per sampled ride. `--speed 1` waits one stride between windows of each
+ride; the default `--speed 0` sends without waiting. Rides are sequential, not a multi-user load test. The replay
+is intended for a demo API: it changes its metrics and feedback counters.
+
+The `drift report` GitHub workflow needs a self-hosted runner with `uv`, the local DVC data and drift reference.
+A manual run with no input generates the offline `unit_bug` scenario; supplying a runner-local JSONL or parquet
+path runs the report on that input. Its daily schedule expects `reports/drift/current.jsonl` to be populated by
+an external process; absent input fails the job. Exit 3 produces a warning and report artifact, not automatic
+retraining. The workflow has not yet been exercised on GitHub.
+
+The draft `gated retraining` workflow requires a self-hosted runner with `uv`, a reachable `MLFLOW_TRACKING_URI`,
+and `COURSE_DVC_CREDENTIALS` pointing to its isolated school-account credential file. It pulls the versioned
+training and golden sets, forces a new model-1 training run, tags the reason and evidence, evaluates its gate,
+then registers at staging only if the gate passes. It has not yet been exercised on GitHub; it does not deploy.
+See the [retraining policy](retraining-policy.md).
+
+## Live load test (implementation draft)
+
+The Locust workload replays real GBG500 training rides, one ride at a time per user. Each user waits for the
+first window, sends overlapping windows at the configured stride, carries the returned state and starts a fresh
+ride after completion or error. The step schedule is in `params.yaml` under `loadtest`.
+
+With the target API and MLflow running, use for example:
+
+```bash
+make loadtest LOADTEST_MODEL_VERSION=2 LOADTEST_CPU=1 LOADTEST_REPLICAS=1 \
+  LOADTEST_TARGET_ENV="kind on laptop, CPU-limited API" SPEED=1
+```
+
+The defaults target the kind API at `localhost:8080`; override `LOADTEST_HOST` for another target. Check the
+actual deployment CPU limit and replica count yourself: these arguments are **declared**, not measured by the
+client. The runner checks `/health` for the requested model version, requires MLflow, and stores Locust CSV files
+as artifacts with the speed, target declaration and step configuration. `SPEED=1` means real time; an accelerated
+test must report its speed and cannot by itself establish real-time capacity. The workload, MLflow wrapper and
+step shape are tested locally, but no load test has been run on kind and no capacity has been measured yet.
 
 ---
 

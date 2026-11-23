@@ -3,6 +3,15 @@
 .DEFAULT_GOAL := help
 ALIAS ?= staging
 VERSION ?= dev
+DRIFT_CURRENT ?= reports/drift/current.jsonl
+DRIFT_OUT ?= reports/drift/latest
+NAME ?= normal
+LOADTEST_HOST ?= http://localhost:8080
+LOADTEST_MODEL_VERSION ?=
+LOADTEST_CPU ?= 1
+LOADTEST_REPLICAS ?= 1
+LOADTEST_TARGET_ENV ?=
+SPEED ?= 1
 export DOCKERHUB_USER
 
 help: ## List the commands
@@ -36,8 +45,38 @@ data-setup: ## One time per laptop: give DVC the dev S3 credentials (kept in the
 data: ## Download the versioned data from S3 into data/raw/ (start the storage first: make dev-up)
 	uv run dvc pull
 
+shared-data-pull: ## Team: download the versioned data from the shared GCS bucket (needs: gcloud auth application-default login)
+	uv run dvc pull -r shared
+
+shared-data-push: ## Team: upload the versioned data to the shared GCS bucket
+	uv run dvc push -r shared
+
+shared-mlflow: ## Team: open the shared MLflow (Cloud Run, private) on http://localhost:5001 (needs: gcloud auth login with your school account)
+	gcloud run services proxy ride-mlflow --project advanced-cloud-ai-i2 --region europe-west1 --port 5001
+
 pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
 	uv run dvc repro
+
+drift: ## Offline drift report: make drift DRIFT_CURRENT=path/to/windows.parquet
+	uv run python -m ride_classifier.drift.job --reference artifacts/drift_reference.json --current $(DRIFT_CURRENT) --out $(DRIFT_OUT)
+
+monitoring-up: ## Start Prometheus and Grafana for the host API and drift exporter
+	docker compose --profile monitoring up -d prometheus grafana
+
+monitoring-down: ## Stop Prometheus and Grafana
+	docker compose --profile monitoring stop prometheus grafana
+
+drift-monitor: ## Export rolling drift metrics on :8001 (start Prometheus and the API first)
+	uv run python -m ride_classifier.drift.monitor
+
+drift-calibrate: ## Resample normal training rides and log PSI variability to MLflow
+	uv run python -m ride_classifier.drift.calibrate
+
+scenario: ## Build real scenario windows: NAME=normal, riskier_mix, unseen_city or unit_bug
+	uv run python -m ride_classifier.drift.scenarios $(NAME)
+
+loadtest: ## Tracked live-ride steps: set LOADTEST_MODEL_VERSION and LOADTEST_TARGET_ENV
+	uv run python loadtest/run.py --host "$(LOADTEST_HOST)" --model-version "$(LOADTEST_MODEL_VERSION)" --target-cpu $(LOADTEST_CPU) --replicas $(LOADTEST_REPLICAS) --target-env "$(LOADTEST_TARGET_ENV)" --speed $(SPEED)
 
 register: ## Register the latest trained model (clean commit + gate passed) as @staging in MLflow
 	uv run python -m ride_classifier.registry.register
