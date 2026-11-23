@@ -8,6 +8,11 @@ presentations. One entry per working session; mistakes found and corrected are l
 
 This block is rewritten at each stop; the dated entries below are the history.
 
+- **E3 CPU baseline preparation:** an exported E3 v2 and golden data are available locally. The hypothesis and
+  comparison conditions are documented in `ai-infrastructure/benchmarks/baseline-protocol.md` before running;
+  `run_tracked.py` prepares the same model windows, calls the common benchmark tool, and logs input fingerprints,
+  environment and results to MLflow. No baseline numbers are claimed until the tracked run completes.
+
 - **Kind monitoring (in progress):** opt-in manifests and `k8s/monitoring/deploy.sh` prepare Prometheus, Grafana
   and the drift exporter using the existing dashboard, alert rules and reference. A headless service allows
   Prometheus to scrape each ready API pod rather than a load-balanced sample. There is no local kind cluster at
