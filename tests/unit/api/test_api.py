@@ -53,6 +53,7 @@ def test_health_reports_the_model_and_the_threshold(client):
         "drift_reference_loaded": False,
         "danger_threshold": None,  # the test model is a baseline: no danger score
         "fall_risk_loaded": False,
+        "fall_risk_version": None,
         "fall_risk_threshold": 0.6,
     }
 
@@ -320,10 +321,33 @@ def test_a_model_uri_says_which_version_is_loaded(model_dir):
     assert resolve_model(str(model_dir)) == (str(model_dir), {"version": "7"})  # make export's model_meta.json
 
 
-def test_the_images_load_the_production_model_from_the_registry(ride_model, ride, tmp_path, monkeypatch):
-    """Images contain no model (ADR 007): MODEL_URI=models:/<name>@production, resolved to its version first."""
+def _fall_model():
+    """A tiny model 2 on random window statistics (the API only needs it to score windows)."""
+    import numpy as np
+
+    from ride_classifier.config import ID_COLUMN
+    from ride_classifier.features.stats import ride_features
+    from ride_classifier.models.fall_risk import FallRiskModel
+
+    rng = np.random.default_rng(0)
+    frames = [
+        pd.DataFrame(rng.normal(size=(100, 6)), columns=SENSOR_COLUMNS).assign(**{ID_COLUMN: i}) for i in range(8)
+    ]
+    features = ride_features(pd.concat(frames)).drop(columns=["duration_s"]).reset_index(drop=True)
+    return FallRiskModel(1.0, 0).fit(features, pd.Series([0, 1] * 4))
+
+
+def test_the_images_load_both_models_and_the_reference_from_the_registry(ride_model, ride, tmp_path, monkeypatch):
+    """Images contain no model (ADR 007): model 1 and model 2 come from the registry (@production, resolved to a
+    version first), the drift reference from model 1's training run."""
+    from ride_classifier.config import DRIFT_REFERENCE_ARTIFACT, FALL_RISK_NAME
+    from ride_classifier.features.window_stats import FEATURES
+    from ride_classifier.models.fall_risk_pyfunc import FallRiskPyfunc
+
     monkeypatch.setenv("FALL_RISK_MODEL_PATH", str(tmp_path / "absent.joblib"))
     monkeypatch.setenv("DRIFT_REFERENCE_PATH", str(tmp_path / "absent.json"))
+    monkeypatch.setenv("FALL_RISK_URI", f"models:/{FALL_RISK_NAME}@production")
+    reference = {"features": {name: {"edges": [0.5, 1.0], "shares": [0.3, 0.3, 0.4]} for name in FEATURES}}
     previous = mlflow.get_tracking_uri()
     mlflow.set_tracking_uri(f"sqlite:///{(tmp_path / 'mlflow.db').as_posix()}")
     try:
@@ -332,6 +356,13 @@ def test_the_images_load_the_production_model_from_the_registry(ride_model, ride
             info = mlflow.pyfunc.log_model(
                 name="model", python_model=ride_model, code_paths=[str(PACKAGE_DIR)], pip_requirements=["pandas"]
             )
+            mlflow.log_text(json.dumps(reference), DRIFT_REFERENCE_ARTIFACT)  # as the `reference` stage does
+        with mlflow.start_run(experiment_id=experiment):
+            fall = mlflow.pyfunc.log_model(
+                name="model", python_model=FallRiskPyfunc(_fall_model()), pip_requirements=["pandas"]
+            )
+        mlflow.register_model(fall.model_uri, FALL_RISK_NAME)
+        mlflow.MlflowClient().set_registered_model_alias(FALL_RISK_NAME, "production", "1")
         for _ in range(2):  # v1 and v2: @production on v1 must load v1, not the latest
             version = mlflow.register_model(info.model_uri, MODEL_NAME)
         mlflow.MlflowClient().set_registered_model_alias(MODEL_NAME, "production", "1")
@@ -339,7 +370,10 @@ def test_the_images_load_the_production_model_from_the_registry(ride_model, ride
         with TestClient(create_app(model_uri=f"models:/{MODEL_NAME}@production")) as c:
             health = c.get("/health").json()
             assert (health["status"], health["model_version"]) == ("ok", "1")
-            assert c.post("/v1/predict", json=ride).json()["model_version"] == "1"
+            assert (health["fall_risk_loaded"], health["fall_risk_version"]) == (True, "1")
+            assert health["drift_reference_loaded"] is True
+            body = c.post("/v1/predict", json=ride).json()
+            assert body["model_version"] == "1" and body["fall_risk"]["windows"]
         assert str(version.version) == "2"
     finally:
         mlflow.set_tracking_uri(previous)

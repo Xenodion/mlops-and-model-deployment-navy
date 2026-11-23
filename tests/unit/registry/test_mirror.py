@@ -7,7 +7,7 @@ from mlflow import MlflowClient
 
 from ride_classifier.config import ID_COLUMN, MODEL_NAME, SENSOR_COLUMNS, TIME_COLUMN
 from ride_classifier.pipeline.train import PACKAGE_DIR
-from ride_classifier.registry.mirror import RUN_TAG, mirror
+from ride_classifier.registry.mirror import RUN_TAG, mirror, mirror_all
 
 
 def server(tmp_path, name: str) -> MlflowClient:
@@ -84,3 +84,33 @@ def test_versions_that_break_the_registration_rules_are_not_copied(source, tmp_p
     with pytest.raises(SystemExit, match="registration rules"):
         mirror(source, target)
     assert target.search_model_versions(f"name='{MODEL_NAME}'") == []
+
+
+def test_files_added_to_a_run_later_are_copied_on_the_next_run(source, tmp_path):
+    """E.g. the drift reference, logged with model 1's run by the `reference` stage after the training."""
+    target = server(tmp_path, "target")
+    mirror(source, target)
+    source.log_text(source.get_model_version(MODEL_NAME, "2").run_id, "{}", "drift_reference.json")
+
+    mirror(source, target)
+    copy = target.get_model_version(MODEL_NAME, "2")
+    assert "drift_reference.json" in {a.path for a in target.list_artifacts(copy.run_id)}
+
+
+def test_a_copy_can_be_the_source_without_duplicating_anything(source, tmp_path):
+    """dev -> shared, then shared -> cluster: copies are matched by the id of the original run."""
+    shared, cluster = server(tmp_path, "shared"), server(tmp_path, "cluster")
+    mirror(source, cluster)
+    mirror(source, shared)
+
+    assert mirror(shared, cluster) == {"1": "1", "2": "2"}
+    assert len(cluster.search_model_versions(f"name='{MODEL_NAME}'")) == 2
+    assert len(cluster.search_runs([cluster.get_experiment_by_name("ride-classifier").experiment_id])) == 2
+
+
+def test_model_2_is_optional_but_model_1_is_not(source, tmp_path):
+    target = server(tmp_path, "target")
+    assert set(mirror_all(source, target, [MODEL_NAME, "fall-risk"])) == {MODEL_NAME}  # no fall-risk: skipped
+
+    with pytest.raises(SystemExit, match="No registered model"):
+        mirror_all(server(tmp_path, "empty"), target, [MODEL_NAME])

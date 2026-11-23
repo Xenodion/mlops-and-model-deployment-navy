@@ -11,6 +11,13 @@ Automatic deployment from GitHub (CD) comes next.
 
 ## Local monitoring (in progress)
 
+**On the kind cluster:** `make k8s-monitoring`, after `make k8s-deploy` and `make k8s-model` (§12). It deploys
+Prometheus (http://127.0.0.1:8084), Grafana (http://127.0.0.1:8083) and the drift exporter, with the same alert
+rules, dashboard and Grafana provisioning as the local setup. The drift reference comes from the cluster's MLflow
+(the one logged with the training run of the model the API serves), and the exporter runs the API's own image.
+Prometheus discovers each ready API pod (stable and canary) through a headless service. Run it again after a
+configuration change; the dashboard and Prometheus data are not kept.
+
 With the model exported and `artifacts/drift_reference.json` available, run `make api` on the host, then
 `make monitoring-up` and `make drift-monitor` in separate terminals. Prometheus is at `localhost:9090`, Grafana
 at `localhost:3000` (anonymous read-only access), and the drift exporter at `localhost:8001/metrics`. Stop the
@@ -133,7 +140,8 @@ shows false "package not installed" hints.
 | `make kind-up` / `make kind-down` | Create / delete the production Kubernetes cluster (§12) |
 | `make kind-load` / `make k8s-secrets` | Copy our MLflow image into the cluster / create the passwords in it |
 | `make k8s-deploy` / `make k8s-status` | Deploy everything in `k8s/` and wait until it's ready / show what runs |
-| `make k8s-model` | Copy the registered models into the cluster's MLflow and restart the API, which loads `@production` (§12) |
+| `make k8s-model` | Copy both registered models (and the drift reference) into the cluster's MLflow and restart the API, which loads `@production` (§12) |
+| `make k8s-monitoring` | Prometheus (:8084), Grafana (:8083) and the drift exporter in the cluster |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -384,6 +392,10 @@ make export ALIAS=production   # @production -> model/
 `model/` (git-ignored) then holds the MLflow model plus `model_meta.json`: name, version, alias, run, commit, data
 fingerprints and scores. The API will report it, so every prediction can be traced back to its training.
 
+**The drift reference** (`artifacts/drift_reference.json`, `reference` stage) is also stored with model 1's training
+run in MLflow. The Docker images fetch it from the run of the model they serve, so it always matches; `make api`
+reads the local file.
+
 **Reproduce** a training from scratch (lab 1's deliverable: "from a commit and a run id, rebuild the same model"):
 
 ```bash
@@ -603,9 +615,11 @@ make k8s-status     # pods, services, jobs
 uv run python tests/integration/smoke_test.py http://127.0.0.1:8080 http://127.0.0.1:8081
 ```
 
-**The model in the cluster.** The API image has no model: each pod loads `@production` from the cluster's MLflow
-(:8082) at startup. `make k8s-model` copies every registered version, with its run, scores, files and aliases, from
-your dev MLflow, keeping the version numbers. From the shared MLflow instead: `make shared-mlflow`, then
+**The models in the cluster.** The API image has no model: at startup each pod loads, from the cluster's MLflow
+(:8082), model 1 `ride-classifier@production`, model 2 `fall-risk@production` (optional: without it the API answers
+with model 1 alone) and the drift reference stored with model 1's training run. `/health` shows both versions.
+`make k8s-model` copies every registered version of both models, with its run, scores, files and aliases, from
+your dev MLflow, keeping the version numbers. Model 2 is on the shared MLflow, so copy from there. From the shared MLflow instead: `make shared-mlflow`, then
 `make k8s-model MLFLOW_SOURCE=http://localhost:5001`. It is safe to run again: what is already there is reused, and
 the aliases follow the source. Until it has run once, the API pods stay "not ready" (`/health` = 503).
 

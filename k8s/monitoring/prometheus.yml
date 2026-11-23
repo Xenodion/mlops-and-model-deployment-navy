@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+rule_files:
+  - /etc/prometheus/alerts.yml
+scrape_configs:
+  # A headless service returns one address per ready stable/canary pod: do not scrape the load-balanced service.
+  - job_name: ride-api
+    dns_sd_configs:
+      - names: [ride-api-metrics.ride-prod.svc.cluster.local]
+        type: A
+        port: 8000
+  - job_name: drift-monitor
+    static_configs:
+      - targets: [drift-monitor:8001]

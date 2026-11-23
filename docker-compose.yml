@@ -95,6 +95,7 @@ services:
     profiles: ["app"]
     environment:  # the image has no model: it loads @production from the dev MLflow at startup (ADR 007)
       MODEL_URI: ${MODEL_URI:-models:/ride-classifier@production}
+      FALL_RISK_URI: ${FALL_RISK_URI:-models:/fall-risk@production}  # model 2, optional
       MLFLOW_TRACKING_URI: http://mlflow:5000
       RECKLESS_THRESHOLD: ${RECKLESS_THRESHOLD:-0.5}
     ports:
