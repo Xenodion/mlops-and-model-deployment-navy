@@ -87,6 +87,9 @@ promote: ## Move @production to the model currently @staging
 export: ## Download the model behind an alias into model/ (default staging): make export ALIAS=production
 	uv run python -m ride_classifier.registry.export_model $(ALIAS)
 
+bundle-serving: ## Add the fall-risk staging model and matching drift reference to an exported model/
+	uv run python -m ride_classifier.registry.bundle_serving
+
 repro-check: ## Rebuild the latest training from scratch and compare every score (lab 1)
 	uv run python -m ride_classifier.registry.repro_check
 

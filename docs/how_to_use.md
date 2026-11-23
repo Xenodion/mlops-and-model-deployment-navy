@@ -382,6 +382,15 @@ make export ALIAS=production   # @production -> model/
 `model/` (git-ignored) then holds the MLflow model plus `model_meta.json`: name, version, alias, run, commit, data
 fingerprints and scores. The API will report it, so every prediction can be traced back to its training.
 
+To prepare an image with both models and input monitoring, first obtain the DVC drift reference corresponding to
+the exported classifier, then run `make bundle-serving`. It retrieves `fall-risk@staging` from the same MLflow
+server, checks that the reference names a model logged by the exported classifier's run, and writes both files
+plus version, run and reference hash to `model/serving_bundle.json`. Use
+`uv run python -m ride_classifier.registry.bundle_serving --fall-alias production` for a production alias.
+Bundle after each `make export`, which replaces the directory. The image reads these files from `/app/model/`;
+if either is absent the API still starts without that optional capability, visible in `/health`. This procedure
+has not yet been validated with both real shared-registry models in a deployed image.
+
 **Reproduce** a training from scratch (lab 1's deliverable: "from a commit and a run id, rebuild the same model"):
 
 ```bash

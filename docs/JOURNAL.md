@@ -8,6 +8,12 @@ presentations. One entry per working session; mistakes found and corrected are l
 
 This block is rewritten at each stop; the dated entries below are the history.
 
+- **Serving bundle (in progress):** after exporting model 1, `make bundle-serving` retrieves the registered
+  fall-risk joblib from its source run and adds a reference only if its model URI belongs to the exported run.
+  `serving_bundle.json` records the second model version/run and reference hash; the API image points to both
+  files. Local mocked tests cover matching and mismatched references. Real shared-registry export and image
+  deployment remain unverified and require access to both registered models and the matching DVC reference.
+
 - **Team integration (23/11):** Alex merged PR #32, then PR #9 at `fa6bf9c`, into `main`; CI passed tests,
   image builds and container smoke tests. New DVC outputs still need a separate push with isolated school
   credentials. The local calibration run still needs importing into shared MLflow.

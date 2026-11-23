@@ -34,6 +34,8 @@ USER appuser
 
 ENV PATH="/app/.venv/bin:$PATH" \
     MODEL_URI=/app/model \
+    FALL_RISK_MODEL_PATH=/app/model/fall_risk_model.joblib \
+    DRIFT_REFERENCE_PATH=/app/model/drift_reference.json \
     PREDICTION_LOG_PATH=/app/logs/predictions.jsonl
 EXPOSE 8000
 
