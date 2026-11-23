@@ -135,6 +135,7 @@ class Health(BaseModel):
     drift_reference_loaded: bool = Field(default=False, description="Layer-2 input histograms need the drift reference")
     danger_threshold: float | None = Field(default=None, description="null when the model has no danger score")
     fall_risk_loaded: bool = False
+    fall_risk_version: str | None = Field(default=None, description="model 2's registry version, if loaded")
     fall_risk_threshold: float | None = None
 
 

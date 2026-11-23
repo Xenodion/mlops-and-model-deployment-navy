@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -45,7 +46,14 @@ from ride_classifier.api.schemas import (
     WindowRequest,
     WindowState,
 )
-from ride_classifier.config import ID_COLUMN, LABELS, SAMPLING_HZ, SENSOR_COLUMNS, TIME_COLUMN
+from ride_classifier.config import (
+    DRIFT_REFERENCE_ARTIFACT,
+    ID_COLUMN,
+    LABELS,
+    SAMPLING_HZ,
+    SENSOR_COLUMNS,
+    TIME_COLUMN,
+)
 from ride_classifier.data.clean import clean_rides
 from ride_classifier.features.window_stats import window_stats
 from ride_classifier.models.fall_risk import score_windows
@@ -85,6 +93,34 @@ def resolve_model(model_uri: str) -> tuple[str, dict]:
         name, _, number = name.partition("/")
         return model_uri, {"version": number} if number.isdigit() else {}
     return model_uri, read_meta(model_uri)
+
+
+def load_fall_model() -> tuple[object | None, str | None]:
+    """Model 2 (fall risk), optional (ADR 010): (model, version), or (None, None) when there is none.
+
+    From the registry when FALL_RISK_URI is set (the images: models:/fall-risk@production), else from the local joblib
+    file of the pipeline (FALL_RISK_MODEL_PATH, for `make api` and CI).
+    """
+    if uri := os.getenv("FALL_RISK_URI"):
+        load_uri, meta = resolve_model(uri)
+        return mlflow.pyfunc.load_model(load_uri).unwrap_python_model().model, meta.get("version")
+    path = Path(os.getenv("FALL_RISK_MODEL_PATH", "artifacts/fall_risk_model.joblib"))
+    return (joblib.load(path), "local file") if path.exists() else (None, None)
+
+
+def load_drift_reference(meta: dict) -> dict | None:
+    """The input-drift reference: the DRIFT_REFERENCE_PATH file if it exists (`make api`), else the one logged with
+    the served model's training run (the images), so it always describes the data of the model actually loaded."""
+    path = Path(os.getenv("DRIFT_REFERENCE_PATH", "artifacts/drift_reference.json"))
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    if run_id := meta.get("run_id"):
+        with tempfile.TemporaryDirectory() as tmp:
+            local = mlflow.artifacts.download_artifacts(
+                run_id=run_id, artifact_path=DRIFT_REFERENCE_ARTIFACT, dst_path=tmp
+            )
+            return json.loads(Path(local).read_text(encoding="utf-8"))
+    return None
 
 
 def input_summary(frame: pd.DataFrame) -> dict[str, float]:
@@ -148,13 +184,13 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             logger.info(json.dumps({"event": "model_loaded", "model_uri": load_uri, "version": meta.get("version")}))
         except Exception as exc:  # start anyway: /health reports it and Kubernetes keeps traffic away
             logger.error(json.dumps({"event": "model_load_failed", "model_uri": uri, "error": str(exc)}))
-        app.state.fall_model = None  # model 2 is optional: without it the fall_risk fields are null
-        fall_path = Path(os.getenv("FALL_RISK_MODEL_PATH", "artifacts/fall_risk_model.joblib"))
-        if fall_path.exists():
-            try:
-                app.state.fall_model = joblib.load(fall_path)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(json.dumps({"event": "fall_risk_load_failed", "path": str(fall_path), "error": str(exc)}))
+        app.state.fall_model, app.state.fall_version = None, None  # model 2 is optional: else fall_risk fields = null
+        try:
+            app.state.fall_model, app.state.fall_version = load_fall_model()
+            if app.state.fall_model is not None:
+                logger.info(json.dumps({"event": "fall_risk_loaded", "version": app.state.fall_version}))
+        except Exception as exc:  # noqa: BLE001  (model 1 still serves: degraded mode of ADR 010)
+            logger.error(json.dumps({"event": "fall_risk_load_failed", "error": str(exc)}))
         app.state.fall_threshold = float(os.getenv("FALL_RISK_THRESHOLD", FALL_RISK_THRESHOLD))
         loaded = app.state.model is not None
         app.state.version = str(
@@ -163,13 +199,12 @@ def create_app(model_uri: str | None = None) -> FastAPI:
         app.state.threshold = float(os.getenv("RECKLESS_THRESHOLD", DEFAULT_THRESHOLD))
         app.state.drift_reference_loaded = False
         m.INPUT_FEATURES.clear()
-        reference_path = Path(os.getenv("DRIFT_REFERENCE_PATH", "artifacts/drift_reference.json"))
-        if reference_path.is_file():
-            try:
-                m.INPUT_FEATURES.configure(json.loads(reference_path.read_text(encoding="utf-8")))
+        try:
+            if (reference := load_drift_reference(app.state.meta)) is not None:
+                m.INPUT_FEATURES.configure(reference)
                 app.state.drift_reference_loaded = True
-            except (OSError, ValueError, KeyError, TypeError) as exc:
-                logger.error(json.dumps({"event": "drift_reference_load_failed", "error": str(exc)}))
+        except Exception as exc:  # noqa: BLE001  (predictions still work, without the layer-2 input histograms)
+            logger.error(json.dumps({"event": "drift_reference_load_failed", "error": str(exc)}))
         if loaded:
             m.MODEL_INFO.labels(version=app.state.version).set(1)
         yield
@@ -232,6 +267,7 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             reckless_threshold=state.threshold,
             danger_threshold=state.model.unwrap_python_model().danger_threshold if loaded else None,
             fall_risk_loaded=state.fall_model is not None,
+            fall_risk_version=state.fall_version,
             fall_risk_threshold=state.fall_threshold,
             drift_reference_loaded=state.drift_reference_loaded,
         )

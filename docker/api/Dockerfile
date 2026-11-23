@@ -30,9 +30,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN useradd --create-home appuser && mkdir -p /app/logs && chown appuser /app/logs
 USER appuser
 
-# The model comes from the registry at startup. http://mlflow:5000 = MLflow's name in compose and in the cluster
+# Both models come from the registry at startup (ADR 007, ADR 010), and the drift reference from model 1's training
+# run. http://mlflow:5000 = MLflow's name in compose and in the cluster
 ENV PATH="/app/.venv/bin:$PATH" \
     MODEL_URI=models:/ride-classifier@production \
+    FALL_RISK_URI=models:/fall-risk@production \
     MLFLOW_TRACKING_URI=http://mlflow:5000 \
     PREDICTION_LOG_PATH=/app/logs/predictions.jsonl
 EXPOSE 8000

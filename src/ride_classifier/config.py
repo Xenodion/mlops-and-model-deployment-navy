@@ -32,6 +32,8 @@ SAMPLING_HZ = 1000 / SAMPLING_PERIOD_MS
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "ride-classifier")
 MODEL_NAME = os.getenv("MODEL_NAME", "ride-classifier")
+FALL_RISK_NAME = "fall-risk"  # model 2 in the registry (ADR 010)
+DRIFT_REFERENCE_ARTIFACT = "drift_reference.json"  # logged with model 1's training run (pipeline/reference.py)
 
 
 @lru_cache

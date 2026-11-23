@@ -131,10 +131,13 @@ k8s-deploy: ## Deploy (or update) everything in the cluster and wait until it ru
 	kubectl -n ride-prod rollout status statefulset/s3 statefulset/postgres --timeout=5m
 	kubectl -n ride-prod rollout status deploy/mlflow deploy/ride-api-v1 deploy/ride-webapp --timeout=10m
 
-k8s-model: ## Copy the registered models into the cluster's MLflow (the API loads @production from it), then restart the API. From the shared MLflow: MLFLOW_SOURCE=http://localhost:5001
+k8s-model: ## Copy both registered models (+ drift reference) into the cluster's MLflow, where the API loads @production, then restart it. From the shared MLflow: MLFLOW_SOURCE=http://localhost:5001
 	uv run python -m ride_classifier.registry.mirror --source $(MLFLOW_SOURCE) --target http://127.0.0.1:8082
 	kubectl -n ride-prod rollout restart deploy/ride-api-v1
 	kubectl -n ride-prod rollout status deploy/ride-api-v1 --timeout=5m
+
+k8s-monitoring: ## Prometheus (:8084), Grafana (:8083) and the drift exporter in the cluster (after make k8s-model)
+	bash k8s/monitoring/deploy.sh
 
 k8s-status: ## What runs in the cluster: pods, services, jobs
 	kubectl -n ride-prod get pods,services,jobs -o wide

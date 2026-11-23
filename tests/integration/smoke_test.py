@@ -33,9 +33,11 @@ def check(condition: bool, message: str) -> None:
         raise SystemExit(1)
 
 
-def main(api: str, webapp: str) -> None:
+def main(api: str, webapp: str, require_fall_risk: bool = False) -> None:
     health = wait_for(f"{api}/health").json()
     check(health["status"] == "ok" and health["model_loaded"], f"API /health: {health}")
+    if require_fall_risk:
+        check(health["fall_risk_loaded"], "fall-risk model loaded")
 
     n = 600  # a 60-second ride
     ride = {
@@ -48,6 +50,8 @@ def main(api: str, webapp: str) -> None:
     check(response.status_code == 200, f"API /v1/predict -> {response.status_code}")
     body = response.json()
     check(abs(sum(body["probabilities"].values()) - 1) < 1e-6, f"5 probabilities summing to 1, label {body['label']}")
+    if require_fall_risk:
+        check(body["fall_risk"] is not None and bool(body["fall_risk"]["windows"]), "fall-risk windows returned")
     check(httpx.post(f"{api}/v1/predict", json={"time_index": [0]}, timeout=30).status_code == 422, "bad ride -> 422")
 
     check(wait_for(f"{webapp}/_stcore/health").text == "ok", "web app /_stcore/health")
@@ -55,4 +59,4 @@ def main(api: str, webapp: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], "--require-fall-risk" in sys.argv[3:])
