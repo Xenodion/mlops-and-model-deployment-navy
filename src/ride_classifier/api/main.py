@@ -3,8 +3,9 @@
 make export && make api                                   # model from model/, Swagger on http://localhost:8000/docs
 MODEL_URI=models:/ride-classifier@staging make api        # straight from the MLflow registry
 
-The model is loaded once at startup. Without a model the API still starts: /health answers 503 "degraded" (so a
-Kubernetes readiness probe keeps traffic away) and predictions answer 503.
+The Docker images contain no model (ADR 007): they load MODEL_URI=models:/ride-classifier@production from the MLflow
+at MLFLOW_TRACKING_URI. The model is loaded once at startup. Without a model the API still starts: /health answers
+503 "degraded" (so a Kubernetes readiness probe keeps traffic away) and predictions answer 503.
 """
 
 from __future__ import annotations
@@ -69,6 +70,23 @@ def read_meta(model_uri: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
+def resolve_model(model_uri: str) -> tuple[str, dict]:
+    """The URI to load and what we know about the model.
+
+    An alias (models:/<name>@<alias>) is resolved to its version *before* loading, so the version reported by /health
+    and the metrics is exactly the one loaded, even if the alias moves meanwhile.
+    """
+    if model_uri.startswith("models:/"):
+        name, _, alias = model_uri.removeprefix("models:/").partition("@")
+        if alias:
+            version = mlflow.MlflowClient().get_model_version_by_alias(name, alias)
+            number = str(version.version)
+            return f"models:/{name}/{number}", {"version": number, "run_id": version.run_id}
+        name, _, number = name.partition("/")
+        return model_uri, {"version": number} if number.isdigit() else {}
+    return model_uri, read_meta(model_uri)
+
+
 def input_summary(frame: pd.DataFrame) -> dict[str, float]:
     """A few numbers describing the input, logged with each prediction for the drift checks (OPS-2)."""
     return {
@@ -124,8 +142,10 @@ def create_app(model_uri: str | None = None) -> FastAPI:
         uri = model_uri or os.getenv("MODEL_URI", "model")
         app.state.model, app.state.meta = None, {}
         try:
-            app.state.model = mlflow.pyfunc.load_model(uri)  # once, not per request
-            app.state.meta = read_meta(uri)
+            load_uri, meta = resolve_model(uri)
+            app.state.model = mlflow.pyfunc.load_model(load_uri)  # once, not per request
+            app.state.meta = meta
+            logger.info(json.dumps({"event": "model_loaded", "model_uri": load_uri, "version": meta.get("version")}))
         except Exception as exc:  # start anyway: /health reports it and Kubernetes keeps traffic away
             logger.error(json.dumps({"event": "model_load_failed", "model_uri": uri, "error": str(exc)}))
         app.state.fall_model = None  # model 2 is optional: without it the fall_risk fields are null

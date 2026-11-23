@@ -88,7 +88,7 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 - [ ] T033 [US1] `drift/job.py` (report JSON/MD, exit 3) and `drift/monitor.py` (live `drift_*` gauges) per contracts/drift-report.md; tests; `make drift` (#17)
 - [ ] T034 [US1] `replay/client.py` and `drift/scenarios.py` (data-model.md "Drift scenario" `name`, `has_labels`); `make scenario NAME=...`; calibrate thresholds on `normal` in `params.yaml`; F22, F44 in `notebooks/06_drift_scenarios.ipynb` (#18)
 - [ ] T035 [US1] Workflows per contracts/workflows.md: `.github/workflows/train.yml`, `cd.yml` (environment `production`), `drift.yml`; e2e test `tests/e2e/test_replay.py` added to `ci.yml`; `docs/retraining-policy.md` + F43 (data-model.md "Retraining trigger" `reason`) (#19)
-- [ ] T036 [US1] Code-only Docker Hub images, model from `MODEL_URI` at startup; existing `-m2` tags handled with the account owner (#23)
+- [x] T036 [US1] Code-only Docker Hub images, model from `MODEL_URI` at startup; existing `-m2` tags handled with the account owner (#23)
 - [ ] T037 [US1] kind: `k8s/monitoring/` manifests from the same configs, CPU-limited API replica, canary kept (#20)
 - [ ] T038 [US1] SRV3490 in the pipeline: DVC stage `prepare_srv` (harmonised, cleaned), predicted category mix by city; F12, F13 (#22) — degradable
 - [ ] T039 [US1] Drift demo in action on kind: run each scenario, record Grafana and alerts, apply the runbook (retrain vs upstream fix); F21, F40-F44 and recordings in `assets/demos/` (#21)

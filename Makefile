@@ -3,6 +3,7 @@
 .DEFAULT_GOAL := help
 ALIAS ?= staging
 VERSION ?= dev
+MLFLOW_SOURCE ?= http://127.0.0.1:5000
 DRIFT_CURRENT ?= reports/drift/current.jsonl
 DRIFT_OUT ?= reports/drift/latest
 NAME ?= normal
@@ -93,7 +94,7 @@ repro-check: ## Rebuild the latest training from scratch and compare every score
 api: ## Run the API on http://localhost:8000 (Swagger: /docs) with the model in model/ (make export first)
 	PREDICTION_LOG_PATH=logs/predictions.jsonl uv run uvicorn ride_classifier.api.main:app --host 0.0.0.0 --port 8000
 
-image: ## Build both images, ride-api and ride-webapp, tagged $(VERSION) (make export first). Example: make image VERSION=v1
+image: ## Build both images (code only, no model), ride-api and ride-webapp, tagged $(VERSION). Example: make image VERSION=v1
 	docker build -f docker/api/Dockerfile -t ride-api:$(VERSION) .
 	docker build -f docker/webapp/Dockerfile -t ride-webapp:$(VERSION) .
 
@@ -129,6 +130,11 @@ k8s-deploy: ## Deploy (or update) everything in the cluster and wait until it ru
 	kubectl apply -k k8s/
 	kubectl -n ride-prod rollout status statefulset/s3 statefulset/postgres --timeout=5m
 	kubectl -n ride-prod rollout status deploy/mlflow deploy/ride-api-v1 deploy/ride-webapp --timeout=10m
+
+k8s-model: ## Copy the registered models into the cluster's MLflow (the API loads @production from it), then restart the API. From the shared MLflow: MLFLOW_SOURCE=http://localhost:5001
+	uv run python -m ride_classifier.registry.mirror --source $(MLFLOW_SOURCE) --target http://127.0.0.1:8082
+	kubectl -n ride-prod rollout restart deploy/ride-api-v1
+	kubectl -n ride-prod rollout status deploy/ride-api-v1 --timeout=5m
 
 k8s-status: ## What runs in the cluster: pods, services, jobs
 	kubectl -n ride-prod get pods,services,jobs -o wide

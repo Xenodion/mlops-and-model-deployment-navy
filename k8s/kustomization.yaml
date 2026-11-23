@@ -18,16 +18,17 @@ resources:
 
 # Which image version runs, in one place. The CD workflow changes these tags; by hand:
 #   cd k8s && kustomize edit set image ride-api=alexwaer110302/ride-api:<tag>   (or edit the lines below)
+# Tag = the commit (make push). The model is not in the image: the ConfigMap says which one to load (api/configmap.yaml)
 images:
   - name: ride-api
     newName: alexwaer110302/ride-api
-    newTag: 27d20c1-m2  # <commit>-m<model version>: the CNN, ride-classifier v2
+    newTag: 1b36072  # first code-only image (T036): the model comes from the cluster's MLflow
   - name: ride-api-canary
     newName: alexwaer110302/ride-api
-    newTag: 27d20c1-m2  # same as stable until a canary is rolled out
+    newTag: 1b36072  # same as stable until a canary is rolled out
   - name: ride-webapp
     newName: alexwaer110302/ride-webapp
-    newTag: 27d20c1
+    newTag: 1b36072
   - name: ride-mlflow
     newName: mlops-mlflow  # built locally from docker/mlflow and loaded into kind (make kind-load)
     newTag: 3.17.2
