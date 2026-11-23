@@ -1,0 +1,56 @@
+import io
+
+import httpx2 as httpx
+import numpy as np
+import pytest
+from api_client import ApiError, health, predict, read_ride, ride_payload
+
+API = "http://api.test"
+
+
+def fake_api(status: int, body: dict) -> httpx.MockTransport:
+    """An API that always answers `status` with `body`, without any network."""
+    return httpx.MockTransport(lambda request: httpx.Response(status, json=body, headers={"X-Request-ID": "r1"}))
+
+
+def unreachable(request):
+    raise httpx.ConnectError("connection refused", request=request)
+
+
+def test_a_csv_or_parquet_ride_is_read_in_time_order(ride):
+    shuffled = ride.drop(columns="ride_id").sample(frac=1, random_state=0)
+    parquet = io.BytesIO()
+    shuffled.to_parquet(parquet, index=False)
+    assert read_ride("r.csv", shuffled.to_csv(index=False).encode())["time_index"].is_monotonic_increasing
+    assert read_ride("r.parquet", parquet.getvalue())["time_index"].is_monotonic_increasing
+
+
+def test_a_file_without_a_channel_is_refused_with_its_name(ride):
+    with pytest.raises(ValueError, match="missing columns: ry"):
+        read_ride("r.csv", ride.drop(columns="ry").to_csv(index=False).encode())
+
+
+def test_the_payload_has_one_array_per_channel_and_null_for_gaps(ride):
+    ride.loc[3, "ax"] = np.nan
+    payload = ride_payload(ride, ride_id="r1")
+    assert payload["ride_id"] == "r1" and len(payload["ax"]) == len(payload["time_index"]) == len(ride)
+    assert payload["ax"][3] is None
+
+
+def test_a_prediction_and_its_headers_come_back():
+    answer = {"label": "Safe", "probabilities": {"Safe": 1.0}, "reckless_score": 0.0, "is_reckless": False}
+    prediction, headers = predict(API, {}, transport=fake_api(200, answer))
+    assert prediction["label"] == "Safe" and headers["x-request-id"] == "r1"
+
+
+def test_a_rejected_ride_names_the_wrong_field():
+    errors = {"detail": [{"loc": ["body", "time_index"], "msg": "List should have at least 300 items"}]}
+    with pytest.raises(ApiError, match="time_index: List should have at least 300 items"):
+        predict(API, {}, transport=fake_api(422, errors))
+
+
+def test_an_unreachable_api_gives_a_readable_error():
+    with pytest.raises(ApiError, match="API unreachable"):
+        health(API, transport=httpx.MockTransport(unreachable))
+    with pytest.raises(ApiError, match="API unreachable"):
+        predict(API, {}, transport=httpx.MockTransport(unreachable))

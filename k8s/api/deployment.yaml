@@ -1,0 +1,37 @@
+# The API, stable version (lab 5): `track: stable`. The image (model inside) comes from Docker Hub, its tag is set
+# in kustomization.yaml (CD updates it). Both probes call /health, which answers 503 without a model (lab 3).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-api-v1
+  labels: { app: ride-api, track: stable }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: ride-api, track: stable }
+  template:
+    metadata:
+      labels: { app: ride-api, track: stable }
+    spec:
+      containers:
+        - name: api
+          image: ride-api
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: ride-api-config }
+          ports:
+            - { containerPort: 8000 }
+          startupProbe:  # loading the model (PyTorch) takes a few seconds: the other probes wait for this one
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:  # not ready = no traffic from the Service
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+          livenessProbe:  # stuck = restarted
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:  # a ride takes ~60-150 ms of CPU; PyTorch + the model take ~500 MB of memory
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }

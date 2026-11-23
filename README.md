@@ -19,7 +19,17 @@ make dev-up      # S3 + Postgres + MLflow, MLflow on http://localhost:5000
 make pipeline    # prepare -> train -> evaluate (quality gate)
 make register && make export   # register the model as @staging, export it into model/
 make api         # the API on http://127.0.0.1:8000/docs
+make webapp      # the web app on http://127.0.0.1:8501 (2nd terminal)
 ```
+
+Production on Kubernetes (kind), with the images from Docker Hub:
+
+```bash
+make kind-up && make kind-load && make k8s-secrets && make k8s-deploy
+# API http://127.0.0.1:8080 · web app http://127.0.0.1:8081 · MLflow http://127.0.0.1:8082
+```
+
+Details: [docs/how_to_use.md §12](docs/how_to_use.md#12-kubernetes-the-production-cluster).
 
 Copy `.env.example` to `.env` to override the defaults.
 

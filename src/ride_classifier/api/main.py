@@ -167,7 +167,8 @@ def create_app(model_uri: str | None = None) -> FastAPI:
             label=label,
             probabilities=probabilities,
             reckless_score=reckless_score,
-            is_reckless=reckless_score >= state.threshold,
+            # With 5 categories the top one can be under 50 %: a ride predicted Reckless is always flagged
+            is_reckless=label == "Reckless" or reckless_score >= state.threshold,
             model_version=state.version,
             n_readings=len(frame),
         )

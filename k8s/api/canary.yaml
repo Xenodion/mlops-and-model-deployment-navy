@@ -1,0 +1,41 @@
+# Canary (lab 5, S8): a second version of the API, same `app` label, `track: canary`, 0 replicas by default.
+# The Service sends traffic to every ready pod of both tracks: 9 stable + 1 canary pods = ~10 % on the canary.
+#   kubectl -n ride-prod scale deploy/ride-api-v1 --replicas=9
+#   kubectl -n ride-prod scale deploy/ride-api-v2 --replicas=1     # canary on
+#   kubectl -n ride-prod scale deploy/ride-api-v2 --replicas=0     # rollback
+# Configured exactly like the stable one, otherwise the comparison is unfair (lab 5, TODO 3).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-api-v2
+  labels: { app: ride-api, track: canary }
+spec:
+  replicas: 0
+  selector:
+    matchLabels: { app: ride-api, track: canary }
+  template:
+    metadata:
+      labels: { app: ride-api, track: canary }
+    spec:
+      containers:
+        - name: api
+          image: ride-api-canary  # its own tag in kustomization.yaml
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: ride-api-config }
+          ports:
+            - { containerPort: 8000 }
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }

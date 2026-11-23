@@ -1,0 +1,8 @@
+# The API's settings: changing them needs no new image, only `kubectl apply -k k8s/` and a restart (S5).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ride-api-config
+data:
+  RECKLESS_THRESHOLD: "0.5"  # docs/PLAN.md §6.3
+  PREDICTION_LOG_PATH: /app/logs/predictions.jsonl

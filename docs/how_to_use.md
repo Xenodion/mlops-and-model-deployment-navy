@@ -4,9 +4,10 @@ A practical guide to everything built so far: set-up, the dev stack, data versio
 MLflow, the quality gate, the model registry, tests and the git workflow. For *why* things are built this way, see
 [PLAN.md](PLAN.md).
 
-**Status (18/11):** the pipeline goes from raw data to an evaluated model:
+**Status (19/11):** the pipeline goes from raw data to an evaluated model:
 `prepare` → `train` → `evaluate` (quality gate). The model is then registered in MLflow, exported, and served by
-the API. The web app, Docker images and Kubernetes come next.
+the API and the web app. Both run as Docker images published on Docker Hub and deployed on a Kubernetes cluster.
+Automatic deployment from GitHub (CD) and monitoring come next.
 
 ---
 
@@ -53,6 +54,15 @@ shows false "package not installed" hints.
 | `make export` | Download the `@staging` model into `model/` (`make export ALIAS=production` for the other one) |
 | `make repro-check` | Rebuild the latest training from scratch and compare every score |
 | `make api` | Run the API on http://127.0.0.1:8000 (Swagger at `/docs`) with the model in `model/` (§9) |
+| `make webapp` | Run the web app on http://127.0.0.1:8501 (needs the API: `make api`) (§10) |
+| `make webapp-examples` | Regenerate the web app's example rides from the golden rides |
+| `make image` | Build both Docker images, `ride-api:dev` and `ride-webapp:dev` (`make image VERSION=v1` for another tag) |
+| `make app-up` | Build and start the API (:8000) and web app (:8501) containers next to the dev stack (stop everything with `make dev-down`) |
+| `make smoke-test` | Check the running containers as CI does: health, a prediction, a 422, the web app |
+| `make push DOCKERHUB_USER=<name>` | Build both images with traceable tags and push them to Docker Hub (§11) |
+| `make kind-up` / `make kind-down` | Create / delete the production Kubernetes cluster (§12) |
+| `make kind-load` / `make k8s-secrets` | Copy our MLflow image into the cluster / create the passwords in it |
+| `make k8s-deploy` / `make k8s-status` | Deploy everything in `k8s/` and wait until it's ready / show what runs |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -173,12 +183,20 @@ uv run dvc params diff      # settings now vs the last commit
 |---|---|
 | `data.golden_share`, `data.cv_folds`, `data.seed` | Split. Changing them changes the golden set: **don't**, unless the team decides to |
 | `train.experiment_id` | Label of the experiment (E0, E1… see PLAN.md §6.5), logged in MLflow |
-| `train.model` | `baseline` for now (the CNN comes with MOD-4) |
-| `train.baseline.C` | Regularisation: smaller = simpler model |
+| `train.model` | `cnn` (1D CNN on 30 s windows, the current choice, E3) or `baseline` (statistics + logistic regression) |
+| `train.baseline.C` | Baseline regularisation: smaller = simpler model |
+| `train.cnn.epochs` | CNN training length: 10 (20 overfitted) |
+| `train.cnn.class_weight` | How much rare categories count: `sqrt` (current), `balanced` (over-predicts them), `none` |
+| `train.cnn.window_s`, `stride_s`, `filters`, `kernel`, `dropout`, `learning_rate`… | The CNN's shape and training, commented in `params.yaml` |
 | `evaluate.gate.min_macro_f1` | The gate's minimum score (0.30) |
 
-**Trying a new setting:** edit `params.yaml` (e.g. `C: 0.1` and `experiment_id: E1`), commit, `make pipeline`, then
-compare the runs in MLflow.
+Both models follow the same contract (`prepare` → `fit` → `predict_proba`, see `models/baseline.py`), so switching
+`train.model` changes nothing else: same folds, same gate, same MLflow logging, same API. With the CNN, MLflow also
+shows its training curve (`train_loss`, one point per epoch), and a full `train` takes ~5–6 min on a laptop CPU
+(5 folds + the final model) against ~1 min for the baseline.
+
+**Trying a new setting:** edit `params.yaml` (e.g. `epochs: 15` and `experiment_id: E4`), commit, `make pipeline`,
+then compare the runs in MLflow. Results so far: PLAN.md §6.5.
 
 **Using the model in Python:**
 
@@ -381,14 +399,166 @@ Every response carries `X-Request-ID` (send your own to trace a call) and `X-Pro
 | Variable | Default | Meaning |
 |---|---|---|
 | `MODEL_URI` | `model` | Exported folder, or straight from the registry: `MODEL_URI=models:/ride-classifier@staging make api` |
-| `RECKLESS_THRESHOLD` | `0.5` | `is_reckless = reckless_score ≥ threshold` (PLAN.md §6.3) |
+| `RECKLESS_THRESHOLD` | `0.5` | `is_reckless` = Reckless is the predicted category, or `reckless_score ≥ threshold` (PLAN.md §6.3). With 5 categories the top one can be under 50 % |
 | `PREDICTION_LOG_PATH` | `logs/predictions.jsonl` with `make api` | One JSON line per prediction (input summary, probabilities, version, timing), for the drift checks |
 
 The API tests (`tests/unit/api/`) use a small model trained on fake rides: no MLflow server or real data needed.
 
+**In Docker** (what Kubernetes will run). The image contains our code plus the model exported in `model/` at build
+time, so export first:
+
+```bash
+make export
+make image                                 # docker/api/Dockerfile -> ride-api:dev (~1.1 GB, first build ~4 min)
+docker run --rm -p 8000:8000 ride-api:dev  # http://127.0.0.1:8000/docs, Ctrl+C to stop
+# or, next to S3 + MLflow:
+make app-up                                # the "app" profile of docker-compose.yml
+```
+
+- **Contents:** core libraries plus the `api` dependency group at the exact `uv.lock` versions (the model's
+  training versions), our package, `model/`. No data, tests or secrets (`.dockerignore`).
+- **Safety:** runs as a non-root user (`appuser`), and Docker's healthcheck calls `/health`, so `docker ps` shows
+  `healthy` or `unhealthy`.
+- **Logs:** the prediction log goes to `docker logs` and to `/app/logs/predictions.jsonl` in the container.
+- **Speed:** a bit slower than `make api` on Windows (~110–360 ms per ride), because Docker Desktop runs containers
+  in a small virtual machine.
+- **Port:** stop `make api` (or any other API container) before running the container: they all use port 8000.
+
 ---
 
-## 10. Tests and code quality
+## 10. The web app
+
+A Streamlit page to try the model without writing code (the guidelines' "interactive web app"). It holds no model:
+it calls the API.
+
+```bash
+make api         # terminal 1: the API
+make webapp      # terminal 2: open http://127.0.0.1:8501
+```
+
+1. **Pick a ride:** one of the 5 example rides (one golden ride per category, never seen by the model in training),
+   or upload your own CSV / parquet (columns `time_index, ax, ay, az, rx, ry, rz`).
+2. **Look at it:** number of readings, duration, missing readings, and the acceleration and rotation signals over time.
+3. **Click "Classify this ride":** the predicted category, ✅ / ❌ against the true category for the examples, the
+   Reckless flag, a bar chart of the 5 probabilities, plus the model version, server time and request id.
+
+The sidebar shows whether the API is reachable and which model it serves. If the API is down, the page still works
+and says so.
+
+| File | Role |
+|---|---|
+| `webapp/app.py` | The page |
+| `webapp/api_client.py` | Reads ride files, builds the request, calls the API (tested without a browser) |
+| `webapp/examples/*.parquet` | Example rides, committed; regenerate with `make webapp-examples` after `make pipeline` |
+
+The page calls the API at `API_URL` (default `http://127.0.0.1:8000`). Tests: `tests/unit/webapp/`, with a fake API
+for the client and Streamlit's test runner for the whole page.
+
+**In Docker:** `make app-up` builds and starts both containers. The API is on :8000, the web app on
+**http://127.0.0.1:8501**, and the web app reaches the API by its compose service name (`http://api:8000`). The web
+app image (~850 MB) installs only Streamlit and the HTTP client, not our package or the ML libraries.
+
+---
+
+## 11. Docker Hub: publishing the images
+
+The guidelines ask for the Docker Hub URLs of our images, and Kubernetes will pull them from there.
+
+**One-time set-up:**
+1. Create a Docker Hub account (https://hub.docker.com).
+2. Create a token: **Account settings → Personal access tokens → Generate new token**, access **Read & Write**.
+   Copy it: it's shown only once.
+3. `docker login -u <your Docker Hub name>`, then paste the token as the password.
+4. For the CD workflow (coming next): GitHub repo → **Settings → Secrets and variables → Actions → New repository
+   secret**. Add `DOCKERHUB_USERNAME` (your name) and `DOCKERHUB_TOKEN` (the token). Never put the token in a file.
+
+**Push:**
+
+```bash
+git status                            # commit first: the push refuses uncommitted changes
+make export                           # the model the API image will contain (@staging by default)
+make push DOCKERHUB_USER=<your name>  # builds both images, tags them, pushes, prints the Docker Hub URLs
+```
+
+| Image | Tags | Says |
+|---|---|---|
+| `<name>/ride-api` | `<commit>-m<model version>` (e.g. `b192aac-m1`) + `latest` | Which code **and** which model are inside |
+| `<name>/ride-webapp` | `<commit>` + `latest` | Which code is inside |
+
+Each image also carries labels (`org.opencontainers.image.revision`, `ride.model.version`): `docker inspect` shows them.
+
+**Public or private?** New Docker Hub repositories are public. The API image contains the trained model, and the web
+app image contains the 5 example rides from the course dataset. Decide with the team whether that may be public; if
+not, switch the repositories to private in their Docker Hub settings (the free plan allows only a few private
+repositories).
+
+**What CI does with images:** on every pull request and push to `main`, the `images` job builds both images with a
+tiny test model (GitHub's machines can't reach our MLflow), starts them, and runs the smoke test: `/health`, a
+prediction, a 422, the web app's health, and the web app reaching the API by name. It doesn't push. Run the same
+smoke test on your own containers with `make app-up` then `make smoke-test`.
+
+---
+
+## 12. Kubernetes: the production cluster
+
+Production runs in a **kind** cluster: Kubernetes inside one Docker container on the prod host laptop, as in lab 5.
+Everything lives in the namespace `ride-prod`. The files are in `k8s/` (one folder per part, as in `docker/`).
+
+| Part | Kubernetes object | From the laptop | Inside the cluster |
+|---|---|---|---|
+| API | Deployment `ride-api-v1` (2 pods) + canary `ride-api-v2` (0 pods) | http://127.0.0.1:8080 | `http://ride-api` |
+| Web app | Deployment `ride-webapp` | http://127.0.0.1:8081 | |
+| MLflow | Deployment `mlflow` | http://127.0.0.1:8082 | `http://mlflow:5000` |
+| S3 (SeaweedFS) | StatefulSet `s3` + 5 GB disk | file browser http://127.0.0.1:8085/buckets/ · API http://127.0.0.1:8086 | `http://s3:8333` |
+| Postgres | StatefulSet `postgres` + 1 GB disk | | `postgres:5432` |
+| Buckets `mlflow`, `dvc` | Job `create-buckets` (runs once) | | |
+
+**One-time set-up on the prod host:**
+1. `winget install Kubernetes.kind`, then open a **new** terminal. `kubectl` comes with Docker Desktop.
+2. Docker Desktop needs about 6 GB of memory for the cluster. Stop the compose app containers first:
+   `docker compose --profile app stop api webapp`.
+
+**Start it (the first time takes 15–25 minutes: Kubernetes, MLflow and the 2.3 GB API image get downloaded):**
+
+```bash
+make kind-up        # create the cluster (ports 8080-8086 on the laptop)
+make kind-load      # build our MLflow image and copy it into the cluster (not on Docker Hub)
+make k8s-secrets    # create the passwords in the cluster (S3 keys, Postgres)
+make k8s-deploy     # apply everything in k8s/ and wait until every pod is ready
+make k8s-status     # pods, services, jobs
+uv run python tests/integration/smoke_test.py http://127.0.0.1:8080 http://127.0.0.1:8081
+```
+
+The cluster survives a Docker Desktop restart. `make kind-down` deletes it **with its data** (prod S3 and MLflow).
+
+**Passwords.** `k8s/secrets.sh` creates them from environment variables, so they never go into git. Without
+variables it uses the dev values of `docker-compose.yml`. For a real deployment:
+`S3_SECRET_KEY=... POSTGRES_PASSWORD=... make k8s-secrets`, then restart the pods that use them
+(`kubectl -n ride-prod rollout restart deploy/mlflow statefulset/s3`).
+
+**Which version runs.** The image tags are pinned in one place, the `images:` block of `k8s/kustomization.yaml`.
+To ship a new version: `make push` (§11), put the printed tag in `kustomization.yaml`, `make k8s-deploy`. Kubernetes
+replaces the pods one by one and only removes an old pod once a new one answers `/health`, so the API never stops.
+The CD workflow will do the same steps automatically.
+
+**Everyday commands** (all with `-n ride-prod`):
+
+| You want to… | Command |
+|---|---|
+| See what runs | `make k8s-status` |
+| Read the API logs | `kubectl -n ride-prod logs deploy/ride-api-v1` (add `-f` to follow) |
+| Understand a pod that won't start | `kubectl -n ride-prod describe pod <pod name>` (the **Events** at the bottom) |
+| Change a setting (e.g. the Reckless threshold) | Edit `k8s/api/configmap.yaml`, `make k8s-deploy`, then `kubectl -n ride-prod rollout restart deploy/ride-api-v1` |
+| Undo a bad release | `kubectl -n ride-prod rollout undo deploy/ride-api-v1` |
+| Scale the API | `kubectl -n ride-prod scale deploy/ride-api-v1 --replicas=3` |
+| Canary (≈ 10 % of traffic) | Set the `ride-api-canary` tag in `kustomization.yaml`, `make k8s-deploy`, then scale `ride-api-v1` to 9 and `ride-api-v2` to 1. Rollback: scale `ride-api-v2` to 0 |
+
+**The prod MLflow is empty for now.** The registered models (v1, v2) are in your dev MLflow (:5000). The API doesn't
+need MLflow: the model is inside its image. The prod MLflow becomes the registry with the training workflow (K8S-4).
+
+---
+
+## 13. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -407,7 +577,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 11. Where to put new code
+## 14. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -424,7 +594,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 12. Git workflow
+## 15. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -433,7 +603,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 13. Troubleshooting
+## 16. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -450,4 +620,12 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | Each API call takes ~2 s on Windows | Call `http://127.0.0.1:8000`, not `localhost` (Windows tries IPv6 first) |
 | `make api`: address already in use | Another API is still running on port 8000: stop it (Ctrl+C in its terminal) |
 | `/health` says `degraded` | No model in `model/`: run `make export` (needs MLflow running and a registered model) |
+| `make push`: "Uncommitted changes" | On purpose: commit first, so the image tag matches the code inside |
+| `make push`: "denied: requested access to the resource is denied" | Run `docker login`, and check that `DOCKERHUB_USER` is exactly your Docker Hub name |
 | CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |
+| `kind: command not found` | After `winget install Kubernetes.kind`, open a **new** terminal |
+| Pods stay in `ContainerCreating` for minutes | First deploy: Kubernetes downloads the images **one at a time**, the 2.3 GB API image first. `kubectl -n ride-prod describe pod <name>` shows "Pulling image" |
+| `create-buckets` shows `Error` / `CrashLoopBackOff`, MLflow restarts | Normal at the first deploy while S3 and Postgres start: both retry by themselves. `make k8s-status` until the job says `Completed` |
+| A pod is `OOMKilled` | It went over its memory limit (`resources:` in its manifest). `kubectl -n ride-prod describe pod <name>` shows it. Raise the limit, or give Docker Desktop more memory |
+| `gcloud auth login`: after you validate, the browser opens the SeaweedFS file browser | gcloud receives the login on `localhost:8085`, which the kind cluster uses (S3 file browser). Use `gcloud auth login --no-launch-browser` (same for `gcloud auth application-default login`): open the URL, paste the code back |
+| `make k8s-deploy`: "field is immutable" on `job/create-buckets` | Delete the old job first: `kubectl -n ride-prod delete job create-buckets` (it deletes itself 10 min after finishing) |

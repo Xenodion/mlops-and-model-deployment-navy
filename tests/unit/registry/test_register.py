@@ -4,9 +4,6 @@ import mlflow
 import pytest
 from mlflow import MlflowClient
 
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
-from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.registry.export_model import META_FILE, export
 from ride_classifier.registry.register import PRODUCTION, STAGING, promote, register, registration_problems
 
@@ -33,18 +30,13 @@ def test_a_model_worse_than_production_is_refused_an_equal_one_is_not():
 
 
 @pytest.fixture(scope="module")
-def registry(tmp_path_factory, labelled_rides):
+def registry(tmp_path_factory, ride_model):
     """A local MLflow store + registry, and a function logging a trained model in a run with given scores."""
     root = tmp_path_factory.mktemp("registry")
     tracking_uri = f"sqlite:///{(root / 'mlflow.db').as_posix()}"
     mlflow.set_tracking_uri(tracking_uri)
     experiment = mlflow.create_experiment("test", artifact_location=(root / "mlruns").as_uri())
-    readings, labels = labelled_rides
-    features = ride_features(readings)
-    estimator = make_baseline(C=1.0, max_iter=1000).fit(
-        features, labels.set_index("ride_id").loc[features.index, "label"]
-    )
-    model = RideClassifierModel(estimator, "baseline")
+    model = ride_model
 
     def log_training(golden_macro_f1: float, tags: dict = CLEAN) -> tuple[str, str]:
         mlflow.set_tracking_uri(tracking_uri)

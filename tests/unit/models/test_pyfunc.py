@@ -4,18 +4,25 @@ import pandas as pd
 import pytest
 
 from ride_classifier.config import LABELS, SENSOR_COLUMNS
-from ride_classifier.features.stats import ride_features
-from ride_classifier.models.baseline import make_baseline
+from ride_classifier.models.cnn import CNNModel
 from ride_classifier.models.pyfunc import RideClassifierModel
 from ride_classifier.pipeline.train import PACKAGE_DIR
 
+TINY_CNN = dict(window_s=30, stride_s=15, filters=[8], kernel=5, dropout=0.0, epochs=2, batch_size=32,
+                learning_rate=1e-3, weight_decay=0.0, augment=False, seed=0)  # fmt: skip
+
 
 @pytest.fixture(scope="module")
-def model(labelled_rides):
+def tiny_cnn(labelled_rides) -> RideClassifierModel:
     readings, labels = labelled_rides
-    features = ride_features(readings)
-    y = labels.set_index("ride_id").loc[features.index, "label"]
-    return RideClassifierModel(make_baseline(C=1.0, max_iter=1000).fit(features, y), model_type="baseline")
+    cnn = CNNModel(**TINY_CNN)
+    return RideClassifierModel(cnn.fit(cnn.prepare(readings), labels.set_index("ride_id")["label"]))
+
+
+@pytest.fixture(params=["baseline", "cnn"])
+def model(request, ride_model, tiny_cnn) -> RideClassifierModel:
+    """Every test runs on both models: they share the same contract."""
+    return ride_model if request.param == "baseline" else tiny_cnn
 
 
 @pytest.fixture

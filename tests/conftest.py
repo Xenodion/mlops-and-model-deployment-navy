@@ -45,3 +45,14 @@ def labelled_rides() -> tuple[pd.DataFrame, pd.DataFrame]:
             readings.append(ride.assign(**{LABEL_COLUMN: label}))
             labels.append((ride_id, label))
     return pd.concat(readings, ignore_index=True), pd.DataFrame(labels, columns=[ID_COLUMN, LABEL_COLUMN])
+
+
+@pytest.fixture(scope="session")
+def ride_model(labelled_rides):
+    """A baseline trained on the fake rides and wrapped like the real model: what the API serves."""
+    from ride_classifier.models.baseline import StatsBaseline  # imported here: most tests don't need MLflow
+    from ride_classifier.models.pyfunc import RideClassifierModel
+
+    readings, labels = labelled_rides
+    baseline = StatsBaseline(C=1.0, max_iter=1000)
+    return RideClassifierModel(baseline.fit(baseline.prepare(readings), labels.set_index(ID_COLUMN)[LABEL_COLUMN]))
