@@ -11,6 +11,18 @@ Automatic deployment from GitHub (CD) comes next.
 
 ## Local monitoring (in progress)
 
+For the separate kind deployment, `k8s/monitoring/deploy.sh` prepares ConfigMaps from the same alert rules,
+dashboard and Grafana provisioning as the local setup, then applies the monitoring manifests. The namespace and
+API must already exist in the `kind-ride-mlops` context. After `make export` and `make bundle-serving`, build
+the current API image as `ride-api:dev` and load it into that cluster. Update both stable and canary deployments
+to that image and restart the stable deployment; the older image configured in `k8s/kustomization.yaml` does not
+contain the new reference. Ensure `model/drift_reference.json` and `artifacts/drift_reference.json` match before
+running `bash k8s/monitoring/deploy.sh`. The manifest also uses `ride-api:dev` for the drift exporter.
+Prometheus discovers each ready API pod through a headless service, including an active canary. Grafana and
+Prometheus are exposed at `localhost:8083` and `localhost:8084` using the existing kind port mappings.
+Configuration changes require restarting the monitoring deployments. These manifests are prepared but have not
+yet been run on kind; the dashboard and Prometheus data are ephemeral.
+
 With the model exported and `artifacts/drift_reference.json` available, run `make api` on the host, then
 `make monitoring-up` and `make drift-monitor` in separate terminals. Prometheus is at `localhost:9090`, Grafana
 at `localhost:3000` (anonymous read-only access), and the drift exporter at `localhost:8001/metrics`. Stop the

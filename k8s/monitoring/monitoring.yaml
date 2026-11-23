@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ride-api-metrics
+spec:
+  clusterIP: None
+  selector: { app: ride-api }
+  ports:
+    - { name: metrics, port: 8000, targetPort: 8000 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus }
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v3.5.0
+          ports: [{ containerPort: 9090 }]
+          volumeMounts:
+            - { name: config, mountPath: /etc/prometheus, readOnly: true }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+        - name: config
+          configMap: { name: monitoring-prometheus }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+spec:
+  type: NodePort
+  selector: { app: prometheus }
+  ports:
+    - { port: 9090, targetPort: 9090, nodePort: 30084 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:12.1.1
+          env:
+            - { name: GF_AUTH_ANONYMOUS_ENABLED, value: "true" }
+            - { name: GF_AUTH_ANONYMOUS_ORG_ROLE, value: Viewer }
+          ports: [{ containerPort: 3000 }]
+          volumeMounts:
+            - { name: datasource, mountPath: /etc/grafana/provisioning/datasources, readOnly: true }
+            - { name: provider, mountPath: /etc/grafana/provisioning/dashboards, readOnly: true }
+            - { name: dashboard, mountPath: /var/lib/grafana/dashboards, readOnly: true }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+        - name: datasource
+          configMap: { name: monitoring-grafana-datasource }
+        - name: provider
+          configMap: { name: monitoring-grafana-provider }
+        - name: dashboard
+          configMap: { name: monitoring-grafana-dashboard }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  type: NodePort
+  selector: { app: grafana }
+  ports:
+    - { port: 3000, targetPort: 3000, nodePort: 30083 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drift-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: drift-monitor }
+  template:
+    metadata:
+      labels: { app: drift-monitor }
+    spec:
+      containers:
+        - name: drift-monitor
+          # Replace with the newly built API image before applying; it includes the exporter code.
+          image: ride-api:dev
+          imagePullPolicy: IfNotPresent
+          command: [python, -m, ride_classifier.drift.monitor]
+          args: ["--prometheus", "http://prometheus:9090", "--reference", "/config/drift_reference.json"]
+          env:
+            - { name: PARAMS_PATH, value: /config/params.yaml }
+          ports: [{ containerPort: 8001 }]
+          volumeMounts:
+            - { name: settings, mountPath: /config, readOnly: true }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+        - name: settings
+          configMap: { name: monitoring-drift-settings }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: drift-monitor
+spec:
+  selector: { app: drift-monitor }
+  ports:
+    - { port: 8001, targetPort: 8001 }

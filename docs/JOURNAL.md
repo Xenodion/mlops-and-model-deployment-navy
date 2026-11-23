@@ -8,6 +8,11 @@ presentations. One entry per working session; mistakes found and corrected are l
 
 This block is rewritten at each stop; the dated entries below are the history.
 
+- **Kind monitoring (in progress):** opt-in manifests and `k8s/monitoring/deploy.sh` prepare Prometheus, Grafana
+  and the drift exporter using the existing dashboard, alert rules and reference. A headless service allows
+  Prometheus to scrape each ready API pod rather than a load-balanced sample. There is no local kind cluster at
+  present; rollout, real model/reference consistency and end-to-end scraping still need validation.
+
 - **Serving bundle (in progress):** after exporting model 1, `make bundle-serving` retrieves the registered
   fall-risk joblib from its source run and adds a reference only if its model URI belongs to the exported run.
   `serving_bundle.json` records the second model version/run and reference hash; the API image points to both
