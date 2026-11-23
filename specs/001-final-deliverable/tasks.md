@@ -103,7 +103,7 @@ Model 1 (ride type) = E3 + the cumulative timeline (done above). Model 2 (fall r
 **Independent test**: every number in `ai-infrastructure/` traceable to a raw CSV and a procedure (SC-006).
 
 - [ ] T040 [P] [US2] Current-system diagram `ai-infrastructure/architecture/current-system.png` (F14) and inventory in `ai-infrastructure/README.md` (#8)
-- [ ] T041 [US2] Local CPU baseline with `bench.py` (batch 1-512 windows) → `benchmarks/baseline-results.csv`; F25, F26 (CPU) (#4)
+- [~] T041 [US2] Local CPU baseline with `bench.py` (batch 1-512 windows) → `benchmarks/baseline-results.csv`; F25, F26 (CPU) (#4). First tracked local run and raw CSV are available; figures, shared MLflow import and cross-target comparisons remain.
 - [ ] T042 [US2] `ai-infrastructure/vertex/submit.py` (SPOT, europe-west4, code tarball, CSV from logs, `--account=vlamy@albertschool.com`) and the data path of research R9; credit log before/after (#4)
 - [ ] T043 [US2] Vertex runs: CPU, 1xA100, 2xA100 inference; refusals kept as evidence; F26, F27 (#4)
 - [ ] T044 [US2] Optimization: `optimization/export_onnx.py`, ONNX FP32 and int8 vs PyTorch on CPU, `quality_agreement`; `optimization/comparison.ipynb`, F28 (#5)
