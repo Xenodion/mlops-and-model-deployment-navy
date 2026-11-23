@@ -643,7 +643,8 @@ The CD workflow will do the same steps automatically.
 | Read the API logs | `kubectl -n ride-prod logs deploy/ride-api-v1` (add `-f` to follow) |
 | Understand a pod that won't start | `kubectl -n ride-prod describe pod <pod name>` (the **Events** at the bottom) |
 | Change a setting (e.g. the Reckless threshold) | Edit `k8s/api/configmap.yaml`, `make k8s-deploy`, then `kubectl -n ride-prod rollout restart deploy/ride-api-v1` |
-| Undo a bad release (code) | `kubectl -n ride-prod rollout undo deploy/ride-api-v1` |
+| Release an image tag by hand, with automatic rollback | `make k8s-release TAG=<tag>` (what CD runs, §13) |
+| Undo a bad release (code) | `make k8s-release TAG=<previous tag>`, or `kubectl -n ride-prod rollout undo deploy/ride-api-v1` |
 | Ship a new model, or undo one | Move `@production` in your MLflow, `make k8s-model` (copies it and restarts the API pods) |
 | Scale the API | `kubectl -n ride-prod scale deploy/ride-api-v1 --replicas=3` |
 | Canary (≈ 10 % of traffic) | Set the `ride-api-canary` tag in `kustomization.yaml`, `make k8s-deploy`, then scale `ride-api-v1` to 9 and `ride-api-v2` to 1. Rollback: scale `ride-api-v2` to 0 |
@@ -653,7 +654,50 @@ Training still registers in your dev MLflow or the shared one (`train.yml`).
 
 ---
 
-## 13. Tests and code quality
+## 13. Continuous deployment (GitHub Actions)
+
+`.github/workflows/cd.yml` deploys every change of code, images or `k8s/` merged into `main`, once a human approves:
+
+1. **`images`** (GitHub's machines): builds both images (code only), smoke-tests the containers with test models,
+   pushes them to Docker Hub as `<commit>` and `latest`.
+2. **`deploy`** (the self-hosted runner on the prod host, the laptop running kind) **waits for approval** in the
+   `production` environment, then runs `k8s/release.sh <commit>`:
+   - puts the tag in `k8s/kustomization.yaml`, `kubectl apply -k k8s/`, waits for the rollouts;
+   - runs the smoke test on the cluster (:8080, :8081);
+   - **if anything fails, rolls back by itself** (the previous `kustomization.yaml` re-applied). The API keeps
+     answering during a failed release: Kubernetes only removes an old pod once a new one is ready.
+3. On success, **`github-actions[bot]` commits the new tag** to `main`, so git always says what runs in production.
+
+Models are not deployed by CD: the images carry none. A model release is `make promote` + `make k8s-model` (§12).
+
+**One-time set-up** (repository owner, on the prod host):
+
+1. **Environment:** GitHub repo → **Settings → Environments → New environment** `production` → tick **Required
+   reviewers**, add yourself (and a teammate) → **Save protection rules**.
+2. **Self-hosted runner:** **Settings → Actions → Runners → New self-hosted runner → Windows x64**. Follow the
+   commands GitHub shows in **PowerShell**, in a short folder such as `C:\actions-runner`. When `config.cmd` asks:
+   - runner group: Enter (default);
+   - name: Enter (your computer's name);
+   - **additional labels: `prod-host`** (the deploy job runs only on a runner with this label);
+   - work folder: Enter;
+   - **run as a service: `N`**. It must run as you, to use your Docker, kubectl (kind), uv and Git Bash.
+3. **Start it** when you want deployments to run: `cd C:\actions-runner` then `.\run.cmd`. Keep that window open;
+   it says "Listening for Jobs". The cluster must be up (`make k8s-status`).
+
+**Releasing:** merge a PR into `main` → **Actions → cd**: `images` runs (~5 min), then `deploy` shows **Waiting for
+review** → **Review deployments → production → Approve and deploy** → watch the release; the run's summary shows
+`/health` and the images. To redeploy `main` without a change: **Actions → cd → Run workflow**.
+
+By hand, same script: `make k8s-release TAG=<tag>` (the images must be on Docker Hub).
+
+**Safety:** the runner executes code from this repository on your laptop. Only `cd.yml` uses the label `prod-host`,
+and it runs only on pushes to `main` and manual triggers, never on pull requests (a fork's code never reaches it).
+Vincent's `train.yml` and `drift.yml` also run on `self-hosted` runners, on a schedule: they need
+`MLFLOW_TRACKING_URI` and `COURSE_DVC_CREDENTIALS` set for the runner, otherwise they stop at their first step.
+
+---
+
+## 14. Tests and code quality
 
 ```bash
 make test        # all tests (~40 s). They use fake rides: no real data or MLflow server needed
@@ -672,7 +716,7 @@ uv run pytest tests/unit/data -q   # one folder only
 
 ---
 
-## 14. Where to put new code
+## 15. Where to put new code
 
 | You're adding… | Goes in |
 |---|---|
@@ -689,7 +733,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 15. Git workflow
+## 16. Git workflow
 
 - Work on a branch, open a pull request to `main`, CI must be green.
 - Commit messages: `feat:`, `fix:`, `docs:`, `test:`, `chore:`…
@@ -698,7 +742,7 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 
 ---
 
-## 16. Troubleshooting
+## 17. Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -718,6 +762,9 @@ label list elsewhere. Full layout and owners: [PLAN.md §7](PLAN.md#7-repository
 | `make push`: "Uncommitted changes" | On purpose: commit first, so the image tag matches the code inside |
 | `make push`: "denied: requested access to the resource is denied" | Run `docker login`, and check that `DOCKERHUB_USER` is exactly your Docker Hub name |
 | CI fails at "Set up job" | A GitHub action version doesn't exist: check the `uses:` lines in `.github/workflows/` (e.g. `setup-uv` needs a full version like `v10.3.3`) |
+| CD: `deploy` stays on "Waiting for a runner" | Start the runner on the prod host (`.\run.cmd` in `C:\actions-runner`) and check it has the label `prod-host` (**Settings → Actions → Runners**) |
+| CD: `deploy` stays on "Waiting for review" | Normal: a reviewer of the `production` environment must approve it (**Review deployments**) |
+| CD: "Release <tag> failed: rolling back" | The new version didn't become ready or failed the smoke test, and the previous one is back. The step's log shows which; `kubectl -n ride-prod describe pod <pod>` for a pod that didn't start |
 | `kind: command not found` | After `winget install Kubernetes.kind`, open a **new** terminal |
 | Pods stay in `ContainerCreating` for minutes | First deploy: Kubernetes downloads the images **one at a time**, the 2.3 GB API image first. `kubectl -n ride-prod describe pod <name>` shows "Pulling image" |
 | `create-buckets` shows `Error` / `CrashLoopBackOff`, MLflow restarts | Normal at the first deploy while S3 and Postgres start: both retry by themselves. `make k8s-status` until the job says `Completed` |
