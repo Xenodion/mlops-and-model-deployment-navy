@@ -22,13 +22,13 @@ resources:
 images:
   - name: ride-api
     newName: alexwaer110302/ride-api
-    newTag: 11444bb  # code only: both models and the drift reference come from the cluster's MLflow
+    newTag: "69107f9"  # code only: both models and the drift reference come from the cluster's MLflow
   - name: ride-api-canary
     newName: alexwaer110302/ride-api
-    newTag: 11444bb  # same as stable until a canary is rolled out
+    newTag: "69107f9"  # same as stable until a canary is rolled out
   - name: ride-webapp
     newName: alexwaer110302/ride-webapp
-    newTag: 11444bb
+    newTag: "69107f9"
   - name: ride-mlflow
     newName: mlops-mlflow  # built locally from docker/mlflow and loaded into kind (make kind-load)
     newTag: 3.17.2
