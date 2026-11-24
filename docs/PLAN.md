@@ -650,7 +650,7 @@ and the baseline and CNN plug into the same contract.
 | OPS-2 | `drift.py` (K-S, chi-squared, PSI, Evidently) as a CronJob, `simulate.py` replaying golden rides with a simulated sensor change, drift → `train.yml` | WS5 + WS1 | OPS-1 |
 | OPS-3 | Canary + rollback drill under 5 min, `runbook.md`, `incident_report.md` | WS4 | K8S-5 |
 | DOC-2 | `docs/DATA.md` (data card, from §4) | WS1 | n/a |
-| DOC-3 | README: architecture, choices, results, sizing report, prod screenshots, Docker Hub URLs, how to run | WS5 | all |
+| DOC-3 | ◐ 24/11: README rewritten for the graders: guidelines compliance table, architecture diagram, technical choices, measured results (models on golden / held-out data, production latency, CD and rollback), Docker Hub URLs, how to run, limits. To do: production screenshots in `assets/screenshots/` | WS5 | all |
 | DOC-4 | Slides, demo script, backup recording of the demo | WS5 | DOC-3 |
 
 **Phase 5: freeze and submit (25/11) → M5**
