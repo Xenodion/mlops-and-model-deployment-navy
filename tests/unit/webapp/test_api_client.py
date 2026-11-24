@@ -3,7 +3,17 @@ import io
 import httpx2 as httpx
 import numpy as np
 import pytest
-from api_client import ApiError, health, predict, read_ride, ride_payload
+from api_client import (
+    ApiError,
+    category_timeline,
+    clock,
+    fall_risk_frame,
+    fall_risk_summary,
+    health,
+    predict,
+    read_ride,
+    ride_payload,
+)
 
 API = "http://api.test"
 
@@ -54,3 +64,28 @@ def test_an_unreachable_api_gives_a_readable_error():
         health(API, transport=httpx.MockTransport(unreachable))
     with pytest.raises(ApiError, match="API unreachable"):
         predict(API, {}, transport=httpx.MockTransport(unreachable))
+
+
+def test_model_1_along_the_ride_is_its_running_answer_so_far(prediction):
+    so_far = category_timeline(prediction)
+    assert so_far["time_s"].tolist() == [30.0, 45.0, 60.0]
+    assert so_far["category"].tolist() == ["Safe", "Safe", "Reckless"]  # Safe at first, Reckless once enough evidence
+    assert so_far["Reckless"].tolist() == pytest.approx([0.1, 0.35, 0.4667], abs=1e-3)  # running mean, not the window
+
+
+def test_without_a_timeline_there_is_nothing_to_draw(prediction):
+    assert category_timeline({**prediction, "timeline": {"windows": []}}) is None
+
+
+def test_model_2_gives_the_riskiest_moment_and_the_alert_moments(prediction):
+    risk = fall_risk_frame(prediction)
+    assert risk.columns.tolist() == ["time_s", "risk", "alert"] and len(risk) == 4
+    assert fall_risk_summary(risk) == {"max_risk": 0.95, "at_s": 20.0, "alerts": 2, "moments": 4}
+
+
+def test_without_model_2_there_is_no_fall_risk(prediction):
+    assert fall_risk_frame({**prediction, "fall_risk": None}) is None
+
+
+def test_times_read_as_minutes_and_seconds():
+    assert (clock(0), clock(9.6), clock(155), clock(600)) == ("0:00", "0:10", "2:35", "10:00")

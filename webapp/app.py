@@ -1,4 +1,7 @@
-"""Ride classifier web app (docs/PLAN.md §9.2): pick or upload a ride, look at its signals, ask the API.
+"""Ride classifier web app (docs/PLAN.md §9.2, API-4): pick or upload a ride, look at its signals, ask the API.
+
+The answer shows both models: model 1 (ride type, required) and model 2 (fall risk, bonus), side by side, then both
+along the ride on one time axis.
 
 make api        # terminal 1: the API on http://127.0.0.1:8000
 make webapp     # terminal 2: this page on http://127.0.0.1:8501
@@ -9,7 +12,21 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from api_client import CHANNELS, LABEL_COLUMN, TIME_COLUMN, ApiError, health, predict, read_ride, ride_payload
+from api_client import (
+    CHANNELS,
+    LABEL_COLUMN,
+    TIME_COLUMN,
+    ApiError,
+    category_timeline,
+    clock,
+    fall_risk_frame,
+    fall_risk_summary,
+    health,
+    predict,
+    read_ride,
+    ride_payload,
+)
+from charts import category_chart, fall_risk_chart
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 # Example rides are course data: never in git nor in the image (ADR 007). `make webapp-examples` writes them locally
@@ -18,8 +35,9 @@ EXAMPLES = Path(os.getenv("EXAMPLES_DIR", Path(__file__).parent / "examples"))
 st.set_page_config(page_title="Ride classifier", layout="wide")
 st.title("Ride classifier")
 st.write(
-    "Was this ride **Safe**, **Safe overall**, ridden in **Bad weather**, by two people (**Tandem**), "
-    "or **Reckless**? Pick an example or upload a ride: the API answers from its sensor readings."
+    "Pick an example or upload a ride. **Model 1** tells what kind of ride it was: **Safe**, **Safe overall**, "
+    "ridden in **Bad weather**, by two people (**Tandem**), or **Reckless**. **Model 2** (a bonus) shows the moments "
+    "that looked like the lead-up to a fall."
 )
 
 with st.sidebar:
@@ -28,12 +46,72 @@ with st.sidebar:
     try:
         status = health(API_URL)
         if status.get("status") == "ok":
-            st.success(f"Online · model v{status['model_version']}")
-            st.caption(f"Reckless threshold: {status['reckless_threshold']}")
+            st.success("Online")
+            st.markdown(f"**Model 1** · ride type: v{status['model_version']}")
+            fall_version = status.get("fall_risk_version")
+            st.markdown(f"**Model 2** · fall risk: {f'v{fall_version}' if fall_version else 'not loaded'}")
+            st.caption(
+                f"Reckless threshold: {status['reckless_threshold']} · "
+                f"fall alert threshold: {status.get('fall_risk_threshold', '–')}"
+            )
         else:
             st.warning("Online, but no model loaded")
     except ApiError as exc:
         st.error(str(exc))
+
+
+def show_answer(prediction: dict, headers: dict, true_label: str | None, duration_s: float) -> None:
+    """The API's answer: model 1 and model 2 side by side, then both along the ride on one time axis."""
+    ride_type, fall = st.columns(2, gap="large")
+
+    # Model 1 (required): one of the 5 categories, for the whole ride
+    ride_type.subheader("Model 1 · Ride type")
+    ride_type.metric("Category of the whole ride", prediction["label"])
+    if true_label:
+        ride_type.write(f"{'✅' if true_label == prediction['label'] else '❌'} True category: **{true_label}**")
+    score = prediction["reckless_score"]
+    if prediction["is_reckless"]:
+        ride_type.error(f"Flagged as reckless (score {score:.2f})")
+    else:
+        ride_type.success(f"Not flagged as reckless (score {score:.2f})")
+    ride_type.caption("Probability of each category")
+    ride_type.bar_chart(pd.Series(prediction["probabilities"], name="probability"), horizontal=True)
+
+    # Model 2 (bonus): the moments that looked like the lead-up to a fall
+    fall.subheader("Model 2 · Fall risk")
+    risk = fall_risk_frame(prediction)
+    threshold = float((prediction.get("fall_risk") or {}).get("threshold", 0))
+    if risk is None:
+        fall.info("Fall risk unavailable: model 2 isn't loaded in the API. Model 1's answer stands on its own.")
+    else:
+        summary = fall_risk_summary(risk)
+        riskiest, alerts = fall.columns(2)
+        riskiest.metric("Riskiest moment", f"{summary['max_risk']:.2f} at {clock(summary['at_s'])}")
+        alerts.metric(f"Alert moments (risk ≥ {threshold:g})", f"{summary['alerts']} of {summary['moments']}")
+        fall.caption(
+            "Every 5 s, the risk that the last 10 s look like the lead-up to a fall. Bonus model, trained on another "
+            "dataset (SRV3490, rides with falls). On a recorded ride it shows where the ride was risky: it is not a "
+            "forecast, and the alert threshold is not calibrated yet."
+        )
+
+    # Both models along the ride, on one time axis (each keeps its own windows)
+    st.subheader("Along the ride")
+    so_far = category_timeline(prediction)
+    if so_far is None:
+        st.info("The ride is shorter than one 30 s window: no timeline.")
+    else:
+        st.altair_chart(category_chart(so_far, duration_s), width="stretch")
+    if risk is not None:
+        st.altair_chart(fall_risk_chart(risk, threshold, duration_s), width="stretch")
+    st.caption(
+        "Top: model 1's answer so far (the highest line), updated after each 30 s window. "
+        "Bottom: model 2's risk of the last 10 s; dashed line = alert threshold, dots = alert moments."
+    )
+    st.caption(
+        f"Model 1 v{prediction['model_version']} (model 2's version: see the sidebar) · "
+        f"server time {headers.get('x-process-time-ms')} ms · request id {headers.get('x-request-id')}"
+    )
+
 
 # 1. The ride
 frame, ride_id, true_label = None, None, None
@@ -80,18 +158,4 @@ if frame is not None:
         except ApiError as exc:
             st.error(str(exc))
         else:
-            verdict, chart = st.columns([1, 2])
-            verdict.metric("Prediction", prediction["label"])
-            if true_label:
-                verdict.write(f"{'✅' if true_label == prediction['label'] else '❌'} True category: **{true_label}**")
-            score = prediction["reckless_score"]
-            if prediction["is_reckless"]:
-                verdict.error(f"Flagged as reckless (score {score:.2f})")
-            else:
-                verdict.success(f"Not flagged as reckless (score {score:.2f})")
-            chart.caption("Probability of each category")
-            chart.bar_chart(pd.Series(prediction["probabilities"], name="probability"), horizontal=True)
-            st.caption(
-                f"Model v{prediction['model_version']} · server time {headers.get('x-process-time-ms')} ms · "
-                f"request id {headers.get('x-request-id')}"
-            )
+            show_answer(prediction, headers, true_label, duration_s=float(signals.index[-1] - signals.index[0]))
