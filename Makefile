@@ -139,6 +139,9 @@ k8s-model: ## Copy both registered models (+ drift reference) into the cluster's
 	kubectl -n ride-prod rollout restart deploy/ride-api-v1
 	kubectl -n ride-prod rollout status deploy/ride-api-v1 --timeout=5m
 
+k8s-examples: ## Put the 5 golden example rides into the cluster's web app (from webapp/examples/, never in the image)
+	bash k8s/examples.sh
+
 k8s-monitoring: ## Prometheus (:8084), Grafana (:8083) and the drift exporter in the cluster (after make k8s-model)
 	bash k8s/monitoring/deploy.sh
 

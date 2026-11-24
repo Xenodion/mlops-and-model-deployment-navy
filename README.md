@@ -191,6 +191,7 @@ make app-up      # API on http://127.0.0.1:8000/docs and web app on http://127.0
 ```bash
 make kind-up && make kind-load && make k8s-secrets && make k8s-deploy && make k8s-model
 make k8s-monitoring   # Prometheus (:8084), Grafana (:8083), drift exporter
+make k8s-examples     # the 5 golden example rides in the web app, for a one-click check
 ```
 
 **Releases** then go through `cd.yml` on every merge into `main` (set-up: self-hosted runner with the label

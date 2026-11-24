@@ -20,6 +20,8 @@ spec:
             - { name: API_URL, value: "http://ride-api" }
           ports:
             - { containerPort: 8501 }
+          volumeMounts:  # the example rides, if make k8s-examples put them in the cluster (never in the image)
+            - { name: examples, mountPath: /app/webapp/examples, readOnly: true }
           readinessProbe:
             httpGet: { path: /_stcore/health, port: 8501 }
             periodSeconds: 10
@@ -30,6 +32,17 @@ spec:
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+        # One ConfigMap per golden example ride (make k8s-examples, k8s/examples.sh), all optional: without them
+        # the page starts and offers the upload only. Names follow webapp/make_examples.py: one ride per category.
+        - name: examples
+          projected:
+            sources:
+              - configMap: { name: webapp-example-safe, optional: true }
+              - configMap: { name: webapp-example-safe-overall, optional: true }
+              - configMap: { name: webapp-example-bad-weather, optional: true }
+              - configMap: { name: webapp-example-tandem, optional: true }
+              - configMap: { name: webapp-example-reckless, optional: true }
 ---
 apiVersion: v1
 kind: Service

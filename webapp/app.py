@@ -118,7 +118,10 @@ frame, ride_id, true_label = None, None, None
 if st.radio("Ride", ["Example ride", "Upload a file"], horizontal=True) == "Example ride":
     examples = sorted(EXAMPLES.glob("*.parquet"))
     if not examples:
-        st.info("No example rides yet: run `make webapp-examples`.")
+        st.info(
+            "No example rides on this server: choose **Upload a file** with one of your rides. "
+            "(Developers: `make webapp-examples` on your laptop, `make k8s-examples` for the cluster.)"
+        )
     else:
         choice = st.selectbox(
             "Example (golden rides: never seen by the model in training)",

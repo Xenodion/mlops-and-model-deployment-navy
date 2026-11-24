@@ -142,6 +142,7 @@ shows false "package not installed" hints.
 | `make k8s-deploy` / `make k8s-status` | Deploy everything in `k8s/` and wait until it's ready / show what runs |
 | `make k8s-model` | Copy both registered models (and the drift reference) into the cluster's MLflow and restart the API, which loads `@production` (§12) |
 | `make k8s-monitoring` | Prometheus (:8084), Grafana (:8083) and the drift exporter in the cluster |
+| `make k8s-examples` | Put the 5 golden example rides into the cluster's web app (from your `webapp/examples/`, never in the image) |
 | `make test` | Run the tests |
 | `make lint` / `make format` | Check style as CI does / fix it automatically |
 
@@ -549,8 +550,7 @@ for the client and Streamlit's test runner for the whole page.
 **In Docker:** `make app-up` builds and starts both containers. The API is on :8000, the web app on
 **http://127.0.0.1:8501**, and the web app reaches the API by its compose service name (`http://api:8000`). The web
 app image (~850 MB) installs only Streamlit and the HTTP client, not our package or the ML libraries. Compose mounts
-your local `webapp/examples/` into it. In the cluster there are no examples: upload a ride file instead (e.g. one of
-your local `webapp/examples/*.parquet`).
+your local `webapp/examples/` into it. In the cluster, `make k8s-examples` puts the same 5 golden rides into it (one ConfigMap per ride, mounted as the examples folder; never in the image), for a one-click check that production works. Without them the page says so and offers the upload.
 
 ---
 
@@ -618,6 +618,7 @@ make kind-load      # build our MLflow image and copy it into the cluster (not o
 make k8s-secrets    # create the passwords in the cluster (S3 keys, Postgres)
 make k8s-deploy     # apply everything in k8s/ (the API pods wait for a model: next step)
 make k8s-model      # copy the registered models from your dev MLflow into the cluster's, restart the API
+make k8s-examples   # the 5 golden example rides for the web app (from webapp/examples/, make webapp-examples)
 make k8s-status     # pods, services, jobs
 uv run python tests/integration/smoke_test.py http://127.0.0.1:8080 http://127.0.0.1:8081
 ```

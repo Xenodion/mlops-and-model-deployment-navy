@@ -27,7 +27,7 @@ def test_the_page_shows_an_example_ride_even_when_the_api_is_down(monkeypatch, t
 def test_without_example_rides_the_page_says_how_to_get_them(monkeypatch, tmp_path):
     page = run_page(monkeypatch, tmp_path)
     assert not page.exception
-    assert "make webapp-examples" in page.info[0].value
+    assert "Upload a file" in page.info[0].value and "make webapp-examples" in page.info[0].value
 
 
 def test_classifying_without_an_api_shows_an_error_not_a_crash(monkeypatch, tmp_path, ride):
