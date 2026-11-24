@@ -529,8 +529,10 @@ make webapp      # terminal 2: open http://127.0.0.1:8501
      Reckless flag, a bar chart of the 5 probabilities;
    - **Model 2 · Fall risk:** the riskiest moment (risk and time) and how many moments raised an alert. On a recorded
      ride this shows where the ride was risky, not a forecast; the alert threshold is not calibrated yet.
-4. **Along the ride:** both models **on one time axis**. Top: model 1's answer so far (running mean of its 30 s
-   windows, one every 15 s). Bottom: model 2's risk of the last 10 s (one every 5 s), the threshold (dashed) and the
+4. **Along the ride:** both models **on one time axis**. Top: the probability of each category so far (running mean
+   of model 1's 30 s windows, one every 15 s). Under it, two strips: **model 1's answer so far** (the highest line)
+   and, for an example ride, its **true category** (one block: GBG500 labels a whole ride, not its moments), to see
+   when model 1 is right. Bottom: model 2's risk of the last 10 s (one every 5 s), the threshold (dashed) and the
    alert moments (dots). Each model keeps its own window length (measured choices); they are aligned in time only.
 
 The sidebar shows whether the API is reachable and the version of both models. If the API is down, the page still

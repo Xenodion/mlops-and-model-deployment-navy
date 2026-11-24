@@ -82,6 +82,20 @@ def category_timeline(prediction: dict) -> pd.DataFrame | None:
     return so_far
 
 
+def answer_blocks(so_far: pd.DataFrame, duration_s: float) -> pd.DataFrame:
+    """Model 1's answer so far as blocks of time (start_s, end_s, category): a block starts when a window makes a
+    category the top one and lasts until the answer changes, the last one until the end of the ride. Before the first
+    30 s window there is no answer yet, so the first block starts at the first window's end."""
+    ends = [*so_far["time_s"].tolist()[1:], max(duration_s, float(so_far["time_s"].iloc[-1]))]
+    windows = pd.DataFrame({"start_s": so_far["time_s"].tolist(), "end_s": ends, "category": so_far["category"]})
+    block = windows["category"].ne(windows["category"].shift()).cumsum()
+    return (
+        windows.groupby(block)
+        .agg(start_s=("start_s", "first"), end_s=("end_s", "last"), category=("category", "first"))
+        .reset_index(drop=True)
+    )
+
+
 def fall_risk_frame(prediction: dict) -> pd.DataFrame | None:
     """Model 2 along the ride: time_s (end of each 10 s window), risk, alert. None if model 2 isn't loaded."""
     windows = (prediction.get("fall_risk") or {}).get("windows") or []

@@ -23,8 +23,9 @@ RISK_COLOR, ALERT_COLOR, THRESHOLD_COLOR = "#0072B2", "#D55E00", "#7F7F7F"
 Y_AXIS_WIDTH = 50  # the same on both charts, so their time axes line up
 
 
-def _time(duration_s: float, title: str | None = None) -> alt.X:
-    return alt.X("time_s:Q", title=title, scale=alt.Scale(domain=[0, duration_s], nice=False))
+def _time(duration_s: float, title: str | None = None, field: str = "time_s", axis: bool = True) -> alt.X:
+    scale = alt.Scale(domain=[0, duration_s], nice=False)
+    return alt.X(f"{field}:Q", title=title, scale=scale, axis=alt.Axis() if axis else None)
 
 
 def _probability(title: str, top: float = 1.0) -> alt.Y:
@@ -60,6 +61,55 @@ def category_chart(so_far: pd.DataFrame, duration_s: float) -> alt.Chart:
         )
         .properties(height=400)
     )
+
+
+def answer_strips(answer: pd.DataFrame, true_label: str | None, duration_s: float) -> alt.LayerChart:
+    """Under model 1's lines: its answer so far (one block per change) and, for example rides, the true category.
+
+    The truth is one block for the whole ride: GBG500 labels a ride, not its moments. The rows sit on a numeric axis
+    (row centres 0.5, 1.5) so that it takes the same room as the probability axes and the time axes line up.
+    """
+    model_row = 1 if true_label else 0
+    rows = [answer.assign(row=model_row, who="model 1 so far")]
+    if true_label:
+        truth = {"start_s": 0.0, "end_s": duration_s, "category": true_label, "row": 0, "who": "true category"}
+        rows.append(pd.DataFrame([truth]))
+    data = pd.concat(rows, ignore_index=True)
+    data["low"], data["high"], data["centre"] = data["row"] + 0.08, data["row"] + 0.92, data["row"] + 0.5
+    data["middle"] = (data["start_s"] + data["end_s"]) / 2
+    n_rows = model_row + 1
+    names = "datum.value > 1 ? 'model 1' : 'truth'" if true_label else "'model 1'"
+    y_axis = alt.Axis(
+        values=[row + 0.5 for row in range(n_rows)], labelExpr=names, minExtent=Y_AXIS_WIDTH, grid=False, ticks=False
+    )
+    blocks = (
+        alt.Chart(data)
+        .mark_rect()
+        .encode(
+            x=_time(duration_s, field="start_s", axis=False),
+            x2="end_s:Q",
+            y=alt.Y("low:Q", title="Answer", scale=alt.Scale(domain=[0, n_rows]), axis=y_axis),
+            y2="high:Q",
+            color=alt.Color(
+                "category:N",
+                scale=alt.Scale(domain=list(CATEGORY_COLORS), range=list(CATEGORY_COLORS.values())),
+                legend=None,
+            ),
+            tooltip=[
+                alt.Tooltip("who:N", title=" "),
+                "category:N",
+                alt.Tooltip("start_s:Q", title="from (s)", format=".0f"),
+                alt.Tooltip("end_s:Q", title="to (s)", format=".0f"),
+            ],
+        )
+    )
+    labels = (  # the category's name inside the blocks wide enough to hold it
+        alt.Chart(data)
+        .transform_filter(f"datum.end_s - datum.start_s > {0.1 * duration_s}")
+        .mark_text(color="#1A1A1A", fontWeight="bold")
+        .encode(x=_time(duration_s, field="middle", axis=False), y=alt.Y("centre:Q"), text="category:N")
+    )
+    return alt.layer(blocks, labels).properties(height=34 * n_rows)
 
 
 def fall_risk_chart(risk: pd.DataFrame, threshold: float, duration_s: float) -> alt.LayerChart:

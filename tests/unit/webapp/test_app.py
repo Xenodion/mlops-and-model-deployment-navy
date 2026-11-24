@@ -58,8 +58,8 @@ def test_the_answer_shows_both_models_then_both_along_the_ride(monkeypatch, tmp_
     assert metrics["Category of the whole ride"] == "Reckless"
     assert metrics["Riskiest moment"] == "0.95 at 0:20"
     assert metrics["Alert moments (risk ≥ 0.6)"] == "2 of 4"
-    # 2 sensor charts + model 1's bar chart, then along the ride: model 1 so far and model 2's risk
-    assert len(page.get("vega_lite_chart")) == 3 + 2
+    # 2 sensor charts + model 1's bar chart, then along the ride: model 1's lines, its strips, model 2's risk
+    assert len(page.get("vega_lite_chart")) == 3 + 3
 
 
 def test_without_model_2_the_page_says_so_and_still_shows_model_1(monkeypatch, tmp_path, ride, prediction):
@@ -68,4 +68,4 @@ def test_without_model_2_the_page_says_so_and_still_shows_model_1(monkeypatch, t
     page.button[0].click().run()
     assert not page.exception
     assert any("model 2 isn't loaded" in i.value for i in page.info)
-    assert len(page.get("vega_lite_chart")) == 3 + 1  # along the ride: model 1 only
+    assert len(page.get("vega_lite_chart")) == 3 + 2  # along the ride: model 1 only (lines + strips)
