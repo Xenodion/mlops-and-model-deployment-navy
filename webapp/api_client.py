@@ -64,3 +64,50 @@ def predict(api_url: str, payload: dict, transport: httpx.BaseTransport | None =
     if response.status_code != 200:
         raise ApiError(f"API error {response.status_code}: {response.text[:200]}")
     return response.json(), dict(response.headers)
+
+
+# Both models along the ride, from the API's answer (docs/PLAN.md API-4). Each model keeps its own windows (model 1:
+# 30 s every 15 s, model 2: 10 s every 5 s, measured choices); the page aligns them on one time axis.
+
+
+def category_timeline(prediction: dict) -> pd.DataFrame | None:
+    """Model 1 along the ride: after each 30 s window, the probability of each category *so far* (running mean of the
+    window probabilities, as for the whole ride) and the category it points to. None if the answer has no timeline."""
+    windows = (prediction.get("timeline") or {}).get("windows") or []
+    if not windows:
+        return None
+    so_far = pd.DataFrame([window["probabilities"] for window in windows]).expanding().mean()
+    so_far["category"] = so_far.idxmax(axis=1)
+    so_far.insert(0, "time_s", [float(window["end_s"]) for window in windows])
+    return so_far
+
+
+def fall_risk_frame(prediction: dict) -> pd.DataFrame | None:
+    """Model 2 along the ride: time_s (end of each 10 s window), risk, alert. None if model 2 isn't loaded."""
+    windows = (prediction.get("fall_risk") or {}).get("windows") or []
+    if not windows:
+        return None
+    return pd.DataFrame(
+        {
+            "time_s": [float(window["end_s"]) for window in windows],
+            "risk": [float(window["risk"]) for window in windows],
+            "alert": [bool(window["alert"]) for window in windows],
+        }
+    )
+
+
+def fall_risk_summary(risk: pd.DataFrame) -> dict:
+    """The riskiest moment (risk, time) and how many moments raised an alert, out of how many."""
+    riskiest = risk.loc[risk["risk"].idxmax()]
+    return {
+        "max_risk": float(riskiest["risk"]),
+        "at_s": float(riskiest["time_s"]),
+        "alerts": int(risk["alert"].sum()),
+        "moments": len(risk),
+    }
+
+
+def clock(seconds: float) -> str:
+    """Elapsed time as minutes:seconds, e.g. 155 -> '2:35'."""
+    minutes, rest = divmod(round(seconds), 60)
+    return f"{minutes}:{rest:02d}"

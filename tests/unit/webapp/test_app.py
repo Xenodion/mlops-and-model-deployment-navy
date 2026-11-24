@@ -35,3 +35,37 @@ def test_classifying_without_an_api_shows_an_error_not_a_crash(monkeypatch, tmp_
     page.button[0].click().run()
     assert not page.exception
     assert any("API unreachable" in e.value for e in page.error)
+
+
+def fake_api(monkeypatch, prediction):
+    """Both models answering, without any network: health and predict as the real API returns them."""
+    import api_client
+
+    status = {"status": "ok", "model_version": "2", "fall_risk_version": "1", "reckless_threshold": 0.5}
+    monkeypatch.setattr(api_client, "health", lambda url: {**status, "fall_risk_threshold": 0.6})
+    monkeypatch.setattr(api_client, "predict", lambda url, payload: (prediction, {"x-process-time-ms": "120"}))
+
+
+def test_the_answer_shows_both_models_then_both_along_the_ride(monkeypatch, tmp_path, ride, prediction):
+    fake_api(monkeypatch, prediction)
+    page = run_page(monkeypatch, fake_examples(tmp_path, ride))
+    assert any("**Model 2** · fall risk: v1" in m.value for m in page.sidebar.markdown)
+
+    page.button[0].click().run()
+    assert not page.exception
+    assert [s.value for s in page.subheader] == ["Model 1 · Ride type", "Model 2 · Fall risk", "Along the ride"]
+    metrics = {m.label: m.value for m in page.metric}
+    assert metrics["Category of the whole ride"] == "Reckless"
+    assert metrics["Riskiest moment"] == "0.95 at 0:20"
+    assert metrics["Alert moments (risk ≥ 0.6)"] == "2 of 4"
+    # 2 sensor charts + model 1's bar chart, then along the ride: model 1 so far and model 2's risk
+    assert len(page.get("vega_lite_chart")) == 3 + 2
+
+
+def test_without_model_2_the_page_says_so_and_still_shows_model_1(monkeypatch, tmp_path, ride, prediction):
+    fake_api(monkeypatch, {**prediction, "fall_risk": None})
+    page = run_page(monkeypatch, fake_examples(tmp_path, ride))
+    page.button[0].click().run()
+    assert not page.exception
+    assert any("model 2 isn't loaded" in i.value for i in page.info)
+    assert len(page.get("vega_lite_chart")) == 3 + 1  # along the ride: model 1 only

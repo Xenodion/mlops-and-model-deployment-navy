@@ -523,16 +523,23 @@ make webapp      # terminal 2: open http://127.0.0.1:8501
 1. **Pick a ride:** one of the 5 example rides (one golden ride per category, never seen by the model in training),
    or upload your own CSV / parquet (columns `time_index, ax, ay, az, rx, ry, rz`).
 2. **Look at it:** number of readings, duration, missing readings, and the acceleration and rotation signals over time.
-3. **Click "Classify this ride":** the predicted category, ✅ / ❌ against the true category for the examples, the
-   Reckless flag, a bar chart of the 5 probabilities, plus the model version, server time and request id.
+3. **Click "Classify this ride":** the answers of both models, side by side:
+   - **Model 1 · Ride type:** the category of the whole ride, ✅ / ❌ against the true category for the examples, the
+     Reckless flag, a bar chart of the 5 probabilities;
+   - **Model 2 · Fall risk:** the riskiest moment (risk and time) and how many moments raised an alert. On a recorded
+     ride this shows where the ride was risky, not a forecast; the alert threshold is not calibrated yet.
+4. **Along the ride:** both models **on one time axis**. Top: model 1's answer so far (running mean of its 30 s
+   windows, one every 15 s). Bottom: model 2's risk of the last 10 s (one every 5 s), the threshold (dashed) and the
+   alert moments (dots). Each model keeps its own window length (measured choices); they are aligned in time only.
 
-The sidebar shows whether the API is reachable and which model it serves. If the API is down, the page still works
-and says so.
+The sidebar shows whether the API is reachable and the version of both models. If the API is down, the page still
+works and says so; without model 2, it shows model 1 alone and says model 2 isn't loaded.
 
 | File | Role |
 |---|---|
 | `webapp/app.py` | The page |
-| `webapp/api_client.py` | Reads ride files, builds the request, calls the API (tested without a browser) |
+| `webapp/api_client.py` | Reads ride files, builds the request, calls the API, turns the answer into tables for the page (tested without a browser) |
+| `webapp/charts.py` | The two charts on the shared time axis (Altair) |
 | `webapp/examples/*.parquet` | Example rides: course data, so **not in git nor in the image** (ADR 007). Create them with `make webapp-examples` (needs `data/processed/golden.parquet`: `make data` then `make pipeline`) |
 
 The page calls the API at `API_URL` (default `http://127.0.0.1:8000`) and lists the example rides found in
