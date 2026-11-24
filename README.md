@@ -127,10 +127,17 @@ gap), and is evaluated on held-out groups of rides.
 
 ### Production screenshots
 
+**The web app (:8081), a golden Reckless ride classified by both models**, then both along the ride on one time
+axis: each category's probability so far, model 1's answer so far against the true category (it settles on Reckless
+at 1:45), and model 2's fall risk with its alert moments.
+
+![Web app: model 1's verdict and model 2's fall-risk summary](assets/screenshots/webapp-2.png)
+![Web app: both models along the ride, model 1's answer vs the truth, model 2's fall risk](assets/screenshots/webapp-3.png)
+
 | | |
 |---|---|
-| ![Web app classifying a ride](assets/screenshots/webapp.png) | ![API documentation (Swagger)](assets/screenshots/swagger.png) |
-| Web app (:8081): a golden ride classified | API documentation (:8080/docs) |
+| ![Web app: the two models in the sidebar and the golden example rides](assets/screenshots/webapp-1.png) | ![API documentation (Swagger)](assets/screenshots/swagger.png) |
+| Web app: both model versions, the 5 golden example rides | API documentation (:8080/docs) |
 | ![MLflow registry](assets/screenshots/mlflow-registry.png) | ![Grafana dashboard](assets/screenshots/grafana.png) |
 | MLflow in the cluster (:8082): both models, `@production` | Grafana (:8083): traffic, latency, predictions |
 | ![CD run with its approved release](assets/screenshots/cd-approval.png) | ![CD release log](assets/screenshots/cd-run.png) |
