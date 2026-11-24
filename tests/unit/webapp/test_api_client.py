@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from api_client import (
     ApiError,
+    answer_blocks,
     category_timeline,
     clock,
     fall_risk_frame,
@@ -89,3 +90,11 @@ def test_without_model_2_there_is_no_fall_risk(prediction):
 
 def test_times_read_as_minutes_and_seconds():
     assert (clock(0), clock(9.6), clock(155), clock(600)) == ("0:00", "0:10", "2:35", "10:00")
+
+
+def test_model_1_s_answer_so_far_becomes_one_block_per_change(prediction):
+    blocks = answer_blocks(category_timeline(prediction), duration_s=75.0)
+    assert blocks.to_dict("records") == [
+        {"start_s": 30.0, "end_s": 60.0, "category": "Safe"},  # no answer before the first 30 s window
+        {"start_s": 60.0, "end_s": 75.0, "category": "Reckless"},  # the last answer lasts until the end of the ride
+    ]

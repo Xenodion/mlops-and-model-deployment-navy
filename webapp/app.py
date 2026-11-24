@@ -17,6 +17,7 @@ from api_client import (
     LABEL_COLUMN,
     TIME_COLUMN,
     ApiError,
+    answer_blocks,
     category_timeline,
     clock,
     fall_risk_frame,
@@ -26,7 +27,7 @@ from api_client import (
     read_ride,
     ride_payload,
 )
-from charts import category_chart, fall_risk_chart
+from charts import answer_strips, category_chart, fall_risk_chart
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 # Example rides are course data: never in git nor in the image (ADR 007). `make webapp-examples` writes them locally
@@ -101,10 +102,12 @@ def show_answer(prediction: dict, headers: dict, true_label: str | None, duratio
         st.info("The ride is shorter than one 30 s window: no timeline.")
     else:
         st.altair_chart(category_chart(so_far, duration_s), width="stretch")
+        st.altair_chart(answer_strips(answer_blocks(so_far, duration_s), true_label, duration_s), width="stretch")
     if risk is not None:
         st.altair_chart(fall_risk_chart(risk, threshold, duration_s), width="stretch")
     st.caption(
-        "Top: model 1's answer so far (the highest line), updated after each 30 s window. "
+        "Top: the probability of each category so far, updated after each 30 s window. Strips: model 1's answer "
+        "so far (the highest line) and, for an example ride, its true category (one for the whole ride). "
         "Bottom: model 2's risk of the last 10 s; dashed line = alert threshold, dots = alert moments."
     )
     st.caption(
