@@ -7,6 +7,8 @@ place in both. Kept apart from app.py so they can be tested without a browser. C
 
 from __future__ import annotations
 
+import math
+
 import altair as alt
 import pandas as pd
 
@@ -25,8 +27,14 @@ def _time(duration_s: float, title: str | None = None) -> alt.X:
     return alt.X("time_s:Q", title=title, scale=alt.Scale(domain=[0, duration_s], nice=False))
 
 
-def _probability(title: str) -> alt.Y:
-    return alt.Y("value:Q", title=title, scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(minExtent=Y_AXIS_WIDTH))
+def _probability(title: str, top: float = 1.0) -> alt.Y:
+    return alt.Y("value:Q", title=title, scale=alt.Scale(domain=[0, top]), axis=alt.Axis(minExtent=Y_AXIS_WIDTH))
+
+
+def _top_of_scale(values: pd.Series) -> float:
+    """The probability axis stops just above the highest line (next 0.1 step), to spread the changes over the height.
+    It still starts at 0, so the zoom doesn't exaggerate the differences."""
+    return min(1.0, math.ceil(round(float(values.max()) * 10, 6)) / 10 + 0.1)  # round: 0.6 * 10 must give 6
 
 
 def category_chart(so_far: pd.DataFrame, duration_s: float) -> alt.Chart:
@@ -38,7 +46,7 @@ def category_chart(so_far: pd.DataFrame, duration_s: float) -> alt.Chart:
         .mark_line(point=True)
         .encode(
             x=_time(duration_s),
-            y=_probability("Probability so far"),
+            y=_probability("Probability so far", top=_top_of_scale(long["value"])),
             color=alt.Color(
                 "ride type:N",
                 scale=alt.Scale(domain=list(CATEGORY_COLORS), range=list(CATEGORY_COLORS.values())),
@@ -50,7 +58,7 @@ def category_chart(so_far: pd.DataFrame, duration_s: float) -> alt.Chart:
                 alt.Tooltip("value:Q", title="probability so far", format=".2f"),
             ],
         )
-        .properties(height=220)
+        .properties(height=400)
     )
 
 
@@ -78,5 +86,5 @@ def fall_risk_chart(risk: pd.DataFrame, threshold: float, duration_s: float) -> 
         .encode(y=_probability("Fall risk"))
     )
     return alt.layer(line, alerts, rule, title="Model 2 · fall risk of the last 10 s (one every 5 s)").properties(
-        height=170
+        height=220
     )
