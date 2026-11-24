@@ -651,7 +651,7 @@ and the baseline and CNN plug into the same contract.
 | OPS-3 | Canary + rollback drill under 5 min, `runbook.md`, `incident_report.md` | WS4 | K8S-5 |
 | DOC-2 | `docs/DATA.md` (data card, from §4) | WS1 | n/a |
 | DOC-3 | ◐ 24/11: README rewritten for the graders: guidelines compliance table, architecture diagram, technical choices, measured results (models on golden / held-out data, production latency, CD and rollback), Docker Hub URLs, how to run, limits. To do: production screenshots in `assets/screenshots/` | WS5 | all |
-| DOC-4 | Slides, demo script, backup recording of the demo | WS5 | DOC-3 |
+| DOC-4 | ◐ 24/11: `docs/presentation.md` = MLOps jury outline (13 slides: the two models stated apart on slide 2 and one slide each, timing, content, what to say), live demo script with fallback screenshots, likely questions with answers, pre-flight checklist (follows Vincent's spec, User Story 1). To do: the `.pptx`, a timed dry run | WS5 | DOC-3 |
 
 **Phase 5: freeze and submit (25/11) → M5**
 
