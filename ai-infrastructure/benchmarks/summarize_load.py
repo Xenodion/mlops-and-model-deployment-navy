@@ -32,12 +32,14 @@ def main():
             p95 = quantiles(times, n=100, method="inclusive")[94]
             if route.endswith("/window"):
                 points.append((clients, p95, len(rows) / seconds))
-            print(f"| {clients} | {seconds:.2f} | {len(rows)/seconds:.2f} | {route} | "
-                  f"{count} | {mean(times):.1f} | {p95:.1f} |")
+            print(
+                f"| {clients} | {seconds:.2f} | {len(rows) / seconds:.2f} | {route} | "
+                f"{count} | {mean(times):.1f} | {p95:.1f} |"
+            )
     if args.figure:
         import matplotlib.pyplot as plt
 
-        levels, latencies, rates = zip(*points)
+        levels, latencies, rates = zip(*points, strict=True)
         fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.5), layout="constrained")
         axes[0].plot(levels, latencies, "o-", color="#176676")
         axes[0].axhline(200, linestyle="--", color="#904221", label="Project target (200 ms)")

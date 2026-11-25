@@ -12,9 +12,8 @@ from pathlib import Path
 import mlflow
 import numpy as np
 import torch
-from sklearn.metrics import f1_score
-
 from bench import bench_batch, environment, load_net
+from sklearn.metrics import f1_score
 
 
 def main(inputs, output):
@@ -38,19 +37,34 @@ def main(inputs, output):
             (output / "environment.json").write_text(json.dumps(dict(environment("cuda", 1), inputs=hashes), indent=2))
             for rnd in range(5):
                 order = np.random.default_rng(rnd).permutation(len(windows))
-                for device in (("cpu", "cuda") if rnd % 2 == 0 else ("cuda", "cpu")):
+                for device in ("cpu", "cuda") if rnd % 2 == 0 else ("cuda", "cpu"):
                     net = load_net(inputs / "net_state.pt").to(device)
                     with torch.inference_mode():
-                        scores = np.concatenate([net(torch.from_numpy(x).to(device)).softmax(1).cpu().numpy()
-                                                 for x in np.array_split(windows, 32)])
-                    predicted = [labels[scores[int(r["start_inclusive"]):int(r["stop_exclusive"])].mean(0).argmax()]
-                                 for r in rides]
+                        scores = np.concatenate(
+                            [
+                                net(torch.from_numpy(x).to(device)).softmax(1).cpu().numpy()
+                                for x in np.array_split(windows, 32)
+                            ]
+                        )
+                    predicted = [
+                        labels[scores[int(r["start_inclusive"]) : int(r["stop_exclusive"])].mean(0).argmax()]
+                        for r in rides
+                    ]
                     quality = f1_score([r["label"] for r in rides], predicted, average="macro")
                     agreement = float((scores.argmax(1) == reference).mean())
-                    with (output / f"round-{rnd+1}-{device}.csv").open("w", newline="") as stream:
+                    with (output / f"round-{rnd + 1}-{device}.csv").open("w", newline="") as stream:
                         writer = csv.writer(stream)
-                        writer.writerow(["batch", "repeat", "ms", "sampled_rss_mib", "peak_allocated_vram_mib",
-                                         "window_agreement", "ride_macro_f1"])
+                        writer.writerow(
+                            [
+                                "batch",
+                                "repeat",
+                                "ms",
+                                "sampled_rss_mib",
+                                "peak_allocated_vram_mib",
+                                "window_agreement",
+                                "ride_macro_f1",
+                            ]
+                        )
                         for batch in (1, 8, 32, 128, 512):
                             x = torch.from_numpy(windows[order[:batch]]).to(device)
                             if device == "cuda":
@@ -59,7 +73,7 @@ def main(inputs, output):
                             vram = torch.cuda.max_memory_allocated() / 2**20 if device == "cuda" else ""
                             writer.writerows((batch, i, t, rss, vram, agreement, quality) for i, t in enumerate(times))
                             mlflow.log_metric(f"{device}_batch{batch}_ms", float(np.mean(times)), step=rnd)
-                    print(f"Completed round {rnd+1} {device}", flush=True)
+                    print(f"Completed round {rnd + 1} {device}", flush=True)
     finally:
         archive = shutil.make_archive(str(store) + "-export", "gztar", store)
         shutil.copyfile(archive, output / "mlruns.tar.gz")

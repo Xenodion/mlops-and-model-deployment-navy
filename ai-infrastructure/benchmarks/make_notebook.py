@@ -14,8 +14,10 @@ train models or launch cloud resources. Run it from a clone with Python, pandas,
 nbformat installed. In Colab, clone the repository first and open this notebook from that clone.
 The evidence is tied to release `c193360`; see [evidence-index.md](evidence-index.md).
 """),
-    nbf.v4.new_code_cell("""from pathlib import Path
+    nbf.v4.new_code_cell("""import importlib
 import sys
+from pathlib import Path
+
 from IPython.display import Image, display
 
 root = Path.cwd().resolve()
@@ -24,7 +26,7 @@ while not (root / 'ai-infrastructure' / 'benchmarks' / 'analyze_evidence.py').ex
         raise FileNotFoundError('Run from inside a clone containing ai-infrastructure/benchmarks.')
     root = root.parent
 sys.path.insert(0, str(root / 'ai-infrastructure' / 'benchmarks'))
-import analyze_evidence as evidence
+evidence = importlib.import_module('analyze_evidence')
 api, training = evidence.analyze()
 evidence.plot(api, training)
 print(f'Validated {len(api)} route-rounds and {len(training)} classifier training runs.')

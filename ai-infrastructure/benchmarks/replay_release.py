@@ -1,10 +1,10 @@
 """Replay golden rides against a local release API and check both prediction paths."""
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor
 import csv
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -35,9 +35,11 @@ def main():
     def replay_ride(item):
         ride_id, frame = item
         with requests.Session() as session:
+
             def post(route, body):
                 if args.timings:
                     from bench import timed_http_post
+
                     payload = json.dumps(body, allow_nan=False).encode()
                     response, elapsed = timed_http_post(session, args.url + route, payload)
                     readings = body.get("readings", body)
@@ -46,6 +48,7 @@ def main():
                     response = session.post(args.url + route, json=body, timeout=90)
                 response.raise_for_status()
                 return response.json()
+
             frame = frame.sort_values("time_index", kind="stable")
             readings = {
                 key: json.loads(frame[key].to_json(orient="values", double_precision=15))
@@ -70,9 +73,10 @@ def main():
                 assert live["ride_id"] == ride_id and state["n_windows"] == index + 1
                 assert 0 <= live["fall_risk"] <= 1 and isinstance(live["fall_alert"], bool)
                 assert set(live["cumulative_probabilities"]) == set(ride["probabilities"])
+
     started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=args.clients) as pool:
-        list(pool.map(replay_ride, data.groupby('ride_id')))
+        list(pool.map(replay_ride, data.groupby("ride_id")))
     elapsed = time.perf_counter() - started
     assert set(predicted) == set(labels.index)
     ordered = pd.Series(predicted).reindex(labels.index)

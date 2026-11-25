@@ -41,16 +41,29 @@ def main():
                 manifest = json.loads((work / "release.json").read_text())
                 mlflow.log_params(manifest)
                 mlflow.log_params({"platform": platform.platform(), "torch": torch.__version__, "threads": 2})
-                env = dict(os.environ, MODEL_URI=str(work / "ride-classifier"), FALL_RISK_URI=str(work / "fall-risk"),
-                           OMP_NUM_THREADS="2", MKL_NUM_THREADS="2", PREDICTION_LOG_PATH=str(work / "requests.jsonl"))
-                command = ["-m", "uvicorn", "ride_classifier.api.main:app",
-                           "--host", "127.0.0.1", "--port", "18172", "--no-access-log"]
+                env = dict(
+                    os.environ,
+                    MODEL_URI=str(work / "ride-classifier"),
+                    FALL_RISK_URI=str(work / "fall-risk"),
+                    OMP_NUM_THREADS="2",
+                    MKL_NUM_THREADS="2",
+                    PREDICTION_LOG_PATH=str(work / "requests.jsonl"),
+                )
+                command = [
+                    "-m",
+                    "uvicorn",
+                    "ride_classifier.api.main:app",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    "18172",
+                    "--no-access-log",
+                ]
                 if args.device:
                     env.update(BENCH_DEVICE=args.device, BENCH_DEVICE_REPORT=str(args.output / "device.json"))
                     command = [str(Path(__file__).with_name("gpu_api.py"))]
                     mlflow.log_param("classifier_device", args.device)
-                api = subprocess.Popen([sys.executable, *command], env=env,
-                                       stdout=subprocess.DEVNULL)
+                api = subprocess.Popen([sys.executable, *command], env=env, stdout=subprocess.DEVNULL)
                 try:
                     for _ in range(90):
                         if api.poll() is not None:
@@ -73,8 +86,9 @@ def main():
                     for rnd in range(1, args.rounds + 1):
                         clients = args.clients[(rnd - 1) % len(args.clients)]
                         raw = work / f"round-{rnd}.csv"
-                        observed = subprocess.check_output([sys.executable, str(replay), "--timings", str(raw),
-                                                            "--clients", str(clients)], text=True)
+                        observed = subprocess.check_output(
+                            [sys.executable, str(replay), "--timings", str(raw), "--clients", str(clients)], text=True
+                        )
                         if json.loads(observed) != metrics:
                             raise ValueError("Replay quality changed between rounds")
                         shutil.copyfile(raw, args.output / raw.name)
@@ -85,13 +99,19 @@ def main():
                         mlflow.log_metric("requests_s", summary["requests_s"], step=rnd)
                         for route, part in rows.groupby("route"):
                             key = "live" if route.endswith("/window") else "post_ride"
-                            mlflow.log_metric(f"{key}_p95_ms", part.latency_ms.quantile(.95), step=rnd)
+                            mlflow.log_metric(f"{key}_p95_ms", part.latency_ms.quantile(0.95), step=rnd)
                     if args.rounds:
-                        peak = next(line for line in Path(f"/proc/{api.pid}/status").read_text().splitlines()
-                                    if line.startswith("VmHWM:"))
+                        peak = next(
+                            line
+                            for line in Path(f"/proc/{api.pid}/status").read_text().splitlines()
+                            if line.startswith("VmHWM:")
+                        )
                         metrics["api_peak_rss_mib"] = int(peak.split()[1]) / 1024
-                        total = next(line for line in Path("/proc/meminfo").read_text().splitlines()
-                                     if line.startswith("MemTotal:"))
+                        total = next(
+                            line
+                            for line in Path("/proc/meminfo").read_text().splitlines()
+                            if line.startswith("MemTotal:")
+                        )
                         metrics["worker_ram_mib"] = int(total.split()[1]) / 1024
                     mlflow.log_metrics(metrics)
                     (args.output / "replay.json").write_text(json.dumps({**manifest, **metrics}, indent=2))

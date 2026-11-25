@@ -35,7 +35,9 @@ def main():
         return model
 
     mlflow.pyfunc.load_model = load
-    server = uvicorn.Server(uvicorn.Config("ride_classifier.api.main:app", host="127.0.0.1", port=18172, access_log=False))
+    server = uvicorn.Server(
+        uvicorn.Config("ride_classifier.api.main:app", host="127.0.0.1", port=18172, access_log=False)
+    )
     server.capture_signals = nullcontext
     signal.signal(signal.SIGTERM, lambda *_: setattr(server, "should_exit", True))
     try:
@@ -43,7 +45,7 @@ def main():
     finally:
         stats = {"classifier_forwards": forwards, "device": device}
         if device == "cuda":
-            stats.update(gpu=torch.cuda.get_device_name(), peak_allocated_mib=torch.cuda.max_memory_allocated()/2**20)
+            stats.update(gpu=torch.cuda.get_device_name(), peak_allocated_mib=torch.cuda.max_memory_allocated() / 2**20)
         Path(os.environ["BENCH_DEVICE_REPORT"]).write_text(json.dumps(stats))
 
 

@@ -26,12 +26,25 @@ def main():
     tracking = os.environ["MLFLOW_TRACKING_URI"]
     mlflow.set_tracking_uri(tracking)
     mlflow.set_experiment("ai-infrastructure")
-    env = dict(os.environ, PYTHONPATH=str(root / "src"), PARAMS_PATH=str(root / "params.yaml"),
-               MKL_NUM_THREADS="2", OMP_NUM_THREADS="2", OPENBLAS_NUM_THREADS="2",
-               MLFLOW_EXPERIMENT_NAME="infra-training-stages")
+    env = dict(
+        os.environ,
+        PYTHONPATH=str(root / "src"),
+        PARAMS_PATH=str(root / "params.yaml"),
+        MKL_NUM_THREADS="2",
+        OMP_NUM_THREADS="2",
+        OPENBLAS_NUM_THREADS="2",
+        MLFLOW_EXPERIMENT_NAME="infra-training-stages",
+    )
     with mlflow.start_run(run_name=f"training-{args.stage}") as run:
-        mlflow.log_params({"stage": args.stage, "release": os.environ["BENCHMARK_RELEASE"],
-                           "platform": platform.platform(), "threads": 2, "device": "cpu"})
+        mlflow.log_params(
+            {
+                "stage": args.stage,
+                "release": os.environ["BENCHMARK_RELEASE"],
+                "platform": platform.platform(),
+                "threads": 2,
+                "device": "cpu",
+            }
+        )
         started = time.perf_counter()
         proc = subprocess.Popen([sys.executable, "-m", f"ride_classifier.pipeline.{args.stage}"], cwd=root, env=env)
         process = psutil.Process(proc.pid)
@@ -55,9 +68,17 @@ def main():
         mlflow.log_metrics(values)
         filename = "train_run.json" if args.stage == "train" else "fall_risk_run.json"
         source = json.loads((root / "artifacts" / filename).read_text())
-        result = dict(values, stage=args.stage, stage_run_id=source["run_id"], benchmark_run_id=run.info.run_id,
-                      release=env["BENCHMARK_RELEASE"], sample_interval_s=0.2, platform=platform.platform(),
-                      host_ram_mib=psutil.virtual_memory().total / 2**20, threads=2)
+        result = dict(
+            values,
+            stage=args.stage,
+            stage_run_id=source["run_id"],
+            benchmark_run_id=run.info.run_id,
+            release=env["BENCHMARK_RELEASE"],
+            sample_interval_s=0.2,
+            platform=platform.platform(),
+            host_ram_mib=psutil.virtual_memory().total / 2**20,
+            threads=2,
+        )
         args.output.write_text(json.dumps(result, indent=2))
         mlflow.log_artifact(str(args.output))
 

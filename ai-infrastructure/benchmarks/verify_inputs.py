@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
+from make_windows import HERE, ROOT
 from sklearn.metrics import f1_score
 
-from make_windows import HERE, ROOT
 from ride_classifier.config import LABELS
 from ride_classifier.data.clean import clean_rides
 from ride_classifier.pipeline.train_fall_risk import paired_auc
@@ -71,7 +71,9 @@ def main():
     manifest["local_verification"] = {
         "export_run": yaml.safe_load((ROOT / "model/MLmodel").read_text())["run_id"],
         "golden_macro_f1": f1_score(table.label, predictions, average="macro"),
-        "changed_vs_saved_ride_predictions": int(np.sum(labels.loc[rides.index, "predicted"].to_numpy() != predictions)),
+        "changed_vs_saved_ride_predictions": int(
+            np.sum(labels.loc[rides.index, "predicted"].to_numpy() != predictions)
+        ),
         "fall_metrics_from_saved_scores": by_gap,
         "mapping_sha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in [path, groups_path]},
     }

@@ -26,9 +26,11 @@ def configure_source(root):
     path = root / "src/ride_classifier/models/cnn.py"
     source = path.read_text()
     for old, new in [
-        ("self.net_ = RideCNN(x.shape[1], self.filters, self.kernel, self.dropout)",
-         'device = __import__("os").environ["BENCH_DEVICE"]\n        '
-         "self.net_ = RideCNN(x.shape[1], self.filters, self.kernel, self.dropout).to(device)"),
+        (
+            "self.net_ = RideCNN(x.shape[1], self.filters, self.kernel, self.dropout)",
+            'device = __import__("os").environ["BENCH_DEVICE"]\n        '
+            "self.net_ = RideCNN(x.shape[1], self.filters, self.kernel, self.dropout).to(device)",
+        ),
         ("optimizer = torch.optim.Adam", "loss_fn = loss_fn.to(device)\n        optimizer = torch.optim.Adam"),
         ("loss_fn(self.net_(xb), yb)", "loss_fn(self.net_(xb.to(device)), yb.to(device))"),
         ("self.net_.eval()\n        return self", "self.net_.cpu().eval()\n        return self"),
@@ -42,6 +44,7 @@ def configure_source(root):
 def stage(root, output):
     import mlflow
     import torch
+
     from ride_classifier.config import load_params
     from ride_classifier.pipeline import evaluate, train
 
@@ -63,12 +66,21 @@ def stage(root, output):
         raise RuntimeError("No CUDA memory allocated during training")
     golden = evaluate.run(params, root, uri)
     run = json.loads((root / params["train"]["run_path"]).read_text())
-    summary = dict(device=device, gpu=torch.cuda.get_device_name(), torch=str(torch.__version__),
-                   elapsed_s=elapsed, peak_process_rss_mib=peak_rss, peak_allocated_vram_mib=peak_vram,
-                   cv_macro_f1=metrics["cv_macro_f1"], golden=golden, stage_run_id=run["run_id"])
+    summary = dict(
+        device=device,
+        gpu=torch.cuda.get_device_name(),
+        torch=str(torch.__version__),
+        elapsed_s=elapsed,
+        peak_process_rss_mib=peak_rss,
+        peak_allocated_vram_mib=peak_vram,
+        cv_macro_f1=metrics["cv_macro_f1"],
+        golden=golden,
+        stage_run_id=run["run_id"],
+    )
     with mlflow.start_run(run_id=run["run_id"]):
-        mlflow.log_metrics({"training_elapsed_s": elapsed, "process_peak_rss_mib": peak_rss,
-                            "cuda_peak_allocated_mib": peak_vram})
+        mlflow.log_metrics(
+            {"training_elapsed_s": elapsed, "process_peak_rss_mib": peak_rss, "cuda_peak_allocated_mib": peak_vram}
+        )
         mlflow.log_param("benchmark_device", device)
     output.write_text(json.dumps(summary, indent=2, default=float))
 
@@ -81,14 +93,25 @@ def main(bundle, output):
             archive.extractall(root, filter="data")
         configure_source(root)
         (root / "artifacts").mkdir(exist_ok=True)
-        env = dict(os.environ, PYTHONPATH=str(root / "src"), PARAMS_PATH=str(root / "params.yaml"),
-                   MLFLOW_ALLOW_FILE_STORE="true", OMP_NUM_THREADS="2", OPENBLAS_NUM_THREADS="2", MKL_NUM_THREADS="2")
+        env = dict(
+            os.environ,
+            PYTHONPATH=str(root / "src"),
+            PARAMS_PATH=str(root / "params.yaml"),
+            MLFLOW_ALLOW_FILE_STORE="true",
+            OMP_NUM_THREADS="2",
+            OPENBLAS_NUM_THREADS="2",
+            MKL_NUM_THREADS="2",
+        )
         try:
             for rnd in range(1, 4):
-                for device in (("cuda", "cpu") if rnd % 2 else ("cpu", "cuda")):
+                for device in ("cuda", "cpu") if rnd % 2 else ("cpu", "cuda"):
                     env["BENCH_DEVICE"] = device
-                    subprocess.run([sys.executable, __file__, "stage", str(root), str(output / f"{rnd}-{device}.json")],
-                                   check=True, env=env, cwd=root)
+                    subprocess.run(
+                        [sys.executable, __file__, "stage", str(root), str(output / f"{rnd}-{device}.json")],
+                        check=True,
+                        env=env,
+                        cwd=root,
+                    )
         finally:
             if (root / "tracking").exists():
                 archive = shutil.make_archive(str(root / "mlruns"), "gztar", root / "tracking")

@@ -43,15 +43,23 @@ def main():
                 print(copied.info.run_id)
                 continue
             if copied is None:
-                copied = target.create_run(experiment_id, start_time=run.info.start_time,
-                                           tags={"vertex_job_id": str(args.job), "source_run_id": run.info.run_id},
-                                           run_name=f"vertex-{args.job}-{run.info.run_id[:8]}")
+                copied = target.create_run(
+                    experiment_id,
+                    start_time=run.info.start_time,
+                    tags={"vertex_job_id": str(args.job), "source_run_id": run.info.run_id},
+                    run_name=f"vertex-{args.job}-{run.info.run_id[:8]}",
+                )
             run_id = copied.info.run_id
             try:
-                history = [point for key in run.data.metrics for point in source.get_metric_history(run.info.run_id, key)]
+                history = [
+                    point for key in run.data.metrics for point in source.get_metric_history(run.info.run_id, key)
+                ]
                 recorded = [point for key in run.data.metrics for point in target.get_metric_history(run_id, key)]
-                target.log_batch(run_id, metrics=[p for p in history if p not in recorded],
-                                 params=[Param(k, v) for k, v in run.data.params.items()])
+                target.log_batch(
+                    run_id,
+                    metrics=[p for p in history if p not in recorded],
+                    params=[Param(k, v) for k, v in run.data.params.items()],
+                )
                 target.log_artifacts(run_id, str(measurements), "measurements")
                 target.set_terminated(run_id, end_time=run.info.end_time)
             except Exception:
