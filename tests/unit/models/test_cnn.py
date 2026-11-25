@@ -62,3 +62,30 @@ def test_predict_timeline_final_cumulative_equals_predict_proba(data):
     for ride_id, timeline in timelines.items():
         np.testing.assert_allclose(timeline.cumulative[-1], probas.loc[ride_id].to_numpy(), atol=1e-6)
         assert timeline.end_s[0] == SMALL["window_s"]
+
+
+def test_onnx_fp32_and_int8_match_pytorch_and_pickle_cleanly(data):
+    import pickle
+
+    inputs, labels = data
+    model = CNNModel(**{**SMALL, "epochs": 2}).fit(inputs, labels)
+    torch_probas = model.predict_proba(inputs)
+    assert model.inference_runtime == "pytorch"
+
+    model.enable_onnx(quantize_int8=False)
+    assert model.inference_runtime == "onnx"
+    onnx_probas = model.predict_proba(inputs)
+    np.testing.assert_allclose(onnx_probas.to_numpy(), torch_probas.to_numpy(), atol=1e-5)
+
+    roundtrip = pickle.loads(pickle.dumps(model))
+    assert roundtrip.inference_runtime == "onnx"
+    np.testing.assert_allclose(roundtrip.predict_proba(inputs).to_numpy(), torch_probas.to_numpy(), atol=1e-5)
+
+    model.enable_onnx(quantize_int8=True)
+    assert model.inference_runtime == "onnx-int8"
+    int8_probas = model.predict_proba(inputs)
+    assert int8_probas.shape == torch_probas.shape
+    assert (int8_probas.idxmax(axis=1) == torch_probas.idxmax(axis=1)).mean() >= 0.9
+
+    model.disable_onnx()
+    assert model.inference_runtime == "pytorch"

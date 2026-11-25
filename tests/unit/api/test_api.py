@@ -377,3 +377,38 @@ def test_the_images_load_both_models_and_the_reference_from_the_registry(ride_mo
         assert str(version.version) == "2"
     finally:
         mlflow.set_tracking_uri(previous)
+
+
+@pytest.mark.parametrize("runtime", ["onnx", "onnx-int8"])
+def test_api_supports_onnx_and_int8_inference_runtime(labelled_rides, ride, tmp_path, monkeypatch, runtime):
+    from ride_classifier.models.cnn import CNNModel
+    from ride_classifier.models.pyfunc import RideClassifierModel
+
+    readings, labels = labelled_rides
+    cnn = CNNModel(
+        window_s=30,
+        stride_s=15,
+        filters=[8, 16],
+        kernel=5,
+        dropout=0.0,
+        epochs=2,
+        batch_size=32,
+        learning_rate=3e-3,
+        weight_decay=0.0,
+        augment=False,
+        seed=0,
+    )
+    cnn.fit(cnn.prepare(readings), labels.set_index("ride_id")["label"])
+    path = tmp_path / f"cnn-{runtime}"
+    mlflow.pyfunc.save_model(str(path), python_model=RideClassifierModel(cnn), code_paths=[str(PACKAGE_DIR)])
+    (path / "model_meta.json").write_text(json.dumps({"version": "9"}))
+
+    monkeypatch.setenv("FALL_RISK_MODEL_PATH", str(tmp_path / "absent.joblib"))
+    monkeypatch.setenv("DRIFT_REFERENCE_PATH", str(tmp_path / "absent.json"))
+    monkeypatch.setenv("INFERENCE_RUNTIME", runtime)
+    with TestClient(create_app(model_uri=str(path))) as c:
+        assert c.app.state.inference_runtime == runtime
+        assert c.get("/health").status_code == 200
+        body = c.post("/v1/predict", json=ride).json()
+        assert set(body["probabilities"]) == set(LABELS)
+        assert body["model_version"] == "9"

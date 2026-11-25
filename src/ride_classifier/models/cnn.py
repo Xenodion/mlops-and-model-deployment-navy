@@ -6,14 +6,43 @@ wobbling). Each window gets 5 probabilities; a ride's prediction is the mean ove
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import torch
+from scipy.special import softmax
 from torch import nn
 
-from ride_classifier.config import ID_COLUMN, LABELS
+from ride_classifier.config import ID_COLUMN, LABELS, SAMPLING_HZ
 from ride_classifier.features.windows import windows_by_ride
 from ride_classifier.models.timeline import Timeline, cumulative_mean, window_end_times
+
+
+def export_onnx_bytes(net: nn.Module, n_channels: int, window_samples: int, *, quantize_int8: bool = False) -> bytes:
+    """Export a fitted RideCNN network to ONNX bytes (FP32 or dynamic INT8)."""
+    net.eval()
+    sample = torch.zeros((1, n_channels, window_samples), dtype=torch.float32)
+    with tempfile.TemporaryDirectory() as tmp:
+        fp32_path = Path(tmp) / "model.onnx"
+        torch.onnx.export(
+            net,
+            sample,
+            str(fp32_path),
+            input_names=["windows"],
+            output_names=["logits"],
+            dynamic_axes={"windows": {0: "batch"}, "logits": {0: "batch"}},
+            opset_version=17,
+            dynamo=False,
+        )
+        if not quantize_int8:
+            return fp32_path.read_bytes()
+        from onnxruntime.quantization import QuantType, quantize_dynamic
+
+        int8_path = Path(tmp) / "model_int8.onnx"
+        quantize_dynamic(str(fp32_path), str(int8_path), weight_type=QuantType.QUInt8)
+        return int8_path.read_bytes()
 
 
 class RideCNN(nn.Module):
@@ -109,11 +138,57 @@ class CNNModel:
         self.net_.eval()
         return self
 
+    def _get_ort_session(self):
+        ort_session = getattr(self, "_ort_session", None)
+        if ort_session is None:
+            import onnxruntime as ort
+
+            options = ort.SessionOptions()
+            options.intra_op_num_threads = getattr(self, "_onnx_threads", 2)
+            options.inter_op_num_threads = 1
+            ort_session = ort.InferenceSession(
+                self._onnx_bytes, sess_options=options, providers=["CPUExecutionProvider"]
+            )
+            self._ort_session = ort_session
+        return ort_session
+
+    def enable_onnx(self, quantize_int8: bool = False, intra_op_threads: int = 2) -> CNNModel:
+        """Compile the fitted CNN to ONNX Runtime (FP32 or dynamic INT8) for CPU inference."""
+        if not hasattr(self, "net_") or not hasattr(self, "mean_"):
+            raise RuntimeError("Fit the CNNModel before enabling ONNX inference")
+        n_channels = int(self.mean_.shape[1])
+        window_samples = round(self.window_s * SAMPLING_HZ)
+        self._onnx_threads = intra_op_threads
+        self._onnx_bytes = export_onnx_bytes(self.net_, n_channels, window_samples, quantize_int8=quantize_int8)
+        self._ort_session = None
+        self._get_ort_session()
+        self._onnx_runtime = "onnx-int8" if quantize_int8 else "onnx"
+        return self
+
+    def disable_onnx(self) -> CNNModel:
+        """Revert inference back to PyTorch."""
+        self._onnx_bytes = None
+        self._ort_session = None
+        self._onnx_runtime = "pytorch"
+        return self
+
+    @property
+    def inference_runtime(self) -> str:
+        return getattr(self, "_onnx_runtime", "pytorch")
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        state.pop("_ort_session", None)  # ONNX InferenceSession is recreated lazily from _onnx_bytes
+        return state
+
     def _window_probas(self, windows: np.ndarray) -> np.ndarray:
         """(n_windows, channels, time) -> (n_windows, n_labels): softmax of the network on normalised windows."""
+        x = ((windows - self.mean_) / self.std_).astype(np.float32)
+        if getattr(self, "_onnx_bytes", None) is not None:
+            logits = self._get_ort_session().run(None, {"windows": x})[0]
+            return softmax(logits, axis=1)
         with torch.no_grad():
-            x = torch.from_numpy(((windows - self.mean_) / self.std_).astype(np.float32))
-            return torch.softmax(self.net_(x), dim=1).numpy()
+            return torch.softmax(self.net_(torch.from_numpy(x)), dim=1).numpy()
 
     def predict_proba(self, inputs: pd.Series) -> pd.DataFrame:
         rows = {ride_id: self._window_probas(windows).mean(axis=0) for ride_id, windows in inputs.items()}

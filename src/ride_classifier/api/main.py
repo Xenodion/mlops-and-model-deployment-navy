@@ -170,6 +170,28 @@ def build_timeline(timeline: Timeline, window_s: float, stride_s: float) -> Ride
     )
 
 
+def configure_inference_runtime(model: object | None) -> str:
+    """Apply INFERENCE_RUNTIME (pytorch [default], onnx, onnx-int8) when supported by the loaded model."""
+    runtime = os.getenv("INFERENCE_RUNTIME", "pytorch").strip().lower()
+    if runtime not in {"pytorch", "onnx", "onnx-int8"}:
+        logger.warning(json.dumps({"event": "invalid_inference_runtime", "runtime": runtime, "fallback": "pytorch"}))
+        return "pytorch"
+    if model is None or runtime == "pytorch":
+        return "pytorch"
+    inner = getattr(model.unwrap_python_model(), "model", None)
+    if inner is None or not hasattr(inner, "enable_onnx"):
+        logger.warning(
+            json.dumps({"event": "inference_runtime_unsupported", "runtime": runtime, "fallback": "pytorch"})
+        )
+        return "pytorch"
+    try:
+        inner.enable_onnx(quantize_int8=(runtime == "onnx-int8"))
+    except ImportError as exc:
+        logger.warning(json.dumps({"event": "inference_runtime_unavailable", "runtime": runtime, "error": str(exc)}))
+        return "pytorch"
+    return inner.inference_runtime
+
+
 def create_app(model_uri: str | None = None) -> FastAPI:
     """Build the API. `model_uri` defaults to the MODEL_URI env var, then to the exported `model` folder."""
 
@@ -177,11 +199,22 @@ def create_app(model_uri: str | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         uri = model_uri or os.getenv("MODEL_URI", "model")
         app.state.model, app.state.meta = None, {}
+        app.state.inference_runtime = "pytorch"
         try:
             load_uri, meta = resolve_model(uri)
             app.state.model = mlflow.pyfunc.load_model(load_uri)  # once, not per request
             app.state.meta = meta
-            logger.info(json.dumps({"event": "model_loaded", "model_uri": load_uri, "version": meta.get("version")}))
+            app.state.inference_runtime = configure_inference_runtime(app.state.model)
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "model_loaded",
+                        "model_uri": load_uri,
+                        "version": meta.get("version"),
+                        "inference_runtime": app.state.inference_runtime,
+                    }
+                )
+            )
         except Exception as exc:  # start anyway: /health reports it and Kubernetes keeps traffic away
             logger.error(json.dumps({"event": "model_load_failed", "model_uri": uri, "error": str(exc)}))
         app.state.fall_model, app.state.fall_version = None, None  # model 2 is optional: else fall_risk fields = null
