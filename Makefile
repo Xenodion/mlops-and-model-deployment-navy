@@ -13,6 +13,7 @@ LOADTEST_CPU ?= 1
 LOADTEST_REPLICAS ?= 1
 LOADTEST_TARGET_ENV ?=
 SPEED ?= 1
+FEATURE_INPUT ?= data/processed/train.parquet
 export DOCKERHUB_USER
 
 help: ## List the commands
@@ -57,6 +58,10 @@ shared-mlflow: ## Team: open the shared MLflow (Cloud Run, private) on http://lo
 
 pipeline: ## Run the DVC pipeline: only the stages whose inputs changed (see dvc.yaml)
 	uv run dvc repro
+
+feature-store: ## Materialize offline (Parquet) and online (SQLite) feature views into artifacts/feature_store/
+	uv run python -m ride_classifier.features.store materialize --input $(FEATURE_INPUT) --view ride_stats
+	uv run python -m ride_classifier.features.store materialize --input $(FEATURE_INPUT) --view window_drift_stats
 
 drift: ## Offline drift report: make drift DRIFT_CURRENT=path/to/windows.parquet
 	uv run python -m ride_classifier.drift.job --reference artifacts/drift_reference.json --current $(DRIFT_CURRENT) --out $(DRIFT_OUT)
