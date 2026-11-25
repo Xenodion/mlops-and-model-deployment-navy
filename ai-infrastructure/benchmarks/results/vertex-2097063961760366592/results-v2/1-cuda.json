@@ -1,0 +1,22 @@
+{
+  "device": "cuda",
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.15.0+cu132",
+  "elapsed_s": 33.643318980000004,
+  "peak_process_rss_mib": 2174.5078125,
+  "peak_allocated_vram_mib": 29.138671875,
+  "cv_macro_f1": 0.33070296057895315,
+  "golden": {
+    "golden_macro_f1": 0.5038429406850459,
+    "golden_balanced_accuracy": 0.5653614457831325,
+    "golden_accuracy": 0.85,
+    "golden_recall_safe": 0.9518072289156626,
+    "golden_recall_safe_overall": 0.375,
+    "golden_recall_bad_weather": 0.0,
+    "golden_recall_tandem": 0.5,
+    "golden_recall_reckless": 1.0,
+    "golden_ref_majority_macro_f1": 0.1814207650273224,
+    "golden_ref_random_macro_f1": 0.20232797173704056
+  },
+  "stage_run_id": "ed5b4d380af6414681df8c6d88b0166c"
+}

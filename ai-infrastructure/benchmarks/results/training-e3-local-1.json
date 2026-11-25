@@ -1,0 +1,12 @@
+{
+  "elapsed_s": 372.83263939997414,
+  "sampled_process_peak_rss_mib": 4.6796875,
+  "stage": "train",
+  "stage_run_id": "e609bc3e56ec42f9807a77b9b901d925",
+  "benchmark_run_id": "a58260b5ab0d4e80bd1fa70308c56b7d",
+  "release": "c1933606f254d80f9abcca49a205c1b9f4bec3d8",
+  "sample_interval_s": 0.2,
+  "platform": "Windows-11-10.0.26300-SP0",
+  "host_ram_mib": 11996.59765625,
+  "threads": 2
+}

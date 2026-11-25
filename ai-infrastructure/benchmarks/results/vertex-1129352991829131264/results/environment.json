@@ -1,0 +1,17 @@
+{
+  "cpu": "Intel(R) Xeon(R) CPU @ 2.20GHz",
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "n_gpus": 1,
+  "ram_gb": 83.5,
+  "vram_gb": 39.5,
+  "python": "3.12.16",
+  "torch": "2.15.0",
+  "onnxruntime": "",
+  "cuda": "13.2",
+  "inputs": {
+    "net_state.pt": "80bbc5c844589f3a207b609a67ca7eef85d6bedfcf37a072af4f3d2ad9cb3fc3",
+    "reference_argmax.npy": "f065ae4ba22da53b73c2c21e8bea20b759df526a65b3109243422bca08185ec3",
+    "ride-boundaries.csv": "77b4e2cfcc7391841ab8d815f0917b3518ba06876fa10ef62568bd434868f92e",
+    "windows.npy": "524b6d8c83a91cf37628889d45d3d3dd6fba8a6452d99c3f6908a9f57ff1bc35"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "held_out_window_auc": 0.7119927086956881,
+  "held_out_paired_auc": 0.8878048780487805,
+  "held_out_n_groups": 205.0,
+  "held_out_gap10s_window_auc": 0.6910542387765645,
+  "held_out_gap10s_paired_auc": 0.7609756097560976,
+  "held_out_gap10s_n_groups": 205.0,
+  "n_train_windows": 30293.0,
+  "gate_passed": 1.0
+}

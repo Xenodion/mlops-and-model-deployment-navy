@@ -1,0 +1,13 @@
+{
+  "ride_run": "8f9077ad087c4c6d9d60b3374cfb9b21",
+  "fall_version": 1,
+  "golden_sha256": "67AD53BFA9A0C69AEF583EAE7CEF92F17D667D3CA52C421AEBC6284B818486A3",
+  "fall_run": "a970ab9cb9994727a3ceb7c885916491",
+  "ride_version": 2,
+  "image_tag": "c193360",
+  "image_digest": "sha256:a9164bacca4e95f4389334d00e4251a1ddaa6c3b1c77176167e9dd7b84d5f7a8",
+  "rides": 100,
+  "live_windows_per_ride": 2,
+  "post_ride_macro_f1": 0.5107296386662019,
+  "changed_vs_historical": 5
+}

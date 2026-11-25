@@ -1,0 +1,18 @@
+{
+  "mlflow_run_id": "589e6e9228c844488a217a95be27df56",
+  "input_sha256": {
+    "net_state.pt": "80bbc5c844589f3a207b609a67ca7eef85d6bedfcf37a072af4f3d2ad9cb3fc3",
+    "windows.npy": "524b6d8c83a91cf37628889d45d3d3dd6fba8a6452d99c3f6908a9f57ff1bc35",
+    "ride-boundaries.csv": "77b4e2cfcc7391841ab8d815f0917b3518ba06876fa10ef62568bd434868f92e"
+  },
+  "python": "3.14.0",
+  "cpu": "AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",
+  "torch": "2.15.0+cpu",
+  "onnxruntime": "1.32.0",
+  "threads": 2,
+  "window_argmax_agreement": 1.0,
+  "max_probability_difference": 5.364418029785156e-07,
+  "pytorch_ride_macro_f1": 0.5107296386662019,
+  "onnx_ride_macro_f1": 0.5107296386662019,
+  "memory_note": "Process RSS includes both loaded runtimes, not isolated runtime memory."
+}

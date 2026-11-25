@@ -1,4 +1,41 @@
+# 25/11/2026 — Cloud evidence and notebook
+
+The three principal Vertex jobs were verified as succeeded; no running, pending or queued custom
+job was found in `advanced-cloud-ai-i2`, `europe-west4` at the time of the check. The saved joint
+API CSVs contain 100 successful post-ride and 200 successful live calls in each of three rounds
+per device. Their reports record 1,600 classifier forwards per device including warm-up. Six
+classifier training JSONs were re-read. Local evidence index and reproducible analysis added.
+
+Vincent requested white-background figures and one substantial notebook with multiple options,
+clear explanations and boundaries; this supersedes the earlier dark-style plan. Notebook and
+PNG/SVG exports are local and have not yet been reviewed or published.
+
+The preregistered ONNX FP32 CPU comparison finished on the laptop with 4,800 timed network calls
+across three paired rounds. Median batch-1 means: PyTorch 0.726 ms, ONNX 0.256 ms; batch-128 means:
+35.908 ms and 18.799 ms. All 1,885 window argmax predictions agree and both ride macro-F1 values
+are 0.5107. These are network-only results, not an API speedup; process RSS cannot isolate the
+two runtimes. MLflow run `589e6e9228c844488a217a95be27df56` contains the raw data. A Windows
+console encoding error interrupted run closure after artifacts were logged; it was explicitly
+marked FINISHED and rechecked. See `ai-infrastructure/optimization/results-summary.md`.
+
+The shared MLflow Cloud Run endpoint is private. Its local authenticated proxy was started on
+port 5001 after Vincent observed a 403 at the direct URL. No public access was enabled.
+
 # Project journal
+
+25/11 — Reconciled Cloud execution with the workshop brief and completed Vertex measurements. `specs/001-final-deliverable/cloud-infra-tasks.md` sets P0–P3 tasks, dependencies, evidence checks, notebooks, figures and handoff. GitHub issues #3–#8 were updated with their previous descriptions preserved as history; #45 tracks reproducible Cloud notebooks and shared-style figures. Existing issues remain open until their remaining acceptance checks and review are complete. The new plan and raw evidence are local pending Vincent's review and push approval.
+
+25/11 — Timed one complete local CPU fall-risk training stage on SRV3490 using an isolated c193360 release copy and the shared authenticated MLflow server. It took 1,294.62 s with a sampled process-tree peak RSS of 2,981.71 MiB, including feature preparation, evaluation and logging. The quality gate passed; held-out paired AUC was 0.8878 at the 5 s gap and 0.7610 at 10 s. MLflow stage run `ce979ee5c2e6432a900c8100cea44a4f`, benchmark run `d275ae6c5a8f4394acdb28cca8aeec40`. The first attempt stopped at the health check because it omitted authentication; the isolated copy was corrected and the attempt recorded as failed.
+
+25/11 — Vertex jobs `1129352991829131264`, `2031761767163494400` and `2097063961760366592` completed the paired classifier forward, joint API and classifier training comparisons. Raw measurements, job logs, MLflow run IDs, device evidence and limitations are in `ai-infrastructure/benchmarks/results/vertex-gpu-summary.md`. On this worker the three classifier training stages took 33.64–34.05 s on one A100 and 198.62–232.54 s on CPU, with GPU quality variation. The joint API live p95 was 70.38–78.72 ms CPU and 70.14–73.13 ms GPU over three rounds. A prior API replay lacked a device report and was repeated; the first training submission failed on Python 3.14 exception syntax and was repeated with equivalent Python 3.12 syntax in the isolated copy. The two completed jobs automatically tore down their workers. Multi-GPU remains unmeasured for this release and is not required by the course brief.
+
+24/11 — Published the two oral outlines on dev_vincent (8efcb58). After fetching main, replayed the new c193360 API image locally and on Vertex with ride-classifier/2 and fall-risk/1. CPU job 6241149675127177216 succeeded in europe-west4 and terminated. Both runs completed 100 post-ride and 200 live requests, reproduced ride macro-F1 0.5107296386662019 and found five changed classes against the historical file. The imported shared MLflow run is 9a383c7cdd5346a980e823b976d02329 (FINISHED). The raw summary is in `ai-infrastructure/benchmarks/results/vertex-c193360-cpu-replay.json`. This run checked correctness. Timed capacity, memory and training comparisons remain open.
+
+24/11 — Replayed the published b80aeeb Linux amd64 API locally on CPU with the two production artifacts downloaded from shared MLflow and mounted read-only (versions and image digest in `ai-infrastructure/benchmarks/vertex-protocol.md`). The classifier pickle SHA-256 matched the local export. All 100 golden post-ride requests returned a classification and a retrospective fall-risk series. All 200 live requests returned a fall score and alert with cumulative state advancing between the first and second windows of each ride. Ride macro-F1 was 0.5107296386662019, with five changed classes versus the historical CSV. This verifies joint serving on golden data. Fall detection quality on held-out falls and latency under load require separate measurements. File-based loading omitted registry display metadata and the drift reference. Replay client: `ai-infrastructure/benchmarks/replay_release.py`.
+
+24/11 — Recovered 110 raw metric rows from the three November 21 Vertex Spot jobs in `advanced-cloud-ai-i2/europe-west4`. The CSVs in `ai-infrastructure/benchmarks/results/vertex-legacy-*.csv` use the Vertex job ID as their suffix. All three requested one T4. Only job `6290711261260808192` recorded CUDA measurements. Jobs `2991261584258498560` and `5008874217320480768` ran on CPU. The inference rows identify ride-classifier v1, and training used an unregistered RideCNN. These runs establish historical hardware access. The E3 v2 and fall-risk release still needs its own training and joint serving measurements.
+
+24/11 — ADR 012 fixes release scope for both orals. Joint live/post-ride serving and a timed canary withdrawal are the primary evidence. Shadow and A/B have no supported cost or product case in the current scenario. Threshold calibration and rehearsal are pending.
 
 What was done, why, and where the evidence is, newest first. Decisions are detailed in
 [decisions/](decisions/README.md); this log is the story behind them, written to be reread when preparing the
@@ -8,6 +45,14 @@ presentations. One entry per working session; mistakes found and corrected are l
 
 This block is rewritten at each stop; the dated entries below are the history.
 
+- **E3 CPU baseline preparation:** an exported E3 v2 and golden data are available locally. The hypothesis and
+  comparison conditions are documented in `ai-infrastructure/benchmarks/baseline-protocol.md` before running;
+  `run_tracked.py` prepares the same model windows, calls the common benchmark tool, and logs input fingerprints,
+  environment and results to MLflow. The first local run `3cf5bc37a9f4433dacbdcbe60f1bea2f` finished on clean
+  commit `1500d10`: the CSV was verified and saved to `ai-infrastructure/benchmarks/baseline-results.csv`.
+  Batch 1 / 128 p95 were 2.04 / 13.27 ms and throughput 1,007 / 10,104 windows/s respectively, network only.
+  This is not API capacity; the run still needs importing into shared MLflow.
+
 - **Kind monitoring (in progress):** opt-in manifests and `k8s/monitoring/deploy.sh` prepare Prometheus, Grafana
   and the drift exporter using the existing dashboard, alert rules and reference. A headless service allows
   Prometheus to scrape each ready API pod rather than a load-balanced sample. There is no local kind cluster at
@@ -16,8 +61,10 @@ This block is rewritten at each stop; the dated entries below are the history.
 - **Serving bundle (in progress):** after exporting model 1, `make bundle-serving` retrieves the registered
   fall-risk joblib from its source run and adds a reference only if its model URI belongs to the exported run.
   `serving_bundle.json` records the second model version/run and reference hash; the API image points to both
-  files. Local mocked tests cover matching and mismatched references. Real shared-registry export and image
-  deployment remain unverified and require access to both registered models and the matching DVC reference.
+  files. Local mocked tests cover matching and mismatched references; a temporary SQLite-backed MLflow registry
+  test also registers both synthetic models, exports the classifier and downloads the second model's artifact.
+  Real shared-registry export and image deployment remain unverified and require access to both registered
+  models and the matching DVC reference.
 
 - **Team integration (23/11):** Alex merged PR #32, then PR #9 at `fa6bf9c`, into `main`; CI passed tests,
   image builds and container smoke tests. New DVC outputs still need a separate push with isolated school

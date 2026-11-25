@@ -1,0 +1,16 @@
+subject,measure,value,unit,scope,source
+GBG500,raw_readings,1529547,readings,500 rides,../architecture/inventory.md
+GBG500,raw_parquet_size,30206760,bytes,raw file,../architecture/inventory.md
+SRV3490,raw_readings,16892002,readings,3490 rides,../architecture/inventory.md
+SRV3490,raw_parquet_size,268229940,bytes,raw file,../architecture/inventory.md
+ride_classifier,serialized_model_size,193215,bytes,MLflow Python model v2,../architecture/inventory.md
+fall_risk,serialized_model_size,9197,bytes,MLflow Python model v1,../architecture/inventory.md
+ride_classifier,window_shape,6 x 300,values,30 seconds at 10 Hz,../architecture/inventory.md
+ride_classifier,training_seconds_median_cpu,212.62,seconds,three Vertex same-worker runs,results/vertex-gpu-summary.md
+ride_classifier,training_seconds_median_cuda,34.02,seconds,three Vertex same-worker runs,results/vertex-gpu-summary.md
+ride_classifier,training_cuda_allocator_peak,29.14,MiB,allocated tensors not total VRAM,results/vertex-gpu-summary.md
+fall_risk,training_seconds,1294.62,seconds,one full laptop stage with evaluation,results/training-fall-risk-local-1.json
+fall_risk,training_process_tree_peak_rss,2981.71,MiB,one sampled full laptop stage,results/training-fall-risk-local-1.json
+joint_api,peak_process_rss_cpu,810.07,MiB,Vertex CPU classifier,results/vertex-gpu-summary.md
+joint_api,peak_process_rss_cuda,1290.95,MiB,Vertex CUDA classifier plus runtime,results/vertex-gpu-summary.md
+joint_api,cuda_allocator_peak,3.03,MiB,allocated tensors not total VRAM,results/vertex-gpu-summary.md
