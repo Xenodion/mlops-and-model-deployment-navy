@@ -21,6 +21,17 @@ jobs:
     env:
       REPORT_DIR: reports/drift/workflow-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      # On Windows, plain `bash` can resolve to WSL's bash.exe, which is not installed on the runner host (the
+      # scheduled drift run of 24/11 failed on it): put Git Bash first in the PATH, as in cd.yml.
+      - name: Use Git Bash
+        if: runner.os == 'Windows'
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $root = (Get-Command git).Source -replace '\\(cmd|bin|mingw64\\bin)\\git\.exe$', ''
+          $bash = Join-Path $root 'bin'
+          if (-not (Test-Path (Join-Path $bash 'bash.exe'))) { throw "Git Bash not found under $root" }
+          Add-Content -Path $env:GITHUB_PATH -Value $bash
+
       - uses: actions/checkout@v7
 
       - name: Generate scenario when no input was supplied
