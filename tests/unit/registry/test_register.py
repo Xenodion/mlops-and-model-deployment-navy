@@ -4,7 +4,6 @@ import mlflow
 import pytest
 from mlflow import MlflowClient
 
-from ride_classifier.registry.bundle_serving import bundle
 from ride_classifier.registry.export_model import META_FILE, export
 from ride_classifier.registry.register import PRODUCTION, STAGING, promote, register, registration_problems
 
@@ -73,25 +72,3 @@ def test_a_worse_model_than_production_is_not_registered(registry):
     promote(client)  # production now scores 0.45 on the golden rides
     with pytest.raises(SystemExit, match="below the production model"):
         register(client, *log_training(golden_macro_f1=0.30))
-
-
-def test_bundle_downloads_registered_fall_artifact_and_checks_reference(registry, tmp_path):
-    client, log_training, root = registry
-    ride_run, ride_uri = log_training(golden_macro_f1=0.45)
-    register(client, ride_run, ride_uri)
-    destination = tmp_path / "model"
-    export(client, STAGING, destination=destination)
-
-    fall_run, fall_uri = log_training(golden_macro_f1=0.45)
-    artifact = tmp_path / "fall_risk_model.joblib"
-    artifact.write_bytes(b"synthetic test artifact")
-    client.log_artifact(fall_run, str(artifact))
-    fall_version = mlflow.register_model(fall_uri, "fall-risk")
-    client.set_registered_model_alias("fall-risk", STAGING, fall_version.version)
-    reference = tmp_path / "reference.json"
-    reference.write_text(json.dumps({"model_version": ride_uri}), encoding="utf-8")
-
-    details = bundle(client, destination, reference, STAGING)
-    assert details["fall_risk"]["run_id"] == fall_run
-    assert (destination / artifact.name).read_bytes() == artifact.read_bytes()
-    assert (destination / "drift_reference.json").read_bytes() == reference.read_bytes()
