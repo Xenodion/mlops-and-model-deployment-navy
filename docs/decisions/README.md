@@ -4,8 +4,12 @@ One file per decision that shapes the project: context, decision, alternatives r
 They are written to be read when preparing the presentations: each one answers "why did we do it this way?".
 The day-by-day log of what was done is in [../JOURNAL.md](../JOURNAL.md).
 
+**Start with [000](000-project-overview.md):** the whole project in one read, every decision from the data to
+production, linking the records below.
+
 | ADR | Decision | Status | Date |
 |---|---|---|---|
+| [000](000-project-overview.md) | The project in one read: what we built and why (overview of all decisions, including serving, CD and the web app) | reference | 25/11 |
 | [001](001-two-models-ride-type-and-fall-risk.md) | Two distinct models: ride type (cumulative, E3) and fall risk (10 s sliding window) | accepted | 21/11 |
 | [002](002-window-lengths.md) | Windows: 30 s for model 1, 10 s for model 2 (measured comparison, study closed) | accepted | 21/11 |
 | [003](003-srv3490-rotation-unit-conversion.md) | SRV3490 rotation converted with 180/pi, not with the measured ratio | accepted | 21/11 |
