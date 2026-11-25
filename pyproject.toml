@@ -82,6 +82,9 @@ force-exclude = true  # also skip notebooks/ when files are passed explicitly (g
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["ride_classifier"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
