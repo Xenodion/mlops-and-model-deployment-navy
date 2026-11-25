@@ -32,7 +32,7 @@ from MLflow at startup, see [Technical choices](#technical-choices)).
 | Dev environment with Docker Compose | S3, Postgres, MLflow; API and web app (`app` profile); Prometheus and Grafana (`monitoring` profile) | `docker-compose.yml` |
 | Bonus: retraining pipeline | `train.yml`: scheduled or manual training on the self-hosted runner, quality gate, registered as `@staging`. Promotion stays human (`make promote`, then `make k8s-model`) | `.github/workflows/train.yml` |
 | Bonus: monitoring | Prometheus + Grafana dashboard (requests, latency, predictions, input drift), drift exporter, daily drift report (`drift.yml`), on compose and on kind | `monitoring/`, `k8s/monitoring/` |
-| Bonus: feature store | Not done | |
+| Bonus: feature store | Local Feature Store: offline Parquet + SQLite online lookup (`ride_stats`, `window_drift_stats`) | `src/ride_classifier/features/store.py` |
 
 ---
 
@@ -276,7 +276,7 @@ Rule: **every run is tracked in MLflow**; data, models and credentials are never
 - **Capacity under concurrent live rides is not measured** (no load test with a separate load generator, no
   autoscaling); see [AI infrastructure](#ai-infrastructure).
 - **Retraining and drift workflows not yet exercised on GitHub:** `train.yml` has never run; the one scheduled
-  `drift.yml` run failed before the report (Windows runner resolved `bash` to WSL, fixed as in `cd.yml`). The drift
+  `drift.yml` run failed before the report (Windows runner resolved `bash` to WSL, fixed with Git Bash + default `shell: bash` in `train.yml` and `drift.yml`, awaiting a live runner check). The drift
   scenarios were run offline (unit bug and new city detected); the recorded drift demo on kind remains open.
 
 ---
@@ -300,7 +300,7 @@ All numbers below are **measured** unless marked *estimated*. GPU runs: Vertex A
 |---|---|---|---|
 | 1. Resource sizing | – | Classifier: 193 KB model, 30 s × 6 channels input, training 1,580 MiB RAM (CPU) / 29 MiB GPU tensors. Fall risk: 9 KB model, training 2,982 MiB RAM on a laptop (21.6 min). Data: 30 MB (GBG500) and 268 MB (SRV3490). **One machine is enough.** | [resource-sizing.md](ai-infrastructure/architecture/resource-sizing.md) |
 | 2. Baseline benchmark | – | Network alone on laptop CPU: 0.99 ms / window at batch 1, ~10,100 windows/s at batch 128. Full API (both models, one client): live p95 **73 ms** CPU vs **71 ms** with the classifier on A100: the GPU brings no gain to serving. Macro-F1 unchanged (0.511). | [baseline-results.csv](ai-infrastructure/benchmarks/baseline-results.csv), [vertex-gpu-summary.md](ai-infrastructure/benchmarks/results/vertex-gpu-summary.md) |
-| 3. Optimization | PyTorch CPU | ONNX Runtime FP32, classifier network on CPU: batch 1 **0.73 → 0.26 ms** (×2.8), batch 128 **3,565 → 6,809 windows/s** (×1.9); same class on all 1,885 windows. INT8 not done; not yet integrated in the API. | [results-summary.md](ai-infrastructure/optimization/results-summary.md) |
+| 3. Optimization | PyTorch CPU | ONNX Runtime FP32, classifier network on CPU: batch 1 **0.73 → 0.26 ms** (×2.8), batch 128 **3,565 → 6,809 windows/s** (×1.9); same class on all 1,885 windows. API (`INFERENCE_RUNTIME=onnx` / `onnx-int8`) and `compare_onnx.py --include-int8` added; real-weights INT8 run not yet executed. | [results-summary.md](ai-infrastructure/optimization/results-summary.md) |
 | 4. Distributed training | 1 CPU | Classifier training stage **213 s CPU → 34 s on one A100** (×6). DDP / FSDP / ZeRO **not justified**: the model is tiny and one GPU trains it in about 30 s; no multi-GPU run claimed. | [technical-analysis.md](ai-infrastructure/distributed-training/technical-analysis.md) |
 | 5. Scaling, cost, resilience | kind on one laptop | Serve on **CPU**: one `n1-standard-4` VM *estimated* $153 / month compute only (2 VMs: $305). Rollback: on kind a failed release rolled back automatically with the API answering 200 throughout (see [Production](#production-measured-on-the-kind-cluster-2411)). | [infrastructure-plan.md](ai-infrastructure/cost-resilience/infrastructure-plan.md) |
 
@@ -311,5 +311,5 @@ with the classifier exported to ONNX as the next optimization; train on demand o
 distributed. Add replicas only after a load test with a separate load generator: on a shared host, live p95 rose
 from 111 ms (1 client) to 1.2 s (4 clients), so capacity per replica is **not yet measured**.
 
-**Not done / open:** concurrent-load capacity and autoscaling, ONNX in the API and INT8, multi-GPU run, regional
+**Not done / open:** concurrent-load capacity on kind/cloud and autoscaling, real-weights INT8 benchmark run (code ready via `--include-int8` and `INFERENCE_RUNTIME=onnx-int8`), multi-GPU run, regional
 price confirmation from Google's official page, total GPU process memory (only allocator memory was captured).
