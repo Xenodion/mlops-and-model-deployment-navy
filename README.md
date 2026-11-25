@@ -273,8 +273,11 @@ Rule: **every run is tracked in MLflow**; data, models and credentials are never
 - **Drift alert thresholds are provisional** (not calibrated on real production traffic).
 - **The prod host is one laptop:** the self-hosted runner runs only while `run.cmd` is open, and the cluster stops
   with the laptop. A backup host can redeploy everything from Docker Hub and the manifests.
-- **Load test on the cluster** (1 vs 3 replicas, cost per 1,000 predictions) and the AI infrastructure parts below
-  are in progress.
+- **Capacity under concurrent live rides is not measured** (no load test with a separate load generator, no
+  autoscaling); see [AI infrastructure](#ai-infrastructure).
+- **Retraining and drift workflows not yet exercised on GitHub:** `train.yml` has never run; the one scheduled
+  `drift.yml` run failed before the report (Windows runner resolved `bash` to WSL, fixed as in `cd.yml`). The drift
+  scenarios were run offline (unit bug and new city detected); the recorded drift demo on kind remains open.
 
 ---
 
@@ -284,26 +287,29 @@ Second course on the same project (Advanced Cloud AI Infrastructure): explain wh
 it as it is, compare alternatives, and pick an infrastructure justified by those measurements. Model quality is not
 the goal; every choice must rest on a measurement, and every number says whether it was **measured** or **estimated**.
 
-Method: the registered CNN (E3) is the fixed reference. Each experiment changes one thing, its hypothesis and
-conditions are written before it runs, and its raw results are saved. Each part ends with a before/after view.
-Work lives in `ai-infrastructure/` (layout set by the course):
+Method: the registered models are the fixed reference (ride classifier E3 v2, fall-risk v1). Each experiment
+changes one thing, its protocol is written before it runs, raw results are saved in the repo and the runs are logged
+in MLflow. Start with [ai-infrastructure/README.md](ai-infrastructure/README.md), the
+[analysis notebook](ai-infrastructure/benchmarks/benchmark.ipynb) (runs from saved CSV/JSON, no private data) and
+the [evidence index](ai-infrastructure/benchmarks/evidence-index.md) (every number → raw file, Vertex job, MLflow run).
 
-```text
-ai-infrastructure/
-├── README.md                          summary: before/after of every part, recommended infrastructure
-├── architecture/                      current-system.png, proposed-system.png
-├── benchmarks/                        bench.py, benchmark.ipynb, baseline-results.csv
-├── optimization/                      comparison.ipynb
-├── distributed-training/              technical-analysis.md
-└── cost-resilience/                   infrastructure-plan.md
-```
+All numbers below are **measured** unless marked *estimated*. GPU runs: Vertex AI, one Spot `a2-highgpu-1g`
+(A100 40 GB) in `europe-west4`, CPU and CUDA variants run on the same worker; medians of 3 rounds.
 
-| Part | Expected | Before | After | Status |
-|---|---|---|---|---|
-| 1. Resource sizing | Model and framework, dataset size and shape, CPU/GPU, RAM/VRAM, model file size, training duration; is one machine enough? | – | _to fill_ | To do |
-| 2. Baseline benchmark | Mean and p95 latency, throughput (batch size, concurrency), memory, golden macro-F1; network alone, full MLflow model, HTTP API; laptop, Colab CPU, Colab T4 | – | _to fill_ | To do |
-| 3. Optimization | ONNX Runtime (FP32, INT8) and inference settings vs the baseline, same workload and hardware; latency, throughput, memory, quality | _part 2_ | _to fill_ | To do |
-| 4. Distributed training | Is DDP / FSDP / ZeRO justified? 1 vs 2 GPUs, small vs large batches, model scaled up until a GPU / DDP pays off | 1 GPU | _to fill_ | To do |
-| 5. Scaling, cost, resilience | Serving architecture, scaling strategy, monitoring, costs under explicit assumptions, rollback procedure (measured on kind) | current kind cluster | _to fill_ | To do |
+| Part | Before | After / result | Evidence |
+|---|---|---|---|
+| 1. Resource sizing | – | Classifier: 193 KB model, 30 s × 6 channels input, training 1,580 MiB RAM (CPU) / 29 MiB GPU tensors. Fall risk: 9 KB model, training 2,982 MiB RAM on a laptop (21.6 min). Data: 30 MB (GBG500) and 268 MB (SRV3490). **One machine is enough.** | [resource-sizing.md](ai-infrastructure/architecture/resource-sizing.md) |
+| 2. Baseline benchmark | – | Network alone on laptop CPU: 0.99 ms / window at batch 1, ~10,100 windows/s at batch 128. Full API (both models, one client): live p95 **73 ms** CPU vs **71 ms** with the classifier on A100: the GPU brings no gain to serving. Macro-F1 unchanged (0.511). | [baseline-results.csv](ai-infrastructure/benchmarks/baseline-results.csv), [vertex-gpu-summary.md](ai-infrastructure/benchmarks/results/vertex-gpu-summary.md) |
+| 3. Optimization | PyTorch CPU | ONNX Runtime FP32, classifier network on CPU: batch 1 **0.73 → 0.26 ms** (×2.8), batch 128 **3,565 → 6,809 windows/s** (×1.9); same class on all 1,885 windows. INT8 not done; not yet integrated in the API. | [results-summary.md](ai-infrastructure/optimization/results-summary.md) |
+| 4. Distributed training | 1 CPU | Classifier training stage **213 s CPU → 34 s on one A100** (×6). DDP / FSDP / ZeRO **not justified**: the model is tiny and one GPU trains it in about 30 s; no multi-GPU run claimed. | [technical-analysis.md](ai-infrastructure/distributed-training/technical-analysis.md) |
+| 5. Scaling, cost, resilience | kind on one laptop | Serve on **CPU**: one `n1-standard-4` VM *estimated* $153 / month compute only (2 VMs: $305). Rollback: on kind a failed release rolled back automatically with the API answering 200 throughout (see [Production](#production-measured-on-the-kind-cluster-2411)). | [infrastructure-plan.md](ai-infrastructure/cost-resilience/infrastructure-plan.md) |
 
-**Recommended infrastructure** (by request volume, model size and latency target): _to fill from parts 4 and 5_.
+![Proposed system](ai-infrastructure/architecture/proposed-system.png)
+
+**Recommended infrastructure:** serve both models from CPU replicas (no GPU: it does not lower API latency here),
+with the classifier exported to ONNX as the next optimization; train on demand on a single GPU worker (Spot), not
+distributed. Add replicas only after a load test with a separate load generator: on a shared host, live p95 rose
+from 111 ms (1 client) to 1.2 s (4 clients), so capacity per replica is **not yet measured**.
+
+**Not done / open:** concurrent-load capacity and autoscaling, ONNX in the API and INT8, multi-GPU run, regional
+price confirmation from Google's official page, total GPU process memory (only allocator memory was captured).
