@@ -1,0 +1,1752 @@
+[
+  {
+    "insertId": "d2tpufdbno2",
+    "labels": {
+      "ml.googleapis.com/endpoint": "",
+      "ml.googleapis.com/job_state": "SUCCEEDED"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:35:30.557349478Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Job completed successfully.",
+    "timestamp": "2026-11-25T09:35:29.857822300Z"
+  },
+  {
+    "insertId": "d2tpufdbno1",
+    "labels": {
+      "ml.googleapis.com/endpoint": ""
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:35:30.557349478Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Finished tearing down training program.",
+    "timestamp": "2026-11-25T09:35:29.522733316Z"
+  },
+  {
+    "insertId": "d2tpufdbnlx",
+    "labels": {
+      "ml.googleapis.com/endpoint": ""
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:34:43.506285486Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Tearing down training program.",
+    "timestamp": "2026-11-25T09:34:42.398977923Z"
+  },
+  {
+    "insertId": "1c1qixtf8jbn93",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:34:19.284618060Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 5 cuda",
+    "timestamp": "2026-11-25T09:34:16.949662118Z"
+  },
+  {
+    "insertId": "1c1qixtf8jbn92",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:34:19.284618060Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 5 cpu",
+    "timestamp": "2026-11-25T09:34:15.748957267Z"
+  },
+  {
+    "insertId": "1hklebkfaphatg",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:33:59.282458284Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 4 cpu",
+    "timestamp": "2026-11-25T09:33:55.549580695Z"
+  },
+  {
+    "insertId": "1sfdz7nf9n6c1s",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:33:39.275791017Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 4 cuda",
+    "timestamp": "2026-11-25T09:33:35.348931667Z"
+  },
+  {
+    "insertId": "1sfdz7nf9n6c1r",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:33:39.275791017Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 3 cuda",
+    "timestamp": "2026-11-25T09:33:34.349398534Z"
+  },
+  {
+    "insertId": "qxiixbfc1s77t",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:33:34.285443782Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 3 cpu",
+    "timestamp": "2026-11-25T09:33:33.148766375Z"
+  },
+  {
+    "insertId": "1gzyhv0f8dpc99",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:33:14.276493389Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 2 cpu",
+    "timestamp": "2026-11-25T09:33:09.349650996Z"
+  },
+  {
+    "insertId": "o6wqmuf148hsw",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:49.269299561Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 2 cuda",
+    "timestamp": "2026-11-25T09:32:45.749430405Z"
+  },
+  {
+    "insertId": "o6wqmuf148hsv",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:49.269299561Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 1 cuda",
+    "timestamp": "2026-11-25T09:32:44.749239106Z"
+  },
+  {
+    "insertId": "1jjcevmf9la99m",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:44.264187472Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Completed round 1 cpu",
+    "timestamp": "2026-11-25T09:32:42.949215176Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnum",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.132733963Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149366366Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnul",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "export GIT_PYTHON_REFRESH=quiet",
+    "timestamp": "2026-11-25T09:32:19.149363961Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnuk",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Example:",
+    "timestamp": "2026-11-25T09:32:19.149361087Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnuj",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.132725596Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149358398Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnui",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- error|e|exception|raise|r|2: for a raised exception",
+    "timestamp": "2026-11-25T09:32:19.149355878Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnuh",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- warn|w|warning|log|l|1: for a warning message (logging level CRITICAL, displayed by default)",
+    "timestamp": "2026-11-25T09:32:19.149353400Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnug",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- quiet|q|silence|s|silent|none|n|0: for no message or exception",
+    "timestamp": "2026-11-25T09:32:19.149351154Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnuf",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "$GIT_PYTHON_REFRESH environment variable. Use one of the following values:",
+    "timestamp": "2026-11-25T09:32:19.149348198Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnue",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "This initial message can be silenced or aggravated in the future by setting the",
+    "timestamp": "2026-11-25T09:32:19.149346001Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnud",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.132708972Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149343496Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnuc",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "All git commands will error until this is rectified.",
+    "timestamp": "2026-11-25T09:32:19.149339906Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnub",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.132703014Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149337918Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnua",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- explicitly set via git.refresh(<full-path-to-git-executable>)",
+    "timestamp": "2026-11-25T09:32:19.149335911Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu9",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be set via $GIT_PYTHON_GIT_EXECUTABLE",
+    "timestamp": "2026-11-25T09:32:19.149333788Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu8",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be included in your $PATH",
+    "timestamp": "2026-11-25T09:32:19.149331746Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu7",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "The git executable must be specified in one of the following ways:",
+    "timestamp": "2026-11-25T09:32:19.149329679Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu6",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026/11/25 09:32:19 WARNING mlflow.utils.git_utils: Failed to import Git (the Git executable is probably not on your PATH), so Git repository URL is not available. Error: Failed to initialize: Bad git executable.",
+    "timestamp": "2026-11-25T09:32:19.149327500Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu5",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.130642152Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149325471Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu4",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "export GIT_PYTHON_REFRESH=quiet",
+    "timestamp": "2026-11-25T09:32:19.149322689Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu3",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Example:",
+    "timestamp": "2026-11-25T09:32:19.149320351Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu2",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.130633623Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149316598Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu1",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- error|e|exception|raise|r|2: for a raised exception",
+    "timestamp": "2026-11-25T09:32:19.149314244Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnu0",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- warn|w|warning|log|l|1: for a warning message (logging level CRITICAL, displayed by default)",
+    "timestamp": "2026-11-25T09:32:19.149312080Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntz",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- quiet|q|silence|s|silent|none|n|0: for no message or exception",
+    "timestamp": "2026-11-25T09:32:19.149309339Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnty",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "$GIT_PYTHON_REFRESH environment variable. Use one of the following values:",
+    "timestamp": "2026-11-25T09:32:19.149286121Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntx",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "This initial message can be silenced or aggravated in the future by setting the",
+    "timestamp": "2026-11-25T09:32:19.149283929Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntw",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.130609865Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149281438Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntv",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "All git commands will error until this is rectified.",
+    "timestamp": "2026-11-25T09:32:19.149278646Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntu",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.130605785Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149276520Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntt",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- explicitly set via git.refresh(<full-path-to-git-executable>)",
+    "timestamp": "2026-11-25T09:32:19.149273059Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnts",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be set via $GIT_PYTHON_GIT_EXECUTABLE",
+    "timestamp": "2026-11-25T09:32:19.149271123Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntr",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be included in your $PATH",
+    "timestamp": "2026-11-25T09:32:19.149269026Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntq",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "The git executable must be specified in one of the following ways:",
+    "timestamp": "2026-11-25T09:32:19.149267115Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntp",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026/11/25 09:32:19 WARNING mlflow.utils.git_utils: Failed to import Git (the Git executable is probably not on your PATH), so Git branch is not available. Error: Failed to initialize: Bad git executable.",
+    "timestamp": "2026-11-25T09:32:19.149265419Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnto",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.12824645Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149262818Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntn",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "export GIT_PYTHON_REFRESH=quiet",
+    "timestamp": "2026-11-25T09:32:19.149260499Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntm",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "Example:",
+    "timestamp": "2026-11-25T09:32:19.149258472Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntl",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.1282408Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149256328Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntk",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- error|e|exception|raise|r|2: for a raised exception",
+    "timestamp": "2026-11-25T09:32:19.149254338Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntj",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- warn|w|warning|log|l|1: for a warning message (logging level CRITICAL, displayed by default)",
+    "timestamp": "2026-11-25T09:32:19.149252378Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnti",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- quiet|q|silence|s|silent|none|n|0: for no message or exception",
+    "timestamp": "2026-11-25T09:32:19.149250083Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnth",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "$GIT_PYTHON_REFRESH environment variable. Use one of the following values:",
+    "timestamp": "2026-11-25T09:32:19.149247602Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntg",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "This initial message can be silenced or aggravated in the future by setting the",
+    "timestamp": "2026-11-25T09:32:19.149245178Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntf",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.128229248Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149243312Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnte",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "All git commands will error until this is rectified.",
+    "timestamp": "2026-11-25T09:32:19.149241260Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntd",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026-11-25T09:32:19.128225355Z stderr F",
+    "timestamp": "2026-11-25T09:32:19.149237093Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntc",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- explicitly set via git.refresh(<full-path-to-git-executable>)",
+    "timestamp": "2026-11-25T09:32:19.149234869Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjntb",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be set via $GIT_PYTHON_GIT_EXECUTABLE",
+    "timestamp": "2026-11-25T09:32:19.149232275Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnta",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "- be included in your $PATH",
+    "timestamp": "2026-11-25T09:32:19.149229941Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnt9",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "The git executable must be specified in one of the following ways:",
+    "timestamp": "2026-11-25T09:32:19.149227685Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnt8",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026/11/25 09:32:19 WARNING mlflow.utils.git_utils: Failed to import Git (the Git executable is probably not on your PATH), so Git SHA is not available. Error: Failed to initialize: Bad git executable.",
+    "timestamp": "2026-11-25T09:32:19.149224851Z"
+  },
+  {
+    "insertId": "1sei1g1f4jjnt7",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:19.269141054Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "2026/11/25 09:32:19 INFO mlflow.tracking.fluent: Experiment with name 'vertex-gpu' does not exist. Creating a new experiment.",
+    "timestamp": "2026-11-25T09:32:19.149179696Z"
+  },
+  {
+    "insertId": "sx0q35fb2znz7",
+    "labels": {
+      "compute.googleapis.com/resource_id": "901829533322908900",
+      "compute.googleapis.com/resource_name": "gk3-cml-1124-184332-e2c9-nap-1lgcebhp-60d593c8-v2kn",
+      "compute.googleapis.com/zone": "",
+      "instrumentation_source": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/filelogreceiver",
+      "instrumentation_version": "0.164.0",
+      "log.file.name": "0.log",
+      "ml.googleapis.com/job_id": "1129352991829131264",
+      "ml.googleapis.com/task_name": "workerpool0-0"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/workerpool0-0",
+    "receiveTimestamp": "2026-11-25T09:32:08.393493719Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "321183721236",
+        "task_name": "workerpool0-0"
+      },
+      "type": "ml_job"
+    },
+    "textPayload": "WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.",
+    "timestamp": "2026-11-25T09:32:07.348797622Z"
+  },
+  {
+    "insertId": "d2tpufdbn8s",
+    "labels": {
+      "ml.googleapis.com/endpoint": "",
+      "ml.googleapis.com/job_state": "RUNNING"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:29:41.171028747Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Job is running.",
+    "timestamp": "2026-11-25T09:29:40.541813488Z"
+  },
+  {
+    "insertId": "d2tpufdbn61",
+    "labels": {
+      "ml.googleapis.com/endpoint": "",
+      "ml.googleapis.com/job_state": "PREPARING"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:28:30.089799127Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Job is preparing.",
+    "timestamp": "2026-11-25T09:28:29.299206933Z"
+  },
+  {
+    "insertId": "d2tpufdbn5z",
+    "labels": {
+      "ml.googleapis.com/endpoint": ""
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:28:28.094296775Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Waiting for training program to start.",
+    "timestamp": "2026-11-25T09:28:27.045769033Z"
+  },
+  {
+    "insertId": "d2tpufdbn5y",
+    "labels": {
+      "ml.googleapis.com/endpoint": ""
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:28:28.094296775Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Vertex AI is setting up this job.",
+    "timestamp": "2026-11-25T09:28:26.898329939Z"
+  },
+  {
+    "insertId": "d2tpufdbn5x",
+    "labels": {
+      "ml.googleapis.com/endpoint": ""
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:28:28.094296775Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Vertex AI is provisioning job running framework. First time usage might take couple of minutes, and subsequent runs can be much faster.",
+    "timestamp": "2026-11-25T09:28:26.885975404Z"
+  },
+  {
+    "insertId": "d2tpufdbn5w",
+    "labels": {
+      "ml.googleapis.com/endpoint": "",
+      "ml.googleapis.com/job_state": "QUEUED"
+    },
+    "logName": "projects/advanced-cloud-ai-i2/logs/ml.googleapis.com%2F1129352991829131264",
+    "receiveTimestamp": "2026-11-25T09:28:28.094296775Z",
+    "resource": {
+      "labels": {
+        "job_id": "1129352991829131264",
+        "project_id": "advanced-cloud-ai-i2",
+        "task_name": "service"
+      },
+      "type": "ml_job"
+    },
+    "severity": "INFO",
+    "textPayload": "Waiting for job to be provisioned.",
+    "timestamp": "2026-11-25T09:28:26.876233824Z"
+  }
+]

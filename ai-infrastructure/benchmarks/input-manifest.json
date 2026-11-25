@@ -1,0 +1,88 @@
+{
+  "status": "Local inventory pending verification against the integrated serving revision",
+  "files": [
+    {
+      "path": "ai-infrastructure/benchmarks/windows.npy",
+      "bytes": 13572128,
+      "sha256": "524b6d8c83a91cf37628889d45d3d3dd6fba8a6452d99c3f6908a9f57ff1bc35"
+    },
+    {
+      "path": "ai-infrastructure/benchmarks/reference_argmax.npy",
+      "bytes": 15208,
+      "sha256": "f065ae4ba22da53b73c2c21e8bea20b759df526a65b3109243422bca08185ec3"
+    },
+    {
+      "path": "ai-infrastructure/benchmarks/net_state.pt",
+      "bytes": 190040,
+      "sha256": "80bbc5c844589f3a207b609a67ca7eef85d6bedfcf37a072af4f3d2ad9cb3fc3"
+    },
+    {
+      "path": "artifacts/golden_predictions.csv",
+      "bytes": 13601,
+      "sha256": "272f2dbbffc69e36b71cdc16e3299520ce77aa23c4d0b715632013a0eca449a2"
+    },
+    {
+      "path": "artifacts/fall_risk_model.joblib",
+      "bytes": 9283,
+      "sha256": "8f35b8c93ffe6e8a8572c2bd7712c008186e1dad70b1c5418737fc37475271cb"
+    },
+    {
+      "path": "artifacts/fall_risk_heldout_scores.csv",
+      "bytes": 4139391,
+      "sha256": "10092695db42b2e71ced99da691dad8b1e441624cb756b97c922e2cb4d21bf7b"
+    },
+    {
+      "path": "artifacts/train_run.json",
+      "bytes": 114,
+      "sha256": "2c0422bca9f58cf6e7ca58667a8f24aacae9854b4fa2c99138f67acaa48ce7a0"
+    },
+    {
+      "path": "artifacts/fall_risk_run.json",
+      "bytes": 114,
+      "sha256": "fc3f9e9f18a9325aa4bbc1ca93222f0e6d4395f5bef706df7ce730bdb17c4be4"
+    }
+  ],
+  "arrays": {
+    "windows.npy": {
+      "shape": [
+        1885,
+        6,
+        300
+      ],
+      "dtype": "float32"
+    },
+    "reference_argmax.npy": {
+      "shape": [
+        1885
+      ],
+      "dtype": "int64"
+    }
+  },
+  "csv_data_rows": {
+    "golden_predictions.csv": 100,
+    "fall_risk_heldout_scores.csv": 25542
+  },
+  "local_verification": {
+    "export_run": "50859c8d81184d45a6615c88305006e2",
+    "golden_macro_f1": 0.5107296386662019,
+    "changed_vs_saved_ride_predictions": 5,
+    "fall_metrics_from_saved_scores": {
+      "5": {
+        "rows": 12742,
+        "window_auc": 0.7119062850786173,
+        "paired_auc": 0.8878048780487805,
+        "n_groups": 205.0
+      },
+      "10": {
+        "rows": 12800,
+        "window_auc": 0.690968239285626,
+        "paired_auc": 0.7560975609756098,
+        "n_groups": 205.0
+      }
+    },
+    "mapping_sha256": {
+      "ride-boundaries.csv": "77b4e2cfcc7391841ab8d815f0917b3518ba06876fa10ef62568bd434868f92e",
+      "fall_groups.csv": "c195922a5e19ce8cdd90418ad4afa54956b2543b62eec219bffad104824b94ea"
+    }
+  }
+}

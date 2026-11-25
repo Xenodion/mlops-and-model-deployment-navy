@@ -2,3 +2,6 @@
 windows.npy
 net_state.pt
 reference_argmax.npy
+ride-boundaries.csv
+.fall-training-work/
+results/**/mlruns.tar.gz

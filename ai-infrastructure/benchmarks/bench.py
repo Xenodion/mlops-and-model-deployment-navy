@@ -23,7 +23,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import psutil
 import torch
 from torch import nn
 
@@ -96,6 +95,8 @@ def _cpu_name() -> str:
 
 
 def environment(device: str, n_gpus: int) -> dict[str, object]:
+    import psutil
+
     use_cuda = device == "cuda" and torch.cuda.is_available()
     try:
         import onnxruntime
@@ -125,6 +126,8 @@ def pick_indices(n_windows: int, batch_size: int, rng: np.random.Generator) -> n
 
 def bench_batch(predict, x: torch.Tensor, device: str, warmup: int, repeats: int):
     """Times predict(x): warm-up, then `repeats` timed calls. Returns latencies (ms), peak RSS (MB), last argmax."""
+    import psutil
+
     sync = torch.cuda.synchronize if device == "cuda" else (lambda: None)
     proc = psutil.Process(os.getpid())
     peak_rss = proc.memory_info().rss
@@ -141,6 +144,13 @@ def bench_batch(predict, x: torch.Tensor, device: str, warmup: int, repeats: int
             latencies.append((time.perf_counter() - start) * 1000)
             peak_rss = max(peak_rss, proc.memory_info().rss)
     return latencies, peak_rss / 1024**2, out.argmax(dim=1).cpu().numpy()
+
+
+def timed_http_post(session, url, body):
+    """Time a prepared JSON payload through receipt of the complete HTTP response."""
+    started = time.perf_counter()
+    response = session.post(url, data=body, headers={"Content-Type": "application/json"}, timeout=90)
+    return response, (time.perf_counter() - started) * 1000
 
 
 def run_inference(args: argparse.Namespace) -> list[dict[str, object]]:
