@@ -19,14 +19,14 @@ Purpose: make `ai-infrastructure/` understandable, reproducible and ready for a 
   explanatory views. `benchmark.ipynb` now includes optimization instead of a separate notebook;
   it was executed locally and in a minimal evidence-only copy. Continue reviewing alternatives and
   traceability. Do not follow the older dark-background or separate-notebook wording below.
-- CI17–18 and publication remain open. `ai-infrastructure/requirements-review.md` identifies the
-  remaining caveats, and `review-and-sharing.md` proposes an explicit Cloud-only sharing scope.
-  No slides were changed, committed or pushed in this pass.
+- Cloud evidence was committed and pushed on `dev_vincent` as `9275528`. CI17–18 remain open:
+  `ai-infrastructure/requirements-review.md` identifies caveats and `oral-evidence.md` proposes
+  the presentation narrative. Verify pricing and coordinate the shared MLOps load/rollback tests.
 
 ## Priorities and evidence
 
 - **P0** enables the rest or prevents loss of evidence. **P1** covers the teacher's expected contribution and Vincent's requested notebooks and figures. **P2** improves interpretation or a shared MLOps demonstration. **P3** is optional.
-- Done means evidence exists and has been validated. Files currently uncommitted on `dev_vincent` are local evidence, not yet team-accessible through Git. Published MLflow runs are team-accessible subject to permissions.
+- Done means evidence exists and has been validated. The Cloud evidence in commit `9275528` is team-accessible on `dev_vincent`; any subsequent local changes are not shared until pushed. MLflow runs require permission.
 - Pinned release `c193360`, image digest `sha256:a9164bacca4e95f4389334d00e4251a1ddaa6c3b1c77176167e9dd7b84d5f7a8`, ride-classifier/2 and fall-risk/1. Both outputs share the API. Live and whole-ride requests have distinct meanings.
 - Paired classifier forward job `1129352991829131264`, joint API job `2031761767163494400`, classifier training job `2097063961760366592` succeeded and terminated. Raw results, logs, provenance, MLflow IDs and limitations are in `ai-infrastructure/benchmarks/results/vertex-gpu-summary.md`. CPU and GPU on the same A100 host are not CPU-only hosting prices. One GPU was used; no multi-GPU claim.
 - Fall-risk local full training completed once with tracking and quality metrics. Existing CPU mixed-load run `2985610094491729920` is a closed-loop shared-host stress test, not measured live-ride capacity or an autoscaling test.

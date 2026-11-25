@@ -1,6 +1,6 @@
 # Cloud benchmark evidence index
 
-The following evidence is local until reviewed and published. Source release `c193360`, image
+The following evidence was published on `dev_vincent` in commit `9275528`. Source release `c193360`, image
 `sha256:a9164bacca4e95f4389334d00e4251a1ddaa6c3b1c77176167e9dd7b84d5f7a8`, ride classifier v2 and fall-risk v1.
 See [the full summary](results/vertex-gpu-summary.md) for methodology and boundaries.
 

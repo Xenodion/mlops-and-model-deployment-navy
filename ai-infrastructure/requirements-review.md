@@ -2,7 +2,8 @@
 
 The workshop brief is local at `lectures/ai-infrastructure/project-requirements.md`. This is an
 artifact review, not a claim that the team has approved the presentation or deployed the proposed
-architecture. Files remain local until reviewed and published.
+architecture. The measured Cloud evidence was published on `dev_vincent` in commit `9275528`;
+the proposed design and oral remain subject to team review.
 
 | Requirement | Evidence | Remaining qualification |
 |---|---|---|
@@ -17,7 +18,7 @@ architecture. Files remain local until reviewed and published.
 
 Before slides: review the notebook's alternative figures and choose only those that support the
 oral argument; verify pricing and whether the MLOps team has a real rollback drill; review and
-share the Cloud files. Screenshots of MLflow or Vertex can supplement evidence if they add
+review the shared Cloud files. Screenshots of MLflow or Vertex can supplement evidence if they add
 clarity, but should not expose private data or credentials. Vincent asked for a cover, contents
 and progress indicator in the deck; this review does not prescribe slide layouts or invent a
 business justification.

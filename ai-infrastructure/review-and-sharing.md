@@ -1,8 +1,8 @@
-# Review and sharing scope
+# Review and sharing scope (historical)
 
-This is a proposed Cloud-only handoff for Vincent's review, not an instruction to push. Nothing
-in this list has been staged by this step. The repository has other existing changes, including
-two slide plans; review them separately and do not include them implicitly.
+The Cloud evidence described below was shared in commit `9275528` on `dev_vincent`. This file
+records the scope and privacy checks used for that handoff. Other local changes, including slide
+plans, were not included in that commit and require separate review.
 
 ## Proposed Cloud evidence
 
