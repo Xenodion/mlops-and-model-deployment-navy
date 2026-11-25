@@ -24,6 +24,9 @@ jobs:
     # The runner owns its isolated school-account DVC credentials and reachable MLflow endpoint.
     runs-on: self-hosted
     timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
     concurrency:
       group: retrain-ride-classifier
       cancel-in-progress: false

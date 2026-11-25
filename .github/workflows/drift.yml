@@ -18,6 +18,9 @@ jobs:
     # The runner must already have the project environment and DVC data, including the reference.
     runs-on: self-hosted
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     env:
       REPORT_DIR: reports/drift/workflow-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
