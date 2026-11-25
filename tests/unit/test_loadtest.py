@@ -111,3 +111,14 @@ def test_load_shape_advances_by_configured_steps(monkeypatch):
     assert shape.tick() == (20, 2)
     monkeypatch.setattr(shape, "get_run_time", lambda: 120)
     assert shape.tick() is None
+
+
+def test_synthetic_mode_provides_valid_windows_without_private_data(monkeypatch):
+    locustfile.load_rides.cache_clear()
+    monkeypatch.setenv("LOADTEST_SYNTHETIC", "1")
+    try:
+        rides = locustfile.load_rides()
+        assert len(rides) == 10
+        assert locustfile.window_count(rides[0], 30, 15) == 3
+    finally:
+        locustfile.load_rides.cache_clear()

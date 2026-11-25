@@ -12,10 +12,19 @@ import uuid
 from functools import lru_cache
 
 import gevent
+import numpy as np
 import pandas as pd
 from locust import HttpUser, constant, task
 
-from ride_classifier.config import ID_COLUMN, ROOT, SAMPLING_HZ, SENSOR_COLUMNS, TIME_COLUMN, load_params
+from ride_classifier.config import (
+    ID_COLUMN,
+    ROOT,
+    SAMPLING_HZ,
+    SAMPLING_PERIOD_MS,
+    SENSOR_COLUMNS,
+    TIME_COLUMN,
+    load_params,
+)
 from ride_classifier.data.clean import clean_rides
 
 
@@ -38,12 +47,27 @@ def window_payload(ride: pd.DataFrame, index: int, window_s: float, stride_s: fl
     }
 
 
+def synthetic_rides(n_rides: int = 10, n_samples: int = 600) -> list[pd.DataFrame]:
+    """Generate synthetic 60 s rides in GBG500 format when LOADTEST_SYNTHETIC=1 is explicitly set."""
+    rides = []
+    for idx in range(n_rides):
+        rng = np.random.default_rng(idx)
+        ride = pd.DataFrame(rng.normal(0.0, 1.0, size=(n_samples, len(SENSOR_COLUMNS))), columns=SENSOR_COLUMNS)
+        ride["ay"] -= 9.2
+        ride.insert(0, TIME_COLUMN, np.arange(n_samples) * SAMPLING_PERIOD_MS)
+        ride.insert(0, ID_COLUMN, f"synthetic-{idx}")
+        rides.append(ride)
+    return rides
+
+
 @lru_cache(maxsize=1)
 def load_rides() -> list[pd.DataFrame]:
     """Load once per Locust process; short rides cannot produce a complete window."""
     params = load_params()
-    frame = clean_rides(pd.read_parquet(ROOT / params["loadtest"]["source_path"]))
     cnn = params["train"]["cnn"]
+    if os.getenv("LOADTEST_SYNTHETIC") == "1":
+        return [ride for ride in synthetic_rides() if window_count(ride, cnn["window_s"], cnn["stride_s"])]
+    frame = clean_rides(pd.read_parquet(ROOT / params["loadtest"]["source_path"]))
     result = [
         ride for _, ride in frame.groupby(ID_COLUMN, sort=True) if window_count(ride, cnn["window_s"], cnn["stride_s"])
     ]

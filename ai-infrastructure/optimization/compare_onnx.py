@@ -1,5 +1,6 @@
-"""Run the preregistered CPU-only ONNX comparison and track it in MLflow."""
+"""Run the preregistered CPU-only ONNX comparison (FP32 and optional dynamic INT8) and track it in MLflow."""
 
+import argparse
 import csv
 import hashlib
 import json
@@ -13,6 +14,7 @@ import mlflow
 import numpy as np
 import onnxruntime as ort
 import torch
+from onnxruntime.quantization import QuantType, quantize_dynamic
 from sklearn.metrics import f1_score
 
 HERE = Path(__file__).resolve().parent
@@ -21,7 +23,22 @@ sys.path.insert(0, str(BENCH))
 from bench import bench_batch, load_net  # noqa: E402
 
 
-def main():
+def _make_ort_predictor(model_path: Path):
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 2
+    options.inter_op_num_threads = 1
+    session = ort.InferenceSession(str(model_path), sess_options=options, providers=["CPUExecutionProvider"])
+
+    def predict(x):
+        return torch.from_numpy(session.run(None, {"windows": x.numpy()})[0])
+
+    return predict
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--include-int8", action="store_true", help="Also export and benchmark dynamic INT8 ONNX")
+    args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     uri = os.environ.get("MLFLOW_TRACKING_URI")
@@ -40,7 +57,8 @@ def main():
     net = load_net(inputs[0])
     output = HERE / "results"
     output.mkdir(exist_ok=True)
-    with mlflow.start_run(run_name="E3-cpu-onnx-fp32") as run, tempfile.TemporaryDirectory() as tmp:
+    run_name = "E3-cpu-onnx-fp32-int8" if args.include_int8 else "E3-cpu-onnx-fp32"
+    with mlflow.start_run(run_name=run_name) as run, tempfile.TemporaryDirectory() as tmp:
         mlflow.log_params(
             {
                 "release": "c193360",
@@ -51,28 +69,25 @@ def main():
                 "repeats": 200,
                 "batches": "1,8,32,128",
                 "device": "cpu",
+                "include_int8": args.include_int8,
             }
         )
-        export = str(Path(tmp) / "model.onnx")
+        export = Path(tmp) / "model.onnx"
         torch.onnx.export(
             net,
             torch.from_numpy(windows[:1]),
-            export,
+            str(export),
             input_names=["windows"],
             output_names=["logits"],
             dynamic_axes={"windows": {0: "batch"}, "logits": {0: "batch"}},
             opset_version=17,
             dynamo=False,
         )
-        options = ort.SessionOptions()
-        options.intra_op_num_threads = 2
-        options.inter_op_num_threads = 1
-        session = ort.InferenceSession(export, sess_options=options, providers=["CPUExecutionProvider"])
-
-        def onnx_predict(x):
-            return torch.from_numpy(session.run(None, {"windows": x.numpy()})[0])
-
-        runtimes = {"pytorch": net, "onnx": onnx_predict}
+        runtimes = {"pytorch": net, "onnx": _make_ort_predictor(export)}
+        if args.include_int8:
+            int8_path = Path(tmp) / "model_int8.onnx"
+            quantize_dynamic(str(export), str(int8_path), weight_type=QuantType.QUInt8)
+            runtimes["onnx_int8"] = _make_ort_predictor(int8_path)
         quality = {}
         with torch.inference_mode():
             for name, predict in runtimes.items():
@@ -88,8 +103,9 @@ def main():
         agreement = float(np.mean(quality["pytorch"]["scores"].argmax(1) == quality["onnx"]["scores"].argmax(1)))
         max_diff = float(np.max(np.abs(quality["pytorch"]["scores"] - quality["onnx"]["scores"])))
         rows = []
+        runtime_names = list(runtimes)
         for rnd in range(3):
-            order = ("pytorch", "onnx") if rnd % 2 == 0 else ("onnx", "pytorch")
+            order = runtime_names if rnd % 2 == 0 else list(reversed(runtime_names))
             indices = np.random.default_rng(rnd).permutation(len(windows))
             for name in order:
                 for batch in (1, 8, 32, 128):
@@ -125,15 +141,26 @@ def main():
             "onnx_ride_macro_f1": quality["onnx"]["f1"],
             "memory_note": "Process RSS includes both loaded runtimes, not isolated runtime memory.",
         }
+        if args.include_int8:
+            meta["int8_window_argmax_agreement"] = float(
+                np.mean(quality["pytorch"]["scores"].argmax(1) == quality["onnx_int8"]["scores"].argmax(1))
+            )
+            meta["int8_max_probability_difference"] = float(
+                np.max(np.abs(quality["pytorch"]["scores"] - quality["onnx_int8"]["scores"]))
+            )
+            meta["onnx_int8_ride_macro_f1"] = quality["onnx_int8"]["f1"]
         (output / "environment.json").write_text(json.dumps(meta, indent=2))
-        mlflow.log_metrics(
-            {
-                "window_argmax_agreement": agreement,
-                "max_probability_difference": max_diff,
-                "pytorch_ride_macro_f1": quality["pytorch"]["f1"],
-                "onnx_ride_macro_f1": quality["onnx"]["f1"],
-            }
-        )
+        metrics = {
+            "window_argmax_agreement": agreement,
+            "max_probability_difference": max_diff,
+            "pytorch_ride_macro_f1": quality["pytorch"]["f1"],
+            "onnx_ride_macro_f1": quality["onnx"]["f1"],
+        }
+        if args.include_int8:
+            metrics["int8_window_argmax_agreement"] = meta["int8_window_argmax_agreement"]
+            metrics["int8_max_probability_difference"] = meta["int8_max_probability_difference"]
+            metrics["onnx_int8_ride_macro_f1"] = meta["onnx_int8_ride_macro_f1"]
+        mlflow.log_metrics(metrics)
         mlflow.log_artifacts(str(output), artifact_path="onnx-comparison")
         print(json.dumps(meta, indent=2))
 
