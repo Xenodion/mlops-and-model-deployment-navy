@@ -424,7 +424,7 @@ Code and models are released separately:
 ### D15 - CI tests everything and never deploys; CD deploys after a human approval, with automatic rollback ✚
 
 - **CI** (`ci.yml`, every push and pull request, GitHub's machines):
-  - ruff and the **208 tests**;
+  - ruff and the **215 tests**;
   - both images built and started;
   - a **container smoke test** with test models: `/health`, then a prediction with both models.
 - **CD** (`cd.yml`, every merge into `main` that touches code, images or `k8s/`):
@@ -554,7 +554,7 @@ Code and models are released separately:
 | Quality gate | Golden macro-F1 ≥ 0.30 and above both references |
 | Live latency on kind | Median 128 ms, p95 184 ms (budget 200 ms) |
 | CD | Images 3 min, release 4 min; failed release rolled back with no downtime |
-| Tests | 208 |
+| Tests | 215 |
 | Cluster memory | 3.8 GB with everything running |
 
 ## 11. Limits and open items
@@ -569,7 +569,6 @@ Code and models are released separately:
   - the load test of 1 vs 3 replicas (TST-2);
   - the timed canary and rollback drill (OPS-3);
   - the CI integration job with the compose stack (INF-3);
-  - a feature store (optional);
   - running `train.yml` and `drift.yml` on a runner.
 
 ## 12. Where things are

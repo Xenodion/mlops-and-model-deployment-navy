@@ -178,7 +178,7 @@ See the [demo script](#demo-script) below. Order: web app → Swagger → Grafan
 ## Slide 9: CI/CD (1:10)
 
 **On the slide:**
-- CI (`ci.yml`, every pull request): lint, **208 tests**, build both images, start them, smoke test
+- CI (`ci.yml`, every pull request): lint, **215 tests**, build both images, start them, smoke test
 - CD (`cd.yml`, every merge to main): build → smoke test → push to Docker Hub → **manual approval** →
   release on the cluster from a **self-hosted runner** → smoke test on the cluster → **automatic rollback** if
   anything fails → the bot commits the released tag
@@ -290,10 +290,10 @@ If time is short, keep the web app and Grafana; Swagger can stay a screenshot.
 | Why a self-hosted runner? Isn't it risky? | GitHub can't reach a cluster on a laptop. The runner only takes the release job, triggered by merges to main or by hand, never by pull requests. |
 | Where is the model stored? | MLflow stores models in S3-compatible storage (SeaweedFS), in dev and in the cluster, as the brief's "S3 (MinIO)". |
 | Is retraining automatic? | The training workflow is (`train.yml`: schedule or manual, gated, registered as staging), but it hasn't run on our runner yet. Promotion to production is a human decision, on purpose. |
-| What would you do with more time? | Calibrate model 2's alert threshold and the drift thresholds, a load test of 1 vs 3 replicas, run the retraining workflow on the runner, a feature store (the third bonus). |
+| What would you do with more time? | Calibrate model 2's alert threshold and the drift thresholds, a load test of 1 vs 3 replicas, run the retraining workflow on the runner. |
 | How did you split the work? | _Fill in: who did what._ Each part went through pull requests; decisions are recorded in `docs/decisions/`. |
 
 ## Numbers to remember
 
-Model 1: golden macro-F1 **0.511** (random 0.20) · CV 0.357 ± 0.071 · Model 2: paired AUC **0.888** · **208 tests** ·
+Model 1: golden macro-F1 **0.511** (random 0.20) · CV 0.357 ± 0.071 · Model 2: paired AUC **0.888** · **215 tests** ·
 **16 PRs** · live latency **128 ms** median, **184 ms** p95 · CD: build 3 min + release 4 min · cluster **3.8 GB**.

@@ -233,7 +233,8 @@ The brief's template, filled (model 1's network; batch of 1 window · batch of 1
 **Say:** "Since serving stays on CPU, we optimized the CPU path. ONNX Runtime makes one window almost three times
 faster and doubles throughput in batches, with identical predictions and the same macro-F1. We are careful about
 what it means: this is the network alone. In the API, the network is about one percent of a live request, so the
-end-to-end gain would be small. It matters for whole rides and batch scoring, and we haven't wired it in yet."
+end-to-end gain would be small. It matters for whole rides and batch scoring. The API can now run on ONNX with one setting
+(`INFERENCE_RUNTIME=onnx`), but production uses PyTorch and the API path isn't measured end to end."
 
 The "about one percent" is our estimate: 0.73 ms of network out of a 67 ms live request.
 
@@ -310,7 +311,7 @@ reasoning is that they pay off on large matrix workloads, and ours uses 29 megab
 - **Not measured:**
   - capacity under concurrent live rides;
   - a CPU-only VM;
-  - ONNX inside the API;
+  - ONNX measured inside the API (the option exists since 25/11, off in production);
   - TPUs;
   - a timed rollback drill;
   - the real Vertex bill.
